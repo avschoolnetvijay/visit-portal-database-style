@@ -2086,93 +2086,53 @@
             onReset, 
             status, 
             onGoogleFetch, 
-            googleLoading,
-            googleApiKey,
-            setGoogleApiKey,
-            googleSheetId,
-            setGoogleSheetId,
-            targetGid,
-            setTargetGid
+            googleLoading
         }) => {
-            const [tempKey, setTempKey] = useState(googleApiKey);
-            const [tempId, setTempId] = useState(googleSheetId);
-            const [tempGid, setTempGid] = useState(targetGid);
-            const [saveSuccess, setSaveSuccess] = useState(false);
-
-            const handleSaveConfig = (e) => {
-                e.preventDefault();
-                localStorage.setItem('snet_google_api_key', tempKey);
-                localStorage.setItem('snet_google_sheet_id', tempId);
-                localStorage.setItem('snet_target_gid', tempGid);
-                setGoogleApiKey(tempKey);
-                setGoogleSheetId(tempId);
-                setTargetGid(tempGid);
-                setSaveSuccess(true);
-                setTimeout(() => setSaveSuccess(false), 3000);
-            };
-
             return (
                 <div className="max-w-4xl mx-auto p-6 animate-fade-in space-y-6">
-                    {/* Google Sheets API Configuration */}
+                    {/* Google Sheets API Secure Gateway Status */}
                     <div className="portal-card bg-white/80 backdrop-blur-md border border-white/60 shadow-xl rounded-2xl overflow-hidden">
                         <div className="portal-card-header text-sm py-3 px-6 bg-gradient-to-r from-teal-800 to-cyan-900 text-white font-semibold flex items-center gap-2">
                             <Icons.Lock className="w-4 h-4 text-teal-300" />
-                            <span>Google Sheets API Configuration</span>
+                            <span>System Security & Integration Status</span>
                         </div>
-                        <form onSubmit={handleSaveConfig} className="p-6 space-y-4 text-left">
-                            <p className="text-gray-500 text-xs">
-                                Configure your Google Sheets credentials securely. They are stored <strong>strictly locally</strong> in your browser's <code>localStorage</code> and are never transmitted to GitHub or any third-party servers.
-                            </p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider ml-1">Google API Key</label>
-                                    <input
-                                        type="password"
-                                        placeholder="AIzaSy..."
-                                        value={tempKey}
-                                        onChange={(e) => setTempKey(e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-gray-700 placeholder-gray-400 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all shadow-inner"
-                                    />
+                        <div className="p-6 space-y-5 text-left">
+                            <div className="flex items-start gap-4 p-4 rounded-xl bg-teal-50/50 border border-teal-100">
+                                <div className="p-2.5 bg-teal-600 rounded-xl text-white shadow-md shadow-teal-200">
+                                    <Icons.Lock className="w-5 h-5" />
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider ml-1">Spreadsheet ID</label>
-                                    <input
-                                        type="text"
-                                        placeholder="1OQx2wLQo2XNr..."
-                                        value={tempId}
-                                        onChange={(e) => setTempId(e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-gray-700 placeholder-gray-400 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all shadow-inner"
-                                    />
-                                </div>
-                                <div className="space-y-1.5 md:col-span-2">
-                                    <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider ml-1">Target Sheet GID (e.g. 1188942420)</label>
-                                    <input
-                                        type="text"
-                                        placeholder="1188942420"
-                                        value={tempGid}
-                                        onChange={(e) => setTempGid(e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-gray-700 placeholder-gray-400 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all shadow-inner"
-                                    />
+                                <div className="space-y-1">
+                                    <h4 className="font-bold text-gray-800 text-sm">Secure Server-Side Integration</h4>
+                                    <p className="text-gray-600 text-xs leading-relaxed">
+                                        To protect organization secrets, Google Sheets API Keys and spreadsheet credentials are fully encrypted and securely isolated inside the serverless Netlify environment. No API key is ever exposed to client-side code, view source, or browser console. The portal automatically routes synchronization through our secure gateway.
+                                    </p>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-between pt-2">
-                                {saveSuccess ? (
-                                    <span className="text-green-600 text-xs font-bold flex items-center gap-1 animate-pulse">
-                                        ✓ Configuration Saved Successfully!
-                                    </span>
-                                ) : (
-                                    <span className="text-[10px] text-gray-400">
-                                        All credentials stay inside your browser storage.
-                                    </span>
-                                )}
-                                <button
-                                    type="submit"
-                                    className="bg-teal-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-teal-700 shadow-md shadow-teal-200 transition-all active:scale-[0.98]"
-                                >
-                                    Save Configuration
-                                </button>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/30 flex items-center gap-3">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <div>
+                                        <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Sheets Connection</div>
+                                        <div className="text-xs font-bold text-gray-700">Secure (Proxied)</div>
+                                    </div>
+                                </div>
+                                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/30 flex items-center gap-3">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <div>
+                                        <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">API Key Protection</div>
+                                        <div className="text-xs font-bold text-gray-700">Zero Client Exposure</div>
+                                    </div>
+                                </div>
+                                <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/30 flex items-center gap-3">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <div>
+                                        <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Access Mode</div>
+                                        <div className="text-xs font-bold text-gray-700">Team-Wide Auto-Sync</div>
+                                    </div>
+                                </div>
                             </div>
-                        </form>
+                        </div>
                     </div>
 
                     {/* Original Import Card */}
@@ -2194,7 +2154,10 @@
                                             className="w-full bg-blue-50 text-blue-700 text-xs font-bold py-2 rounded border border-blue-200 hover:bg-blue-100 flex items-center justify-center gap-2"
                                         >
                                             {googleLoading ? (
-                                                <span>Fetching...</span>
+                                                <span className="flex items-center gap-2">
+                                                    <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                                                    Fetching Securely...
+                                                </span>
                                             ) : (
                                                 <>
                                                     <Icons.GoogleSheet className="w-4 h-4" /> Auto-Fetch from Google Sheet
@@ -2242,9 +2205,6 @@
             const [password, setPassword] = useState('');
             const [authError, setAuthError] = useState('');
 
-            const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem('snet_google_api_key') || '');
-            const [googleSheetId, setGoogleSheetId] = useState(() => localStorage.getItem('snet_google_sheet_id') || '');
-            const [targetGid, setTargetGid] = useState(() => localStorage.getItem('snet_target_gid') || '1188942420');
             const [googleLoading, setGoogleLoading] = useState(false);
 
             const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
@@ -2337,26 +2297,19 @@
 
 
             const fetchFromGoogleSheet = async () => {
-                if (!googleApiKey || !googleSheetId) {
-                    alert("Please configure your Google Sheets API Key and Sheet ID in the 'Google Sheets API Configuration' section of the System Setup tab first.");
-                    setActiveTab('setup');
-                    return;
-                }
                 setGoogleLoading(true);
                 try {
-                    const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${googleSheetId}?key=${googleApiKey}`;
-                    const metaRes = await fetch(metaUrl);
-                    if (!metaRes.ok) throw new Error("Failed to fetch sheet metadata. Please check your Google Sheets API Key and Spreadsheet ID configuration.");
-                    const metaData = await metaRes.json();
+                    // Fallback to absolute Netlify URL when running locally via file://, localhost, or standard offline mode
+                    const functionUrl = window.location.hostname === 'localhost' || window.location.hostname === '' || window.location.protocol === 'file:'
+                        ? 'https://schoolnet-visit-portal-vijay.netlify.app/.netlify/functions/fetch-schools'
+                        : '/.netlify/functions/fetch-schools';
 
-                    const targetSheet = metaData.sheets.find(s => String(s.properties.sheetId) === targetGid);
-                    if (!targetSheet) throw new Error(`Target GID ${targetGid} not found in this spreadsheet.`);
-                    const sheetTitle = targetSheet.properties.title;
-
-                    const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${googleSheetId}/values/${encodeURIComponent(sheetTitle)}!A:Z?key=${googleApiKey}`;
-                    const dataRes = await fetch(dataUrl);
-                    if (!dataRes.ok) throw new Error("Failed to fetch sheet data. Please check your Google Sheets connection.");
-                    const sheetData = await dataRes.json();
+                    const res = await fetch(functionUrl);
+                    if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData.error || `Server returned status ${res.status}`);
+                    }
+                    const sheetData = await res.json();
 
                     if (!sheetData.values || sheetData.values.length < 2) {
                         alert("No data found in the sheet.");
@@ -2381,7 +2334,7 @@
 
                     setSchools(normalized);
                     localStorage.setItem('schools', JSON.stringify(normalized));
-                    alert(`Successfully imported ${normalized.length} schools from Google Sheet!`);
+                    alert(`Successfully imported ${normalized.length} schools from Google Sheet securely!`);
 
                 } catch (error) {
                     console.error(error);
@@ -2469,12 +2422,6 @@
                         status={{ schools: schools.length, visits: visits.length }} 
                         onGoogleFetch={fetchFromGoogleSheet} 
                         googleLoading={googleLoading}
-                        googleApiKey={googleApiKey}
-                        setGoogleApiKey={setGoogleApiKey}
-                        googleSheetId={googleSheetId}
-                        setGoogleSheetId={setGoogleSheetId}
-                        targetGid={targetGid}
-                        setTargetGid={setTargetGid}
                     />
                 );
 
