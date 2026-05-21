@@ -64,10 +64,8 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
 
-            # Create SSL Context (Ignore cert errors if any, though JHPMS has valid certs usually)
+            # Create SSL Context with standard CA verification
             ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
 
             req = urllib.request.Request(gen_url, headers=headers)
             with urllib.request.urlopen(req, context=ctx) as response:

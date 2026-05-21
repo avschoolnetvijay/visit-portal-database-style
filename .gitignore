@@ -12,3 +12,6 @@ node_modules/
 
 # Local dev
 *.log
+
+# Local Netlify folder
+.netlify
