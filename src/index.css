@@ -362,3 +362,126 @@ body {
     }
 }
 
+/* Premium Dark Theme Variable Selectors and Element Overrides */
+body.dark {
+    background: linear-gradient(135deg, #090f11 0%, #031514 100%) !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark .portal-sidebar {
+    background: linear-gradient(180deg, #02201b 0%, #022f28 100%) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark .portal-filter-bar {
+    background: rgba(15, 23, 42, 0.85) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark .portal-input {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(15, 23, 42, 0.5) !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark .portal-input:focus {
+    border-color: #0d9488 !important;
+    background: rgba(15, 23, 42, 0.8) !important;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.2) !important;
+}
+
+body.dark .portal-label {
+    color: #94a3b8 !important;
+}
+
+body.dark .portal-card {
+    background: rgba(15, 23, 42, 0.6) !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.dark .portal-card-header {
+    color: #2dd4bf !important;
+    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark .metric-value {
+    color: #f8fafc !important;
+}
+
+body.dark .portal-table th {
+    background-color: rgba(15, 23, 42, 0.7) !important;
+    color: #cbd5e1 !important;
+    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark .portal-table td {
+    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark .portal-table tr:hover {
+    background-color: rgba(13, 148, 136, 0.1) !important;
+}
+
+body.dark .custom-select-container {
+    background: rgba(15, 23, 42, 0.5) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+body.dark .custom-select-container:focus-within {
+    border-color: #0d9488 !important;
+    background: rgba(15, 23, 42, 0.8) !important;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.2) !important;
+}
+
+body.dark .tag-chip {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark .dropdown-menu {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: #0f172a !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+body.dark .dropdown-item {
+    color: #cbd5e1 !important;
+    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark .dropdown-item:hover {
+    background-color: rgba(13, 148, 136, 0.15) !important;
+    color: #2dd4bf !important;
+}
+
+body.dark .dropdown-item.selected {
+    background-color: rgba(13, 148, 136, 0.25) !important;
+    color: #2dd4bf !important;
+}
+
+/* Glassmorphic body panel overrides in dark mode */
+body.dark .flex-1.flex.flex-col.overflow-hidden.relative {
+    background: rgba(15, 23, 42, 0.4) !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Scrollbar overrides in dark mode */
+body.dark ::-webkit-scrollbar-thumb {
+    background: #334155 !important;
+}
+
+body.dark ::-webkit-scrollbar-thumb:hover {
+    background: #475569 !important;
+}
+
+/* Transition utility for smooth theme switching */
+body, body *, body .portal-sidebar, body .portal-card, body .portal-filter-bar {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+

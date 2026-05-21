@@ -36,12 +36,31 @@ const MultiSelect = ({ label, options, value, onChange, placeholder = "Select...
     onChange(options);
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setIsOpen(false);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      if (e.target.closest('.custom-select-container') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+        e.preventDefault();
+        setIsOpen(prev => !prev);
+      }
+    }
+  };
+
+  const handleItemKeyDown = (e, option) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleOption(option);
+    }
+  };
+
   return (
-    <div className="w-full relative" ref={wrapperRef}>
+    <div className="w-full relative" ref={wrapperRef} onKeyDown={handleKeyDown}>
       <span className="portal-label text-xs font-bold text-gray-500 mb-1 block uppercase tracking-wide">{label}</span>
       <div
-        className="custom-select-container bg-white border border-gray-200 rounded-lg shadow-sm hover:border-teal-400 transition-colors"
+        className="custom-select-container bg-white border border-gray-200 rounded-lg shadow-sm hover:border-teal-400 transition-colors focus:outline-none focus:ring-1 focus:ring-teal-500"
         onClick={() => setIsOpen(!isOpen)}
+        tabIndex={0}
       >
         {value.length === 0 && <span className="text-gray-400 text-xs ml-1 font-medium">{placeholder}</span>}
         {value.length > 0 && (
@@ -101,12 +120,14 @@ const MultiSelect = ({ label, options, value, onChange, placeholder = "Select...
             {filteredOptions.map(option => (
               <div
                 key={option}
-                className={`dropdown-item cursor-pointer p-2 text-xs border-b border-gray-50 last:border-0 ${
+                className={`dropdown-item cursor-pointer p-2 text-xs border-b border-gray-50 last:border-0 focus:outline-none focus:bg-teal-50/50 ${
                   value.includes(option) 
                     ? 'selected bg-teal-50 text-teal-800 font-bold' 
                     : 'hover:bg-gray-50 text-gray-600'
                 }`}
                 onClick={() => toggleOption(option)}
+                tabIndex={0}
+                onKeyDown={(e) => handleItemKeyDown(e, option)}
               >
                 {option}
               </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import * as XLSX from 'xlsx';
 import { Icons } from './components/Icons';
 import Dashboard from './components/Dashboard';
@@ -18,6 +18,44 @@ import {
     calculateEngagement,
     exportToExcel
 } from './utils';
+
+const normalizeRowHeaders = (row, isSheetValueArray = false, headersList = null) => {
+    const newRow = {};
+    
+    const processKey = (k, val) => {
+        let nk = k.trim().toLowerCase().replace(/ /g, '_').replace(/[\r\n]+/g, '');
+        if (nk.includes('udise')) nk = 'udise_code';
+        else if (nk.includes('school') && nk.includes('name')) nk = 'school_name';
+        else if (nk.includes('school') && !nk.includes('name')) nk = 'school_name';
+        else if (nk.includes('district')) nk = 'district';
+        else if (nk.includes('block')) nk = 'block';
+        else if (nk.includes('visitor') && nk.includes('name')) nk = 'visitor_name';
+        else if (nk.includes('visitor') && !nk.includes('name')) nk = 'visitor_name';
+        else if (nk.includes('project')) nk = 'project_name';
+        else if (nk.includes('visit') && nk.includes('type')) nk = 'visit_type';
+        else if (nk.includes('visit') && nk.includes('date')) nk = 'visit_date';
+        else if (nk.includes('target') || nk.includes('monthly')) nk = 'monthly_target';
+        newRow[nk] = val;
+    };
+
+    if (isSheetValueArray && headersList) {
+        headersList.forEach((h, idx) => {
+            processKey(h, row[idx] !== undefined ? row[idx] : '');
+        });
+    } else {
+        Object.keys(row).forEach(k => {
+            processKey(k, row[k]);
+        });
+    }
+
+    if (!newRow.monthly_target) {
+        newRow.monthly_target = newRow.monthly_visit_target || 1;
+    } else {
+        newRow.monthly_target = Number(newRow.monthly_target) || 1;
+    }
+
+    return newRow;
+};
 
 const App = () => {
     const [activeTab, setActiveTab] = useState('setup');
@@ -47,6 +85,28 @@ const App = () => {
     const [selBlocks, setSelBlocks] = useState([]);
     const [selSchools, setSelSchools] = useState([]);
 
+    const [darkMode, setDarkMode] = useState(
+        () => localStorage.getItem('snet_dark_mode') === 'true'
+    );
+
+    // Sync body class with dark mode theme
+    useEffect(() => {
+        if (darkMode) {
+            document.body.classList.add('dark');
+        } else {
+            document.body.classList.remove('dark');
+        }
+        localStorage.setItem('snet_dark_mode', String(darkMode));
+    }, [darkMode]);
+
+    // Deferred values for lag-free filter changes
+    const defStartDate = useDeferredValue(startDate);
+    const defEndDate = useDeferredValue(endDate);
+    const defSelProjects = useDeferredValue(selProjects);
+    const defSelDistricts = useDeferredValue(selDistricts);
+    const defSelBlocks = useDeferredValue(selBlocks);
+    const defSelSchools = useDeferredValue(selSchools);
+
     // Load initial data from localStorage
     useEffect(() => {
         const s = localStorage.getItem('schools');
@@ -59,16 +119,16 @@ const App = () => {
 
     // Primary Data Processing Engine
     const processedData = useMemo(() => {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const start = new Date(defStartDate);
+        const end = new Date(defEndDate);
         end.setHours(23, 59, 59, 999);
         const months = getMonthsInRange(start, end);
 
         let fSchools = schools;
-        if (selProjects.length) fSchools = fSchools.filter(s => selProjects.includes(s.project_name));
-        if (selDistricts.length) fSchools = fSchools.filter(s => selDistricts.includes(s.district));
-        if (selBlocks.length) fSchools = fSchools.filter(s => selBlocks.includes(s.block));
-        if (selSchools.length) fSchools = fSchools.filter(s => selSchools.includes(s.school_name));
+        if (defSelProjects.length) fSchools = fSchools.filter(s => defSelProjects.includes(s.project_name));
+        if (defSelDistricts.length) fSchools = fSchools.filter(s => defSelDistricts.includes(s.district));
+        if (defSelBlocks.length) fSchools = fSchools.filter(s => defSelBlocks.includes(s.block));
+        if (defSelSchools.length) fSchools = fSchools.filter(s => defSelSchools.includes(s.school_name));
 
         const validUdise = new Set(fSchools.map(s => String(s.udise_code)));
         const fVisits = visits.filter(v => {
@@ -144,7 +204,7 @@ const App = () => {
             totalUnique: finalSchools.reduce((a, b) => a + b.uniqueVisits, 0),
             totalRecords: fVisits.length
         };
-    }, [schools, visits, startDate, endDate, selProjects, selDistricts, selBlocks, selSchools]);
+    }, [schools, visits, defStartDate, defEndDate, defSelProjects, defSelDistricts, defSelBlocks, defSelSchools]);
 
     // Secure Auto-Fetch from Google Sheets (via Netlify proxy)
     const fetchFromGoogleSheet = async () => {
@@ -173,18 +233,7 @@ const App = () => {
             const headers = sheetData.values[0];
             const rows = sheetData.values.slice(1);
 
-            const normalized = rows.map(row => {
-                const newRow = {};
-                headers.forEach((h, idx) => {
-                    let nk = h.trim().toLowerCase().replace(/ /g, '_').replace(/[\r\n]+/g, '');
-                    if (nk.includes('udise')) nk = 'udise_code';
-                    if (nk.includes('project')) nk = 'project_name';
-                    if (nk.includes('visit') && nk.includes('type')) nk = 'visit_type';
-                    newRow[nk] = row[idx] !== undefined ? row[idx] : '';
-                });
-                if (!newRow.monthly_target) newRow.monthly_target = newRow.monthly_visit_target || 1;
-                return newRow;
-            });
+            const normalized = rows.map(row => normalizeRowHeaders(row, true, headers));
 
             setSchools(normalized);
             localStorage.setItem('schools', JSON.stringify(normalized));
@@ -216,14 +265,7 @@ const App = () => {
 
             const normalized = sheetJson
                 .map(row => {
-                    const newRow = {};
-                    Object.keys(row).forEach(k => {
-                        let nk = k.trim().toLowerCase().replace(/ /g, '_').replace(/[\r\n]+/g, '');
-                        if (nk.includes('udise')) nk = 'udise_code';
-                        if (nk.includes('project')) nk = 'project_name';
-                        if (nk.includes('visit') && nk.includes('type')) nk = 'visit_type';
-                        newRow[nk] = row[k];
-                    });
+                    const newRow = normalizeRowHeaders(row);
                     if (newRow.visit_type) newRow.visit_type = newRow.visit_type.toString().trim();
 
                     // Parse the raw date robustly to prevent shifting
@@ -312,18 +354,8 @@ const App = () => {
 
                     const normalized = data
                         .map(row => {
-                            const newRow = {};
-                            Object.keys(row).forEach(k => {
-                                let nk = k.trim().toLowerCase().replace(/ /g, '_').replace(/[\r\n]+/g, '');
-                                if (nk.includes('udise')) nk = 'udise_code';
-                                if (nk.includes('project')) nk = 'project_name';
-                                if (nk.includes('visit') && nk.includes('type')) nk = 'visit_type';
-                                newRow[nk] = row[k];
-                            });
+                            const newRow = normalizeRowHeaders(row);
                             if (newRow.visit_type) newRow.visit_type = newRow.visit_type.toString().trim();
-                            if (type === 'schools' && !newRow.monthly_target) {
-                                newRow.monthly_target = newRow.monthly_visit_target || 1;
-                            }
 
                             if (type === 'visits') {
                                 const pd = parseDateRobust(newRow.visit_date);
@@ -389,11 +421,13 @@ const App = () => {
                 <Setup
                     onUpload={handleUpload}
                     onReset={() => {
-                        localStorage.clear();
-                        sessionStorage.clear();
-                        setSchools([]);
-                        setVisits([]);
-                        window.location.reload();
+                        if (window.confirm("⚠️ WARNING: This will permanently wipe all local school databases and visit logs from your browser cache.\n\nAre you absolutely sure you want to clear all data?")) {
+                            localStorage.clear();
+                            sessionStorage.clear();
+                            setSchools([]);
+                            setVisits([]);
+                            window.location.reload();
+                        }
                     }}
                     status={{ schools: schools.length, visits: visits.length }}
                     onGoogleFetch={fetchFromGoogleSheet}
@@ -524,17 +558,23 @@ const App = () => {
             />
 
             {/* Mobile Sticky Top Header */}
-            <div className="flex md:hidden items-center justify-between p-4 bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-30 w-full no-print">
+            <div className="flex md:hidden items-center justify-between p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200 dark:border-white/5 sticky top-0 z-30 w-full no-print">
                 <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="text-gray-600 hover:text-teal-600 focus:outline-none p-1"
+                    className="text-gray-600 dark:text-gray-300 hover:text-teal-600 dark:hover:text-teal-400 focus:outline-none p-1"
                 >
                     <Icons.Menu className="w-6 h-6" />
                 </button>
                 <div className="text-center">
-                    <div className="font-bold text-teal-800 tracking-tight">Schoolnet Visit Portal</div>
+                    <div className="font-bold text-teal-800 dark:text-teal-400 tracking-tight">Schoolnet Visit Portal</div>
                 </div>
-                <div className="w-6"></div>
+                <button
+                    onClick={() => setDarkMode(!darkMode)}
+                    className="text-gray-600 dark:text-gray-300 hover:text-teal-600 dark:hover:text-teal-400 focus:outline-none p-1"
+                    title="Toggle Dark Mode"
+                >
+                    {darkMode ? <Icons.Sun className="w-5 h-5 text-amber-500" /> : <Icons.Moon className="w-5 h-5" />}
+                </button>
             </div>
 
             {/* Responsive Sidebar Backdrop Overlay */}
@@ -602,10 +642,28 @@ const App = () => {
                         </button>
                     ))}
                 </nav>
-                <div className="p-4 border-t border-white/10 text-[10px] text-teal-200/60 text-center font-medium">
-                    v2.2 • Glass Edition
-                    <br />
-                    Made with ❤️ by Schoolnet
+                <div className="p-4 border-t border-white/10 text-[10px] text-teal-200/60 text-center font-medium flex flex-col items-center gap-3">
+                    <button
+                        onClick={() => setDarkMode(!darkMode)}
+                        className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white rounded-lg px-3 py-1.5 w-full text-xs font-semibold shadow-inner border border-white/10 transition"
+                    >
+                        {darkMode ? (
+                            <>
+                                <Icons.Sun className="w-4 h-4 text-amber-300" />
+                                <span>Light Theme</span>
+                            </>
+                        ) : (
+                            <>
+                                <Icons.Moon className="w-4 h-4 text-teal-200" />
+                                <span>Dark Theme</span>
+                            </>
+                        )}
+                    </button>
+                    <div>
+                        v2.3 • Glass Edition
+                        <br />
+                        Made with ❤️ by Schoolnet
+                    </div>
                 </div>
             </div>
 

@@ -1,8 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Icons } from './Icons';
 import { exportToExcel } from '../utils';
 
 const PlanView = ({ data }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+
     const priorities = useMemo(() => {
         const today = new Date();
         return data.schools
@@ -37,6 +40,20 @@ const PlanView = ({ data }) => {
                 return b.gap - a.gap; // Secondary sorting by size of the visit gap
             });
     }, [data]);
+
+    // Reset pagination to page 1 upon filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [data]);
+
+    const totalPages = rowsPerPage === -1 ? 1 : Math.ceil(priorities.length / rowsPerPage);
+    const activePage = Math.min(currentPage, totalPages) || 1;
+    const startIdx = rowsPerPage === -1 ? 0 : (activePage - 1) * rowsPerPage;
+
+    const paginatedPriorities = useMemo(() => {
+        if (rowsPerPage === -1) return priorities;
+        return priorities.slice(startIdx, startIdx + rowsPerPage);
+    }, [priorities, startIdx, rowsPerPage]);
 
     const getPriorityDetails = (score) => {
         if (score >= 85) return { label: 'CRITICAL', color: 'bg-rose-600 shadow-rose-100', action: '🚨 CRITICAL: Visit Immediately' };
@@ -73,7 +90,7 @@ const PlanView = ({ data }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 bg-white">
-                            {priorities.map((s, i) => {
+                            {paginatedPriorities.map((s, i) => {
                                 const details = getPriorityDetails(s.score);
                                 return (
                                     <tr key={i} className="hover:bg-teal-50/30 transition-colors">
@@ -117,6 +134,76 @@ const PlanView = ({ data }) => {
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Pagination Footer */}
+                <div className="px-4 py-3 border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-slate-900/30 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0 no-print">
+                    <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                            <span>Rows per page:</span>
+                            <select
+                                value={rowsPerPage}
+                                onChange={(e) => {
+                                    setRowsPerPage(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded px-2 py-1 text-xs text-gray-700 dark:text-gray-300 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                            >
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                                <option value={-1}>All</option>
+                            </select>
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                            {priorities.length > 0 ? (
+                                `Showing ${startIdx + 1}–${Math.min(startIdx + (rowsPerPage === -1 ? priorities.length : rowsPerPage), priorities.length)} of ${priorities.length}`
+                            ) : (
+                                'Showing 0–0 of 0'
+                            )}
+                        </div>
+                    </div>
+                    
+                    {totalPages > 1 && (
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setCurrentPage(1)}
+                                disabled={activePage === 1}
+                                className="p-1 px-2 text-xs border border-gray-200 dark:border-white/10 rounded-md bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition font-semibold"
+                                title="First Page"
+                            >
+                                «
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={activePage === 1}
+                                className="p-1 px-2 text-xs border border-gray-200 dark:border-white/10 rounded-md bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition font-semibold"
+                                title="Previous Page"
+                            >
+                                ‹
+                            </button>
+                            <span className="px-3 py-1 text-xs font-bold text-teal-800 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/30 rounded-md border border-teal-100 dark:border-teal-900/30">
+                                Page {activePage} of {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={activePage === totalPages}
+                                className="p-1 px-2 text-xs border border-gray-200 dark:border-white/10 rounded-md bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition font-semibold"
+                                title="Next Page"
+                            >
+                                ›
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage(totalPages)}
+                                disabled={activePage === totalPages}
+                                className="p-1 px-2 text-xs border border-gray-200 dark:border-white/10 rounded-md bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition font-semibold"
+                                title="Last Page"
+                            >
+                                »
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
