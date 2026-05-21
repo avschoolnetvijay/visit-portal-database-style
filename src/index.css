@@ -312,3 +312,53 @@ body {
         transform: rotate(360deg);
     }
 }
+
+/* Print View Stylesheet Overrides */
+@media print {
+    body {
+        background: white !important;
+        color: black !important;
+        overflow: visible !important;
+    }
+    .portal-sidebar,
+    .portal-filter-bar,
+    button,
+    .no-print,
+    .tag-close {
+        display: none !important;
+    }
+    .flex, .grid {
+        display: block !important;
+    }
+    .portal-card,
+    main,
+    .flex-1,
+    .my-3,
+    .mr-3 {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    .card-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 16px !important;
+        page-break-inside: avoid;
+    }
+    .portal-table {
+        page-break-inside: auto;
+    }
+    .portal-table tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    .recharts-wrapper {
+        page-break-inside: avoid;
+    }
+}
+

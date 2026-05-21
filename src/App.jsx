@@ -33,6 +33,9 @@ const App = () => {
 
     const [googleLoading, setGoogleLoading] = useState(false);
     const [jhpmsLoading, setJhpmsLoading] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [globalLoading, setGlobalLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('');
 
     const [startDate, setStartDate] = useState(
         new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
@@ -266,60 +269,104 @@ const App = () => {
         const file = e.target.files[0];
         if (!file) return;
 
+        setGlobalLoading(true);
+        setLoadingMessage(type === 'schools' ? "Ingesting and validating School Master records..." : "Analyzing and compiling Visit Report records...");
+
         const reader = new FileReader();
         reader.onload = evt => {
-            const wb = XLSX.read(evt.target.result, { type: 'binary' });
-            const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+            // Delay parsing slightly to let the glassmorphic spinner overlay render in the UI
+            setTimeout(() => {
+                try {
+                    const wb = XLSX.read(evt.target.result, { type: 'binary' });
+                    const sheetName = wb.SheetNames[0];
+                    const data = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
 
-            const normalized = data
-                .map(row => {
-                    const newRow = {};
-                    Object.keys(row).forEach(k => {
-                        let nk = k.trim().toLowerCase().replace(/ /g, '_').replace(/[\r\n]+/g, '');
-                        if (nk.includes('udise')) nk = 'udise_code';
-                        if (nk.includes('project')) nk = 'project_name';
-                        if (nk.includes('visit') && nk.includes('type')) nk = 'visit_type';
-                        newRow[nk] = row[k];
-                    });
-                    if (newRow.visit_type) newRow.visit_type = newRow.visit_type.toString().trim();
-                    if (type === 'schools' && !newRow.monthly_target) {
-                        newRow.monthly_target = newRow.monthly_visit_target || 1;
+                    if (!data || data.length === 0) {
+                        alert("Validation Error: The uploaded Excel file appears to contain no rows.");
+                        e.target.value = '';
+                        setGlobalLoading(false);
+                        return;
                     }
 
-                    if (type === 'visits') {
-                        const pd = parseDateRobust(newRow.visit_date);
-                        if (pd) {
-                            const year = pd.getFullYear();
-                            const month = String(pd.getMonth() + 1).padStart(2, '0');
-                            const day = String(pd.getDate()).padStart(2, '0');
-                            newRow.visit_date = `${year}-${month}-${day}T00:00:00`;
+                    // Column header presence validation check
+                    const sampleRowKeys = Object.keys(data[0]).map(k => k.trim().toLowerCase().replace(/ /g, '_'));
+                    const hasUdise = sampleRowKeys.some(k => k.includes('udise'));
+
+                    if (type === 'schools') {
+                        const hasSchoolName = sampleRowKeys.some(k => k.includes('school_name') || k.includes('schoolname') || k.includes('school'));
+                        if (!hasUdise || !hasSchoolName) {
+                            alert("Validation Mismatch!\n\nThis sheet does not match the School Master schema. It must contain at least 'udise_code' (or UDISE) and 'school_name' (or School Name) columns.");
+                            e.target.value = '';
+                            setGlobalLoading(false);
+                            return;
+                        }
+                    } else if (type === 'visits') {
+                        const hasVisitDate = sampleRowKeys.some(k => k.includes('visit_date') || k.includes('visitdate') || k.includes('date'));
+                        if (!hasUdise || !hasVisitDate) {
+                            alert("Validation Mismatch!\n\nThis sheet does not match the Visit Reports schema. It must contain at least 'udise_code' (or UDISE) and 'visit_date' (or Visit Date) columns.");
+                            e.target.value = '';
+                            setGlobalLoading(false);
+                            return;
                         }
                     }
-                    return newRow;
-                })
-                .filter(r => type === 'schools' || r.visit_date);
 
-            if (type === 'schools') {
-                setSchools(normalized);
-                localStorage.setItem('schools', JSON.stringify(normalized));
-                alert(`Successfully uploaded ${normalized.length} schools master records!`);
-            } else {
-                setVisits(normalized);
-                localStorage.setItem('visits', JSON.stringify(normalized));
-                alert(`Successfully uploaded ${normalized.length} visit reports!`);
+                    const normalized = data
+                        .map(row => {
+                            const newRow = {};
+                            Object.keys(row).forEach(k => {
+                                let nk = k.trim().toLowerCase().replace(/ /g, '_').replace(/[\r\n]+/g, '');
+                                if (nk.includes('udise')) nk = 'udise_code';
+                                if (nk.includes('project')) nk = 'project_name';
+                                if (nk.includes('visit') && nk.includes('type')) nk = 'visit_type';
+                                newRow[nk] = row[k];
+                            });
+                            if (newRow.visit_type) newRow.visit_type = newRow.visit_type.toString().trim();
+                            if (type === 'schools' && !newRow.monthly_target) {
+                                newRow.monthly_target = newRow.monthly_visit_target || 1;
+                            }
 
-                // Auto-fill Dates Logic
-                if (normalized.length > 0) {
-                    const dates = normalized
-                        .map(v => new Date(v.visit_date))
-                        .filter(d => !isNaN(d.getTime()))
-                        .sort((a, b) => a - b);
-                    if (dates.length > 0) {
-                        setStartDate(dates[0].toISOString().split('T')[0]);
-                        setEndDate(dates[dates.length - 1].toISOString().split('T')[0]);
+                            if (type === 'visits') {
+                                const pd = parseDateRobust(newRow.visit_date);
+                                if (pd) {
+                                    const year = pd.getFullYear();
+                                    const month = String(pd.getMonth() + 1).padStart(2, '0');
+                                    const day = String(pd.getDate()).padStart(2, '0');
+                                    newRow.visit_date = `${year}-${month}-${day}T00:00:00`;
+                                }
+                            }
+                            return newRow;
+                        })
+                        .filter(r => type === 'schools' || r.visit_date);
+
+                    if (type === 'schools') {
+                        setSchools(normalized);
+                        localStorage.setItem('schools', JSON.stringify(normalized));
+                        alert(`Successfully uploaded ${normalized.length} schools master records!`);
+                    } else {
+                        setVisits(normalized);
+                        localStorage.setItem('visits', JSON.stringify(normalized));
+                        alert(`Successfully uploaded ${normalized.length} visit reports!`);
+
+                        // Auto-fill Dates Logic
+                        if (normalized.length > 0) {
+                            const dates = normalized
+                                .map(v => new Date(v.visit_date))
+                                .filter(d => !isNaN(d.getTime()))
+                                .sort((a, b) => a - b);
+                            if (dates.length > 0) {
+                                setStartDate(dates[0].toISOString().split('T')[0]);
+                                setEndDate(dates[dates.length - 1].toISOString().split('T')[0]);
+                            }
+                        }
                     }
+                } catch (err) {
+                    console.error(err);
+                    alert("Excel Parse Error: " + err.message);
+                } finally {
+                    e.target.value = '';
+                    setGlobalLoading(false);
                 }
-            }
+            }, 50);
         };
         reader.readAsBinaryString(file);
     };
@@ -459,7 +506,15 @@ const App = () => {
     }
 
     return (
-        <div className="flex h-screen overflow-hidden text-gray-800 text-sm selection:bg-teal-100 selection:text-teal-900">
+        <div className="flex flex-col md:flex-row h-screen overflow-hidden text-gray-800 text-sm selection:bg-teal-100 selection:text-teal-900">
+            {/* Global Glassmorphic Progress Loading Spinner Overlay */}
+            {globalLoading && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[999] flex flex-col items-center justify-center text-white no-print">
+                    <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mb-4 shadow-lg shadow-teal-500/20"></div>
+                    <p className="text-sm font-bold tracking-wide animate-pulse">{loadingMessage || 'Processing...'}</p>
+                </div>
+            )}
+
             {/* Drilldown Modal Overlay */}
             <DrillDownModal
                 isOpen={!!drillDownData}
@@ -468,20 +523,50 @@ const App = () => {
                 data={drillDownData?.data || []}
             />
 
+            {/* Mobile Sticky Top Header */}
+            <div className="flex md:hidden items-center justify-between p-4 bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-30 w-full no-print">
+                <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="text-gray-600 hover:text-teal-600 focus:outline-none p-1"
+                >
+                    <Icons.Menu className="w-6 h-6" />
+                </button>
+                <div className="text-center">
+                    <div className="font-bold text-teal-800 tracking-tight">Schoolnet Visit Portal</div>
+                </div>
+                <div className="w-6"></div>
+            </div>
+
+            {/* Responsive Sidebar Backdrop Overlay */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 md:hidden animate-fade-in no-print"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
             {/* Sidebar Left Navigation Panel */}
-            <div className="w-64 portal-sidebar flex flex-col z-20 m-3 rounded-2xl border border-white/10 shadow-2xl shrink-0 transition-all duration-300">
-                <div className="p-5 border-b border-white/10 flex items-center gap-3">
-                    <div className="bg-white/10 text-white p-2.5 rounded-lg shadow-inner backdrop-blur-md font-bold text-xs ring-1 ring-white/20">
-                        PMS
-                    </div>
-                    <div className="text-left">
-                        <div className="font-bold text-white tracking-tight text-base shadow-black drop-shadow-md">
-                            Visit Portal
+            <div className={`fixed md:relative top-0 bottom-0 left-0 h-[calc(100vh-24px)] md:h-auto w-64 portal-sidebar flex flex-col z-40 md:z-20 m-3 rounded-2xl border border-white/10 shadow-2xl shrink-0 transition-transform duration-300 md:translate-x-0 no-print ${isSidebarOpen ? 'translate-x-0' : '-translate-x-[calc(100%+24px)]'}`}>
+                <div className="p-5 border-b border-white/10 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-white/10 text-white p-2.5 rounded-lg shadow-inner backdrop-blur-md font-bold text-xs ring-1 ring-white/20">
+                            PMS
                         </div>
-                        <div className="text-[10px] text-teal-200 uppercase tracking-widest font-semibold">
-                            Admin Console
+                        <div className="text-left">
+                            <div className="font-bold text-white tracking-tight text-base shadow-black drop-shadow-md">
+                                Visit Portal
+                            </div>
+                            <div className="text-[10px] text-teal-200 uppercase tracking-widest font-semibold">
+                                Admin Console
+                            </div>
                         </div>
                     </div>
+                    <button
+                        onClick={() => setIsSidebarOpen(false)}
+                        className="md:hidden text-teal-200 hover:text-white focus:outline-none"
+                    >
+                        <Icons.Close className="w-5 h-5" />
+                    </button>
                 </div>
                 <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2">
                     {[
@@ -495,7 +580,10 @@ const App = () => {
                     ].map(t => (
                         <button
                             key={t.id}
-                            onClick={() => setActiveTab(t.id)}
+                            onClick={() => {
+                                setActiveTab(t.id);
+                                setIsSidebarOpen(false);
+                            }}
                             className={`w-full nav-item group ${activeTab === t.id ? 'active' : ''}`}
                         >
                             <span
@@ -522,38 +610,47 @@ const App = () => {
             </div>
 
             {/* Main Center Tab Panel */}
-            <div className="flex-1 flex flex-col overflow-hidden relative my-3 mr-3 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 shadow-xl">
+            <div className="flex-1 flex flex-col overflow-hidden relative m-3 md:my-3 md:mr-3 md:ml-0 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 shadow-xl">
                 {activeTab !== 'search' && activeTab !== 'setup' && (
-                    <div className="portal-filter-bar z-10 mx-4 mt-4 rounded-xl border border-white shadow-sm flex flex-col gap-2">
-                        <div className="flex justify-between items-center mb-1">
+                    <div className="portal-filter-bar z-10 mx-4 mt-4 rounded-xl border border-white shadow-sm flex flex-col gap-2 no-print">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
                             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                                 <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
                                 {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
                             </h2>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                 <button
-                                    onClick={() => setActiveTab('search')}
-                                    className="bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all hover:-translate-y-0.5 text-xs font-bold"
+                                    onClick={() => {
+                                        setActiveTab('search');
+                                        setIsSidebarOpen(false);
+                                    }}
+                                    className="bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
                                 >
-                                    <Icons.Search className="w-3.5 h-3.5" /> Advanced Search
+                                    <Icons.Search className="w-3.5 h-3.5 text-gray-500" /> Advanced Search
+                                </button>
+                                <button
+                                    onClick={() => window.print()}
+                                    className="bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
+                                >
+                                    <Icons.Print className="w-3.5 h-3.5 text-teal-600" /> Print / PDF
                                 </button>
                                 <button
                                     onClick={() => exportToExcel(processedData.schools, `Visit_Portal_Export_${activeTab}`)}
-                                    className="bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 flex items-center gap-2 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5 text-xs font-bold"
+                                    className="bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 flex items-center gap-2 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
                                 >
-                                    <Icons.Export className="w-3.5 h-3.5" /> Export View
+                                    <Icons.Export className="w-3.5 h-3.5 text-teal-100" /> Export View
                                 </button>
                             </div>
                         </div>
                         <div className="h-px bg-gray-200/80 w-full my-1"></div>
                         <div className="flex flex-wrap gap-3 items-end">
-                            <div className="w-44 text-left">
+                            <div className="w-full sm:w-[calc(50%-6px)] md:w-44 text-left">
                                 <span className="portal-label">Agency</span>
                                 <select className="portal-input bg-gray-50 cursor-not-allowed opacity-70" disabled>
                                     <option>Schoolnet India Limited</option>
                                 </select>
                             </div>
-                            <div className="w-36 text-left">
+                            <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
                                 <MultiSelect
                                     label="Projects"
                                     options={opts.proj}
@@ -562,7 +659,7 @@ const App = () => {
                                     placeholder="All Projects"
                                 />
                             </div>
-                            <div className="w-36 text-left">
+                            <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
                                 <MultiSelect
                                     label="District"
                                     options={opts.dist}
@@ -571,7 +668,7 @@ const App = () => {
                                     placeholder="All Districts"
                                 />
                             </div>
-                            <div className="w-36 text-left">
+                            <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
                                 <MultiSelect
                                     label="Block"
                                     options={opts.blocks}
@@ -580,7 +677,7 @@ const App = () => {
                                     placeholder="All Blocks"
                                 />
                             </div>
-                            <div className="w-44 text-left">
+                            <div className="w-full sm:w-[calc(50%-6px)] md:w-44 text-left">
                                 <MultiSelect
                                     label="School"
                                     options={opts.schoolNames}
@@ -589,22 +686,22 @@ const App = () => {
                                     placeholder="All Schools"
                                 />
                             </div>
-                            <div className="w-auto flex items-end gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200 ml-auto">
-                                <div className="text-left">
+                            <div className="w-full lg:w-auto flex items-end gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200 lg:ml-auto">
+                                <div className="text-left w-full sm:w-auto">
                                     <span className="portal-label text-[10px] mb-0.5 ml-1">Date Range</span>
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 w-full">
                                         <input
                                             type="date"
                                             value={startDate}
                                             onChange={e => setStartDate(e.target.value)}
-                                            className="portal-input h-7 w-28 text-xs bg-white"
+                                            className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
                                         />
                                         <span className="text-gray-400">-</span>
                                         <input
                                             type="date"
                                             value={endDate}
                                             onChange={e => setEndDate(e.target.value)}
-                                            className="portal-input h-7 w-28 text-xs bg-white"
+                                            className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
                                         />
                                     </div>
                                 </div>
