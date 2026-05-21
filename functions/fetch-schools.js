@@ -13,13 +13,13 @@ exports.handler = async (event, context) => {
     // Retrieve environment variables securely from Netlify
     const apiKey = process.env.GOOGLE_API_KEY;
     const sheetId = process.env.GOOGLE_SHEET_ID;
-    const targetGid = process.env.TARGET_GID || '1188942420';
+    const targetGid = process.env.TARGET_GID;
 
-    if (!apiKey || !sheetId) {
+    if (!apiKey || !sheetId || !targetGid) {
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ error: "Google API credentials are not configured on the server. Please add GOOGLE_API_KEY and GOOGLE_SHEET_ID to your Netlify environment variables." })
+            body: JSON.stringify({ error: "Google API credentials are not configured on the server. Please add GOOGLE_API_KEY, GOOGLE_SHEET_ID, and TARGET_GID to your Netlify environment variables." })
         };
     }
 
