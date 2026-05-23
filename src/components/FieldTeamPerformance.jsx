@@ -54,6 +54,7 @@ const FieldTeamPerformance = ({
                     totalCpuHours: 0,
                     totalMiniPcHours: 0,
                     ictClasses: 0,
+                    smartClasses: 0,
                     totalIctVisits: 0,
                     totalSmartVisits: 0,
                     udises: new Set()
@@ -109,16 +110,22 @@ const FieldTeamPerformance = ({
             });
         });
 
-        // 4. Process JHPMS Lab Uses (ICT Classes)
+        // 4. Process JHPMS Lab Uses (ICT Classes & Smart Classes)
         jhpmsLab.forEach(l => {
             const udise = String(getVal(l, 'udise') || '');
             const d = new Date(getVal(l, 'date'));
+            const labType = String(l.labType || '').toUpperCase();
+            const subject = String(l.subject || '').toUpperCase();
             
-            // Only count if within date range (optional, but good practice)
+            // Only count if within date range
             if (!isNaN(d.getTime()) && d >= start && d <= end) {
                 Object.values(ccMap).forEach(ccData => {
                     if (ccData.udises.has(udise)) {
-                        ccData.ictClasses++;
+                        if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                            ccData.ictClasses++;
+                        } else if (labType.includes('SMART')) {
+                            ccData.smartClasses++;
+                        }
                     }
                 });
             }
@@ -150,6 +157,7 @@ const FieldTeamPerformance = ({
             const avgCpu = c.cpuInstalled > 0 ? (c.totalCpuHours / days / c.cpuInstalled) : 0;
             const avgMini = c.miniPcInstalled > 0 ? (c.totalMiniPcHours / days / c.miniPcInstalled) : 0;
             const avgClasses = c.totalSchools > 0 ? (c.ictClasses / (days * c.totalSchools)) : 0;
+            const avgSmartClasses = c.totalSchools > 0 ? (c.smartClasses / (days * c.totalSchools)) : 0;
             
             return {
                 slno: idx + 1,
@@ -169,6 +177,8 @@ const FieldTeamPerformance = ({
                 avgMini: avgMini.toFixed(5),
                 ictClasses: c.ictClasses,
                 avgClasses: avgClasses.toFixed(5),
+                smartClasses: c.smartClasses,
+                avgSmartClasses: avgSmartClasses.toFixed(5),
                 totalIctVisits: c.totalIctVisits,
                 totalSmartVisits: c.totalSmartVisits,
                 grandTotal: c.totalIctVisits + c.totalSmartVisits
@@ -203,7 +213,9 @@ const FieldTeamPerformance = ({
             'Average Hours/ Day/ Schools/ CPU': d.avgCpu,
             'Average Hours/ Day/ Schools/ Mini PC': d.avgMini,
             'ICT Classes': d.ictClasses,
-            'Average Classes/per school per Day': d.avgClasses,
+            'Avg Classes/per school/Day': d.avgClasses,
+            'Smart Classes': d.smartClasses,
+            'Avg Smart Classes/per school/Day': d.avgSmartClasses,
             'Total ICT Visit': d.totalIctVisits,
             'Total Smart Visit': d.totalSmartVisits,
             'GrandTotal': d.grandTotal
@@ -268,6 +280,8 @@ const FieldTeamPerformance = ({
                             <th className="p-3 border-r border-teal-600/30 text-center bg-emerald-900/40">Avg Hrs/Day/Sch/Mini PC</th>
                             <th className="p-3 border-r border-teal-600/30 text-center bg-pink-900/40">ICT Classes</th>
                             <th className="p-3 border-r border-teal-600/30 text-center bg-pink-900/40">Avg Classes/per school/Day</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center bg-yellow-900/40">Smart Classes</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center bg-yellow-900/40">Avg Smart Classes/per school/Day</th>
                             <th className="p-3 border-r border-teal-600/30 text-center">Total ICT Visit</th>
                             <th className="p-3 border-r border-teal-600/30 text-center">Total Smart Visit</th>
                             <th className="p-3 text-center bg-teal-900">GrandTotal</th>
@@ -302,6 +316,9 @@ const FieldTeamPerformance = ({
                                 
                                 <td className="p-3 border-r border-gray-100 text-center bg-pink-50/30 text-pink-700 font-bold">{row.ictClasses}</td>
                                 <td className="p-3 border-r border-gray-100 text-center bg-pink-50/30">{row.avgClasses}</td>
+                                
+                                <td className="p-3 border-r border-gray-100 text-center bg-yellow-50/30 text-yellow-700 font-bold">{row.smartClasses}</td>
+                                <td className="p-3 border-r border-gray-100 text-center bg-yellow-50/30">{row.avgSmartClasses}</td>
                                 
                                 <td className="p-3 border-r border-gray-100 text-center">{row.totalIctVisits}</td>
                                 <td className="p-3 border-r border-gray-100 text-center">{row.totalSmartVisits}</td>

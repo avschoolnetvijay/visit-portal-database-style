@@ -392,7 +392,14 @@ const App = () => {
                         normalized = data.map(r => {
                             const uKey = Object.keys(r).find(k => k.toLowerCase().includes('udise'));
                             const dKey = Object.keys(r).find(k => k.toLowerCase().includes('date'));
-                            return { udise: uKey ? r[uKey] : '', date: dKey ? r[dKey] : '' };
+                            const labKey = Object.keys(r).find(k => k.toLowerCase().includes('lab type'));
+                            const subKey = Object.keys(r).find(k => k.toLowerCase().includes('subject'));
+                            return { 
+                                udise: uKey ? r[uKey] : '', 
+                                date: dKey ? r[dKey] : '',
+                                labType: labKey ? r[labKey] : '',
+                                subject: subKey ? r[subKey] : ''
+                            };
                         });
                     } else if (type === 'edustat') {
                         normalized = data.map(r => {
