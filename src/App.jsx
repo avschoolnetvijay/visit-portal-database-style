@@ -389,11 +389,16 @@ const App = () => {
                             })
                             .filter(r => type === 'schools' || r.visit_date);
                     } else if (type === 'jhpms_lab') {
+                        let missingKeysAlert = false;
                         normalized = data.map(r => {
-                            const uKey = Object.keys(r).find(k => k.toLowerCase().includes('udise'));
-                            const dKey = Object.keys(r).find(k => k.toLowerCase().includes('date'));
-                            const labKey = Object.keys(r).find(k => k.toLowerCase().includes('lab type'));
-                            const subKey = Object.keys(r).find(k => k.toLowerCase().includes('subject'));
+                            const cleanKeys = Object.keys(r).map(k => ({ orig: k, clean: k.toLowerCase().replace(/[^a-z0-9]/g, '') }));
+                            const uKey = cleanKeys.find(k => k.clean.includes('udise'))?.orig;
+                            const dKey = cleanKeys.find(k => k.clean === 'date' || k.clean.includes('date'))?.orig;
+                            const labKey = cleanKeys.find(k => k.clean.includes('lab'))?.orig;
+                            const subKey = cleanKeys.find(k => k.clean.includes('sub'))?.orig;
+                            
+                            if (!labKey || !subKey) missingKeysAlert = true;
+                            
                             return { 
                                 udise: uKey ? r[uKey] : '', 
                                 date: dKey ? r[dKey] : '',
@@ -401,12 +406,17 @@ const App = () => {
                                 subject: subKey ? r[subKey] : ''
                             };
                         });
+                        
+                        if (missingKeysAlert) {
+                            alert("Warning: The uploaded JHPMS file does not seem to have 'Lab Type' or 'Subject' columns. ICT/Smart classes might show as zero. Please check your Excel headers.");
+                        }
                     } else if (type === 'edustat') {
                         normalized = data.map(r => {
-                            const uKey = Object.keys(r).find(k => k.toLowerCase().includes('udise'));
-                            const devKey = Object.keys(r).find(k => k.toLowerCase().includes('device'));
-                            const instKey = Object.keys(r).find(k => k.toLowerCase().includes('installed'));
-                            const hrsKey = Object.keys(r).find(k => k.toLowerCase().includes('total used hours'));
+                            const cleanKeys = Object.keys(r).map(k => ({ orig: k, clean: k.toLowerCase().replace(/[^a-z0-9]/g, '') }));
+                            const uKey = cleanKeys.find(k => k.clean.includes('udise'))?.orig;
+                            const devKey = cleanKeys.find(k => k.clean.includes('device'))?.orig;
+                            const instKey = cleanKeys.find(k => k.clean.includes('installed'))?.orig;
+                            const hrsKey = cleanKeys.find(k => k.clean.includes('totalusedhours'))?.orig;
                             return {
                                 udise: uKey ? r[uKey] : '',
                                 device: devKey ? r[devKey] : '',
@@ -416,8 +426,9 @@ const App = () => {
                         });
                     } else if (type === 'manpower') {
                         normalized = data.map(r => {
-                            const uKey = Object.keys(r).find(k => k.toLowerCase().includes('udise'));
-                            const statKey = Object.keys(r).find(k => k.toLowerCase().includes('status'));
+                            const cleanKeys = Object.keys(r).map(k => ({ orig: k, clean: k.toLowerCase().replace(/[^a-z0-9]/g, '') }));
+                            const uKey = cleanKeys.find(k => k.clean.includes('udise'))?.orig;
+                            const statKey = cleanKeys.find(k => k.clean === 'status')?.orig;
                             return { udise: uKey ? r[uKey] : '', status: statKey ? r[statKey] : '' };
                         });
                     } else {
