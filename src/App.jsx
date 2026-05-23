@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import * as XLSX from 'xlsx';
 import { get, set, clear as clearIDB } from 'idb-keyval';
+import ExcelWorker from './excelWorker.js?worker';
 import { Icons } from './components/Icons';
 import Dashboard from './components/Dashboard';
 import SearchView from './components/SearchView';
@@ -344,13 +345,22 @@ const App = () => {
 
         const reader = new FileReader();
         reader.onload = evt => {
-            // Delay parsing slightly to let the glassmorphic spinner overlay render in the UI
-            setTimeout(async () => {
-                try {
-                    const wb = XLSX.read(evt.target.result, { type: 'array' });
-                    const sheetName = wb.SheetNames[0];
-                    const data = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
+            const worker = new ExcelWorker();
+            worker.postMessage({ buffer: evt.target.result, type }, [evt.target.result]);
 
+            worker.onmessage = async (workerEvent) => {
+                const { success, json, error } = workerEvent.data;
+                worker.terminate();
+
+                if (!success) {
+                    alert("Excel Parse Error: " + error);
+                    e.target.value = '';
+                    setGlobalLoading(false);
+                    return;
+                }
+
+                const data = json;
+                try {
                     if (!data || data.length === 0) {
                         alert("Validation Error: The uploaded Excel file appears to contain no rows.");
                         e.target.value = '';
@@ -481,12 +491,19 @@ const App = () => {
                     }
                 } catch (err) {
                     console.error(err);
-                    alert("Excel Parse Error: " + err.message);
+                    alert("Data Processing Error: " + err.message);
                 } finally {
                     e.target.value = '';
                     setGlobalLoading(false);
                 }
-            }, 50);
+            };
+            
+            worker.onerror = (err) => {
+                worker.terminate();
+                alert("Worker Error: " + err.message);
+                e.target.value = '';
+                setGlobalLoading(false);
+            };
         };
         reader.readAsArrayBuffer(file);
     };
