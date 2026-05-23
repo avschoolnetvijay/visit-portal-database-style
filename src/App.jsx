@@ -347,7 +347,7 @@ const App = () => {
             // Delay parsing slightly to let the glassmorphic spinner overlay render in the UI
             setTimeout(async () => {
                 try {
-                    const wb = XLSX.read(evt.target.result, { type: 'binary' });
+                    const wb = XLSX.read(evt.target.result, { type: 'array' });
                     const sheetName = wb.SheetNames[0];
                     const data = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
 
@@ -488,7 +488,7 @@ const App = () => {
                 }
             }, 50);
         };
-        reader.readAsBinaryString(file);
+        reader.readAsArrayBuffer(file);
     };
 
     // Calculate Cascading Options
