@@ -149,7 +149,7 @@ const FieldTeamPerformance = ({
             
             const avgCpu = c.cpuInstalled > 0 ? (c.totalCpuHours / days / c.cpuInstalled) : 0;
             const avgMini = c.miniPcInstalled > 0 ? (c.totalMiniPcHours / days / c.miniPcInstalled) : 0;
-            const avgClasses = (c.ictClasses / days);
+            const avgClasses = c.totalSchools > 0 ? (c.ictClasses / (days * c.totalSchools)) : 0;
             
             return {
                 slno: idx + 1,
@@ -203,7 +203,7 @@ const FieldTeamPerformance = ({
             'Average Hours/ Day/ Schools/ CPU': d.avgCpu,
             'Average Hours/ Day/ Schools/ Mini PC': d.avgMini,
             'ICT Classes': d.ictClasses,
-            'Average Classes/Day': d.avgClasses,
+            'Average Classes/per school per Day': d.avgClasses,
             'Total ICT Visit': d.totalIctVisits,
             'Total Smart Visit': d.totalSmartVisits,
             'GrandTotal': d.grandTotal
@@ -267,7 +267,7 @@ const FieldTeamPerformance = ({
                             <th className="p-3 border-r border-teal-600/30 text-center bg-emerald-900/40">Avg Hrs/Day/Sch/CPU</th>
                             <th className="p-3 border-r border-teal-600/30 text-center bg-emerald-900/40">Avg Hrs/Day/Sch/Mini PC</th>
                             <th className="p-3 border-r border-teal-600/30 text-center bg-pink-900/40">ICT Classes</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-pink-900/40">Average Classes/Day</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center bg-pink-900/40">Avg Classes/per school/Day</th>
                             <th className="p-3 border-r border-teal-600/30 text-center">Total ICT Visit</th>
                             <th className="p-3 border-r border-teal-600/30 text-center">Total Smart Visit</th>
                             <th className="p-3 text-center bg-teal-900">GrandTotal</th>
