@@ -345,7 +345,7 @@ const App = () => {
         const reader = new FileReader();
         reader.onload = evt => {
             // Delay parsing slightly to let the glassmorphic spinner overlay render in the UI
-            setTimeout(() => {
+            setTimeout(async () => {
                 try {
                     const wb = XLSX.read(evt.target.result, { type: 'binary' });
                     const sheetName = wb.SheetNames[0];
