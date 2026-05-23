@@ -9,6 +9,7 @@ import ComplianceView from './components/ComplianceView';
 import ReportsView from './components/ReportsView';
 import Setup from './components/Setup';
 import DrillDownModal from './components/DrillDownModal';
+import FieldTeamPerformance from './components/FieldTeamPerformance';
 import MultiSelect from './components/MultiSelect';
 import {
     parseDateRobust,
@@ -61,6 +62,9 @@ const App = () => {
     const [activeTab, setActiveTab] = useState('setup');
     const [schools, setSchools] = useState([]);
     const [visits, setVisits] = useState([]);
+    const [jhpmsLab, setJhpmsLab] = useState([]);
+    const [edustat, setEdustat] = useState([]);
+    const [manpower, setManpower] = useState([]);
     const [drillDownData, setDrillDownData] = useState(null);
 
     const [isAuthenticated, setIsAuthenticated] = useState(
@@ -107,12 +111,19 @@ const App = () => {
     const defSelBlocks = useDeferredValue(selBlocks);
     const defSelSchools = useDeferredValue(selSchools);
 
-    // Load initial data from localStorage
     useEffect(() => {
         const s = localStorage.getItem('schools');
         const v = localStorage.getItem('visits');
+        const jl = localStorage.getItem('jhpms_lab');
+        const e = localStorage.getItem('edustat');
+        const m = localStorage.getItem('manpower');
+        
         if (s) setSchools(JSON.parse(s));
         if (v) setVisits(JSON.parse(v));
+        if (jl) setJhpmsLab(JSON.parse(jl));
+        if (e) setEdustat(JSON.parse(e));
+        if (m) setManpower(JSON.parse(m));
+        
         if (s && v) setActiveTab('dashboard');
         else setActiveTab('setup');
     }, []);
@@ -312,7 +323,13 @@ const App = () => {
         if (!file) return;
 
         setGlobalLoading(true);
-        setLoadingMessage(type === 'schools' ? "Ingesting and validating School Master records..." : "Analyzing and compiling Visit Report records...");
+        let msg = "Processing data...";
+        if (type === 'schools') msg = "Ingesting and validating School Master records...";
+        else if (type === 'visits') msg = "Analyzing and compiling Visit Report records...";
+        else if (type === 'jhpms_lab') msg = "Ingesting JHPMS Lab Usage records...";
+        else if (type === 'edustat') msg = "Ingesting Edustat records...";
+        else if (type === 'manpower') msg = "Ingesting Instructor profiles...";
+        setLoadingMessage(msg);
 
         const reader = new FileReader();
         reader.onload = evt => {
@@ -352,29 +369,35 @@ const App = () => {
                         }
                     }
 
-                    const normalized = data
-                        .map(row => {
-                            const newRow = normalizeRowHeaders(row);
-                            if (newRow.visit_type) newRow.visit_type = newRow.visit_type.toString().trim();
+                    let normalized;
+                    if (type === 'schools' || type === 'visits') {
+                        normalized = data
+                            .map(row => {
+                                const newRow = normalizeRowHeaders(row);
+                                if (newRow.visit_type) newRow.visit_type = newRow.visit_type.toString().trim();
 
-                            if (type === 'visits') {
-                                const pd = parseDateRobust(newRow.visit_date);
-                                if (pd) {
-                                    const year = pd.getFullYear();
-                                    const month = String(pd.getMonth() + 1).padStart(2, '0');
-                                    const day = String(pd.getDate()).padStart(2, '0');
-                                    newRow.visit_date = `${year}-${month}-${day}T00:00:00`;
+                                if (type === 'visits') {
+                                    const pd = parseDateRobust(newRow.visit_date);
+                                    if (pd) {
+                                        const year = pd.getFullYear();
+                                        const month = String(pd.getMonth() + 1).padStart(2, '0');
+                                        const day = String(pd.getDate()).padStart(2, '0');
+                                        newRow.visit_date = `${year}-${month}-${day}T00:00:00`;
+                                    }
                                 }
-                            }
-                            return newRow;
-                        })
-                        .filter(r => type === 'schools' || r.visit_date);
+                                return newRow;
+                            })
+                            .filter(r => type === 'schools' || r.visit_date);
+                    } else {
+                        // For the new performance modules, we keep original keys (mostly) but ensure they are easy to use.
+                        normalized = data; 
+                    }
 
                     if (type === 'schools') {
                         setSchools(normalized);
                         localStorage.setItem('schools', JSON.stringify(normalized));
                         alert(`Successfully uploaded ${normalized.length} schools master records!`);
-                    } else {
+                    } else if (type === 'visits') {
                         setVisits(normalized);
                         localStorage.setItem('visits', JSON.stringify(normalized));
                         alert(`Successfully uploaded ${normalized.length} visit reports!`);
@@ -390,6 +413,18 @@ const App = () => {
                                 setEndDate(dates[dates.length - 1].toISOString().split('T')[0]);
                             }
                         }
+                    } else if (type === 'jhpms_lab') {
+                        setJhpmsLab(normalized);
+                        localStorage.setItem('jhpms_lab', JSON.stringify(normalized));
+                        alert(`Successfully uploaded ${normalized.length} JHPMS Lab usage records!`);
+                    } else if (type === 'edustat') {
+                        setEdustat(normalized);
+                        localStorage.setItem('edustat', JSON.stringify(normalized));
+                        alert(`Successfully uploaded ${normalized.length} Edustat records!`);
+                    } else if (type === 'manpower') {
+                        setManpower(normalized);
+                        localStorage.setItem('manpower', JSON.stringify(normalized));
+                        alert(`Successfully uploaded ${normalized.length} Instructor profiles!`);
                     }
                 } catch (err) {
                     console.error(err);
@@ -421,15 +456,24 @@ const App = () => {
                 <Setup
                     onUpload={handleUpload}
                     onReset={() => {
-                        if (window.confirm("⚠️ WARNING: This will permanently wipe all local school databases and visit logs from your browser cache.\n\nAre you absolutely sure you want to clear all data?")) {
+                        if (window.confirm("⚠️ WARNING: This will permanently wipe all local databases and visit logs from your browser cache.\n\nAre you absolutely sure you want to clear all data?")) {
                             localStorage.clear();
                             sessionStorage.clear();
                             setSchools([]);
                             setVisits([]);
+                            setJhpmsLab([]);
+                            setEdustat([]);
+                            setManpower([]);
                             window.location.reload();
                         }
                     }}
-                    status={{ schools: schools.length, visits: visits.length }}
+                    status={{ 
+                        schools: schools.length, 
+                        visits: visits.length,
+                        jhpms_lab: jhpmsLab.length,
+                        edustat: edustat.length,
+                        manpower: manpower.length
+                    }}
                     onGoogleFetch={fetchFromGoogleSheet}
                     googleLoading={googleLoading}
                     onJhpmsSync={fetchJhpmsData}
@@ -469,6 +513,7 @@ const App = () => {
         }
 
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
+        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} />;
         if (activeTab === 'plan') return <PlanView data={processedData} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
@@ -614,6 +659,7 @@ const App = () => {
                         { id: 'search', l: 'Search & Insights', i: Icons.GlobalSearch },
                         { id: 'setup', l: 'System Setup', i: Icons.Setup },
                         { id: 'performance', l: 'Performance Matrix', i: Icons.Performance },
+                        { id: 'team-performance', l: 'Field Team Performance', i: Icons.Performance },
                         { id: 'plan', l: 'Visit Planning', i: Icons.Plan },
                         { id: 'compliance', l: 'Compliance Check', i: Icons.Compliance },
                         { id: 'reports', l: 'Reports & Export', i: Icons.Reports }

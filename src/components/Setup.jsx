@@ -112,12 +112,37 @@ const Setup = ({
                             </div>
                         </div>
                     </div>
+                    <div className="mt-8 mb-4 flex items-center gap-2 text-teal-800 font-bold border-b border-teal-100 pb-2">
+                        <Icons.Performance className="w-5 h-5" />
+                        <h3>Field Team Performance Data</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="border border-dashed border-gray-300 rounded p-6 hover:border-amber-500 bg-gray-50 transition relative">
+                            <div className="font-bold text-amber-700 mb-2 text-xs uppercase">3. JHPMS Lab Data</div>
+                            <input type="file" onChange={(e) => onUpload(e, 'jhpms_lab')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
+                        </div>
+                        <div className="border border-dashed border-gray-300 rounded p-6 hover:border-purple-500 bg-gray-50 transition relative">
+                            <div className="font-bold text-purple-700 mb-2 text-xs uppercase">4. Edustat Data</div>
+                            <input type="file" onChange={(e) => onUpload(e, 'edustat')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
+                        </div>
+                        <div className="border border-dashed border-gray-300 rounded p-6 hover:border-indigo-500 bg-gray-50 transition relative">
+                            <div className="font-bold text-indigo-700 mb-2 text-xs uppercase">5. Instructor Profile</div>
+                            <input type="file" onChange={(e) => onUpload(e, 'manpower')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
+                        </div>
+                    </div>
                 </div>
                 <div className="bg-gray-50 p-3 border-t border-gray-200 flex justify-between items-center">
                     <div className="text-xs text-gray-600 font-medium">
                         <span className={status.schools ? "text-green-600" : "text-red-500"}>● Schools: {status.schools}</span>
                         <span className="mx-2">|</span>
                         <span className={status.visits ? "text-green-600" : "text-red-500"}>● Visits: {status.visits}</span>
+                        <span className="mx-2">|</span>
+                        <span className={status.jhpms_lab ? "text-green-600" : "text-gray-400"}>● Lab Uses: {status.jhpms_lab || 0}</span>
+                        <span className="mx-2">|</span>
+                        <span className={status.edustat ? "text-green-600" : "text-gray-400"}>● Edustat: {status.edustat || 0}</span>
+                        <span className="mx-2">|</span>
+                        <span className={status.manpower ? "text-green-600" : "text-gray-400"}>● Manpower: {status.manpower || 0}</span>
                     </div>
                     <button onClick={onReset} className="text-red-600 text-xs font-bold hover:bg-red-50 px-3 py-1 rounded border border-red-200 transition">CLEAR DATA</button>
                 </div>
