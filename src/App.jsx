@@ -388,8 +388,32 @@ const App = () => {
                                 return newRow;
                             })
                             .filter(r => type === 'schools' || r.visit_date);
+                    } else if (type === 'jhpms_lab') {
+                        normalized = data.map(r => {
+                            const uKey = Object.keys(r).find(k => k.toLowerCase().includes('udise'));
+                            const dKey = Object.keys(r).find(k => k.toLowerCase().includes('date'));
+                            return { udise: uKey ? r[uKey] : '', date: dKey ? r[dKey] : '' };
+                        });
+                    } else if (type === 'edustat') {
+                        normalized = data.map(r => {
+                            const uKey = Object.keys(r).find(k => k.toLowerCase().includes('udise'));
+                            const devKey = Object.keys(r).find(k => k.toLowerCase().includes('device'));
+                            const instKey = Object.keys(r).find(k => k.toLowerCase().includes('installed'));
+                            const hrsKey = Object.keys(r).find(k => k.toLowerCase().includes('total used hours'));
+                            return {
+                                udise: uKey ? r[uKey] : '',
+                                device: devKey ? r[devKey] : '',
+                                installed: instKey ? r[instKey] : '',
+                                'total used hours': hrsKey ? r[hrsKey] : ''
+                            };
+                        });
+                    } else if (type === 'manpower') {
+                        normalized = data.map(r => {
+                            const uKey = Object.keys(r).find(k => k.toLowerCase().includes('udise'));
+                            const statKey = Object.keys(r).find(k => k.toLowerCase().includes('status'));
+                            return { udise: uKey ? r[uKey] : '', status: statKey ? r[statKey] : '' };
+                        });
                     } else {
-                        // For the new performance modules, we keep original keys (mostly) but ensure they are easy to use.
                         normalized = data; 
                     }
 
