@@ -258,39 +258,39 @@ const FieldTeamPerformance = ({
             </div>
 
             <div className="flex-1 overflow-auto bg-white/90 rounded-xl shadow-inner border border-gray-200">
-                <table className="w-full text-left text-xs whitespace-nowrap">
-                    <thead className="bg-gradient-to-r from-teal-800 to-teal-700 text-white sticky top-0 z-10 shadow-md">
+                <table className="w-full text-left text-xs">
+                    <thead className="bg-gradient-to-r from-teal-800 to-teal-700 text-white sticky top-0 z-30 shadow-md">
                         <tr>
-                            <th className="p-3 border-r border-teal-600/30">Slno</th>
-                            <th className="p-3 border-r border-teal-600/30">School_DISTRICT</th>
-                            <th className="p-3 border-r border-teal-600/30">Cluster Coordinator/ DEF Name</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center">No.of Schools</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center">No. of Instructor Working</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-blue-900/40">No.Of CPU Installed</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-blue-900/40">No.Of CPU Used</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-blue-900/40 text-red-200">No. Of CPU Not Used</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-purple-900/40">No.Of Mini PC Installed</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-purple-900/40">No. Of Mini PC Used</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-purple-900/40 text-red-200">No .Of Mini PC Not Used</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-orange-900/40">Total Hours Used (CPU)</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-orange-900/40">Total Hours Used (Mini PC)</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-emerald-900/40">Avg Hrs/Day/Sch/CPU</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-emerald-900/40">Avg Hrs/Day/Sch/Mini PC</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-pink-900/40">ICT Classes</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-pink-900/40">Avg Classes/per school/Day</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-yellow-900/40">Smart Classes</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center bg-yellow-900/40">Avg Smart Classes/per school/Day</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center">Total ICT Visit</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center">Total Smart Visit</th>
-                            <th className="p-3 text-center bg-teal-900">GrandTotal</th>
+                            <th className="p-3 border-r border-teal-600/30 align-top sticky left-0 z-40 bg-teal-800 w-[60px] min-w-[60px] max-w-[60px]">Slno</th>
+                            <th className="p-3 border-r border-teal-600/30 align-top sticky left-[60px] z-40 bg-teal-800 w-[120px] min-w-[120px] max-w-[120px]">School_DISTRICT</th>
+                            <th className="p-3 border-r border-teal-600/30 align-top sticky left-[180px] z-40 bg-teal-800 w-[200px] min-w-[200px] max-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">Cluster Coordinator/ DEF Name</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">No.of Schools</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[90px]">No. of Instructor Working</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 min-w-[90px]">No.Of CPU Installed</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 min-w-[80px]">No.Of CPU Used</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 text-red-200 min-w-[90px]">No. Of CPU Not Used</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 min-w-[90px]">No.Of Mini PC Installed</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 min-w-[80px]">No. Of Mini PC Used</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 text-red-200 min-w-[90px]">No .Of Mini PC Not Used</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (CPU)</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (Mini PC)</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[100px]">Avg Hrs/Day/Sch/CPU</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[100px]">Avg Hrs/Day/Sch/Mini PC</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-pink-900/40 min-w-[80px]">ICT Classes</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-pink-900/40 min-w-[100px]">Avg Classes/per school/Day</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-yellow-900/40 min-w-[80px]">Smart Classes</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-yellow-900/40 min-w-[100px]">Avg Smart Classes/per school/Day</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">Total ICT Visit</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">Total Smart Visit</th>
+                            <th className="p-3 text-center align-top bg-teal-900 min-w-[90px]">GrandTotal</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 text-gray-700">
+                    <tbody className="divide-y divide-gray-100 text-gray-700 whitespace-nowrap">
                         {performanceData.map((row, i) => (
-                            <tr key={i} className="hover:bg-teal-50/50 transition-colors">
-                                <td className="p-3 border-r border-gray-100 text-center font-medium">{row.slno}</td>
-                                <td className="p-3 border-r border-gray-100">{row.district}</td>
-                                <td className="p-3 border-r border-gray-100 font-bold text-teal-800">{row.ccName}</td>
+                            <tr key={i} className="hover:bg-teal-50/50 transition-colors group">
+                                <td className="p-3 border-r border-gray-100 text-center font-medium sticky left-0 z-20 bg-white group-hover:bg-teal-50/80 w-[60px] min-w-[60px] max-w-[60px] overflow-hidden text-ellipsis">{row.slno}</td>
+                                <td className="p-3 border-r border-gray-100 sticky left-[60px] z-20 bg-white group-hover:bg-teal-50/80 w-[120px] min-w-[120px] max-w-[120px] overflow-hidden text-ellipsis">{row.district}</td>
+                                <td className="p-3 border-r border-gray-100 font-bold text-teal-800 sticky left-[180px] z-20 bg-white group-hover:bg-teal-50/80 w-[200px] min-w-[200px] max-w-[200px] overflow-hidden text-ellipsis shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">{row.ccName}</td>
                                 <td className="p-3 border-r border-gray-100 text-center">{row.totalSchools}</td>
                                 <td className="p-3 border-r border-gray-100 text-center font-medium text-blue-700">{row.instructorWorking}</td>
                                 
