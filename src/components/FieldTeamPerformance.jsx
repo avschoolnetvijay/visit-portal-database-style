@@ -113,8 +113,8 @@ const FieldTeamPerformance = ({
         // 4. Process JHPMS Lab Uses (ICT Classes & Smart Classes)
         jhpmsLab.forEach(l => {
             const udise = String(l.udise || getVal(l, 'udise') || '').trim();
-            const labType = String(l.labType || getVal(l, 'lab type') || '').toUpperCase();
-            const subject = String(l.subject || getVal(l, 'subject') || '').toUpperCase();
+            const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+            const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
             
             // We count all classes matching the UDISE, regardless of date, 
             // since JHPMS files might cover a wider range than visit reports.
