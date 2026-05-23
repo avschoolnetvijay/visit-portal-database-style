@@ -312,43 +312,49 @@ const FieldTeamPerformance = ({
             </div>
 
             {performanceData.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border border-teal-100 p-4 rounded-xl bg-white shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 border border-teal-100 p-2 rounded-xl bg-white shadow-sm shrink-0">
                     {/* Gold Performer */}
                     {performanceData[0] && (
-                        <div className="rounded-xl border shadow-lg bg-gradient-to-br from-amber-50 to-yellow-100 border-yellow-300 p-4 flex flex-col items-center justify-center text-center transform transition-all hover:-translate-y-1 hover:shadow-xl relative overflow-hidden">
+                        <div className="rounded-lg border shadow-sm bg-gradient-to-br from-amber-50 to-yellow-100 border-yellow-300 p-2.5 flex items-center gap-3 relative overflow-hidden transition-all hover:shadow-md">
                             <div className="absolute -right-4 -top-4 w-16 h-16 bg-yellow-400 rounded-full opacity-20 blur-xl"></div>
-                            <div className="text-4xl mb-2 drop-shadow-md">🏆</div>
-                            <div className="font-extrabold text-xs text-yellow-800 uppercase tracking-wider mb-2 opacity-90">Gold Performer</div>
-                            <div className="font-bold text-lg text-gray-800 leading-tight">{performanceData[0].ccName}</div>
-                            <div className="text-xs text-gray-600 mt-1 font-medium">{performanceData[0].district}</div>
-                            <div className="mt-3 bg-white/80 px-5 py-1.5 rounded-full font-extrabold text-sm text-yellow-700 shadow-sm border border-yellow-200">
-                                Score: {performanceData[0].performanceScore}
+                            <div className="text-3xl drop-shadow-md flex-shrink-0">🏆</div>
+                            <div className="flex-1 text-left min-w-0">
+                                <div className="font-extrabold text-[10px] text-yellow-800 uppercase tracking-wider opacity-90">Gold Performer</div>
+                                <div className="font-bold text-sm text-gray-800 leading-tight truncate">{performanceData[0].ccName}</div>
+                                <div className="text-[10px] text-gray-600 font-medium truncate">{performanceData[0].district}</div>
+                            </div>
+                            <div className="bg-white/80 px-2.5 py-1 rounded-md font-extrabold text-xs text-yellow-700 shadow-sm border border-yellow-200 whitespace-nowrap">
+                                {performanceData[0].performanceScore}
                             </div>
                         </div>
                     )}
                     {/* Silver Performer */}
                     {performanceData[1] && (
-                        <div className="rounded-xl border shadow-lg bg-gradient-to-br from-slate-50 to-gray-200 border-gray-300 p-4 flex flex-col items-center justify-center text-center transform transition-all hover:-translate-y-1 hover:shadow-xl relative overflow-hidden">
+                        <div className="rounded-lg border shadow-sm bg-gradient-to-br from-slate-50 to-gray-200 border-gray-300 p-2.5 flex items-center gap-3 relative overflow-hidden transition-all hover:shadow-md">
                             <div className="absolute -right-4 -top-4 w-16 h-16 bg-gray-400 rounded-full opacity-20 blur-xl"></div>
-                            <div className="text-4xl mb-2 drop-shadow-md">🥈</div>
-                            <div className="font-extrabold text-xs text-gray-600 uppercase tracking-wider mb-2 opacity-90">Silver Performer</div>
-                            <div className="font-bold text-lg text-gray-800 leading-tight">{performanceData[1].ccName}</div>
-                            <div className="text-xs text-gray-600 mt-1 font-medium">{performanceData[1].district}</div>
-                            <div className="mt-3 bg-white/80 px-5 py-1.5 rounded-full font-extrabold text-sm text-gray-700 shadow-sm border border-gray-300">
-                                Score: {performanceData[1].performanceScore}
+                            <div className="text-3xl drop-shadow-md flex-shrink-0">🥈</div>
+                            <div className="flex-1 text-left min-w-0">
+                                <div className="font-extrabold text-[10px] text-gray-600 uppercase tracking-wider opacity-90">Silver Performer</div>
+                                <div className="font-bold text-sm text-gray-800 leading-tight truncate">{performanceData[1].ccName}</div>
+                                <div className="text-[10px] text-gray-600 font-medium truncate">{performanceData[1].district}</div>
+                            </div>
+                            <div className="bg-white/80 px-2.5 py-1 rounded-md font-extrabold text-xs text-gray-700 shadow-sm border border-gray-300 whitespace-nowrap">
+                                {performanceData[1].performanceScore}
                             </div>
                         </div>
                     )}
                     {/* Bronze Performer */}
                     {performanceData[2] && (
-                        <div className="rounded-xl border shadow-lg bg-gradient-to-br from-orange-50 to-amber-100/80 border-amber-300/60 p-4 flex flex-col items-center justify-center text-center transform transition-all hover:-translate-y-1 hover:shadow-xl relative overflow-hidden">
+                        <div className="rounded-lg border shadow-sm bg-gradient-to-br from-orange-50 to-amber-100/80 border-amber-300/60 p-2.5 flex items-center gap-3 relative overflow-hidden transition-all hover:shadow-md">
                             <div className="absolute -right-4 -top-4 w-16 h-16 bg-amber-600 rounded-full opacity-10 blur-xl"></div>
-                            <div className="text-4xl mb-2 drop-shadow-md">🥉</div>
-                            <div className="font-extrabold text-xs text-amber-800 uppercase tracking-wider mb-2 opacity-90">Bronze Performer</div>
-                            <div className="font-bold text-lg text-gray-800 leading-tight">{performanceData[2].ccName}</div>
-                            <div className="text-xs text-gray-600 mt-1 font-medium">{performanceData[2].district}</div>
-                            <div className="mt-3 bg-white/80 px-5 py-1.5 rounded-full font-extrabold text-sm text-amber-800 shadow-sm border border-amber-200">
-                                Score: {performanceData[2].performanceScore}
+                            <div className="text-3xl drop-shadow-md flex-shrink-0">🥉</div>
+                            <div className="flex-1 text-left min-w-0">
+                                <div className="font-extrabold text-[10px] text-amber-800 uppercase tracking-wider opacity-90">Bronze Performer</div>
+                                <div className="font-bold text-sm text-gray-800 leading-tight truncate">{performanceData[2].ccName}</div>
+                                <div className="text-[10px] text-gray-600 font-medium truncate">{performanceData[2].district}</div>
+                            </div>
+                            <div className="bg-white/80 px-2.5 py-1 rounded-md font-extrabold text-xs text-amber-800 shadow-sm border border-amber-200 whitespace-nowrap">
+                                {performanceData[2].performanceScore}
                             </div>
                         </div>
                     )}
@@ -359,9 +365,9 @@ const FieldTeamPerformance = ({
                 <table className="w-full text-left text-xs">
                     <thead className="bg-gradient-to-r from-teal-800 to-teal-700 text-white sticky top-0 z-30 shadow-md">
                         <tr>
-                            <th className="p-3 border-r border-teal-600/30 align-top sticky left-0 z-40 bg-teal-800 w-[60px] min-w-[60px] max-w-[60px]">Slno</th>
-                            <th className="p-3 border-r border-teal-600/30 align-top sticky left-[60px] z-40 bg-teal-800 w-[120px] min-w-[120px] max-w-[120px]">School_DISTRICT</th>
-                            <th className="p-3 border-r border-teal-600/30 align-top sticky left-[180px] z-40 bg-teal-800 w-[200px] min-w-[200px] max-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">Cluster Coordinator/ DEF Name</th>
+                            <th className="p-3 border-r border-teal-600/30 align-top sticky top-0 left-0 z-40 bg-teal-800 w-[60px] min-w-[60px] max-w-[60px]">Slno</th>
+                            <th className="p-3 border-r border-teal-600/30 align-top sticky top-0 left-[60px] z-40 bg-teal-800 w-[120px] min-w-[120px] max-w-[120px]">School_DISTRICT</th>
+                            <th className="p-3 border-r border-teal-600/30 align-top sticky top-0 left-[180px] z-40 bg-teal-800 w-[200px] min-w-[200px] max-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">Cluster Coordinator/ DEF Name</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">No.of Schools</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[90px]">No. of Instructor Working</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 min-w-[90px]">No.Of CPU Installed</th>
@@ -389,11 +395,13 @@ const FieldTeamPerformance = ({
                             <tr key={i} className="hover:bg-teal-50/50 transition-colors group">
                                 <td className="p-3 border-r border-gray-100 text-center font-medium sticky left-0 z-20 bg-white group-hover:bg-teal-50/80 w-[60px] min-w-[60px] max-w-[60px] overflow-hidden text-ellipsis">{row.slno}</td>
                                 <td className="p-3 border-r border-gray-100 sticky left-[60px] z-20 bg-white group-hover:bg-teal-50/80 w-[120px] min-w-[120px] max-w-[120px] overflow-hidden text-ellipsis">{row.district}</td>
-                                <td className="p-3 border-r border-gray-100 font-bold text-teal-800 sticky left-[180px] z-20 bg-white group-hover:bg-teal-50/80 w-[200px] min-w-[200px] max-w-[200px] overflow-hidden text-ellipsis shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] flex items-center gap-2">
-                                    {row.slno === 1 && <span className="px-1.5 py-0.5 rounded text-[10px] bg-yellow-500 text-white shadow-sm flex-shrink-0">#1</span>}
-                                    {row.slno === 2 && <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-400 text-white shadow-sm flex-shrink-0">#2</span>}
-                                    {row.slno === 3 && <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-600 text-white shadow-sm flex-shrink-0">#3</span>}
-                                    <span className="truncate">{row.ccName}</span>
+                                <td className="p-0 border-r border-gray-100 font-bold text-teal-800 sticky left-[180px] z-20 bg-white group-hover:bg-teal-50/80 w-[200px] min-w-[200px] max-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                    <div className="p-3 flex items-center gap-1.5 w-full h-full overflow-hidden whitespace-nowrap">
+                                        {row.slno === 1 && <span className="px-1 py-0.5 rounded text-[9px] bg-yellow-500 text-white shadow-sm flex-shrink-0 leading-none">#1</span>}
+                                        {row.slno === 2 && <span className="px-1 py-0.5 rounded text-[9px] bg-gray-400 text-white shadow-sm flex-shrink-0 leading-none">#2</span>}
+                                        {row.slno === 3 && <span className="px-1 py-0.5 rounded text-[9px] bg-amber-600 text-white shadow-sm flex-shrink-0 leading-none">#3</span>}
+                                        <span className="truncate block w-full">{row.ccName}</span>
+                                    </div>
                                 </td>
                                 <td className="p-3 border-r border-gray-100 text-center">{row.totalSchools}</td>
                                 <td className="p-3 border-r border-gray-100 text-center font-medium text-blue-700">{row.instructorWorking}</td>
