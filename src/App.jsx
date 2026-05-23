@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import * as XLSX from 'xlsx';
+import { get, set, clear as clearIDB } from 'idb-keyval';
 import { Icons } from './components/Icons';
 import Dashboard from './components/Dashboard';
 import SearchView from './components/SearchView';
@@ -110,22 +111,32 @@ const App = () => {
     const defSelDistricts = useDeferredValue(selDistricts);
     const defSelBlocks = useDeferredValue(selBlocks);
     const defSelSchools = useDeferredValue(selSchools);
+    const [isLoadingData, setIsLoadingData] = useState(true);
 
     useEffect(() => {
-        const s = localStorage.getItem('schools');
-        const v = localStorage.getItem('visits');
-        const jl = localStorage.getItem('jhpms_lab');
-        const e = localStorage.getItem('edustat');
-        const m = localStorage.getItem('manpower');
-        
-        if (s) setSchools(JSON.parse(s));
-        if (v) setVisits(JSON.parse(v));
-        if (jl) setJhpmsLab(JSON.parse(jl));
-        if (e) setEdustat(JSON.parse(e));
-        if (m) setManpower(JSON.parse(m));
-        
-        if (s && v) setActiveTab('dashboard');
-        else setActiveTab('setup');
+        const loadData = async () => {
+            try {
+                const s = await get('schools');
+                const v = await get('visits');
+                const jl = await get('jhpms_lab');
+                const e = await get('edustat');
+                const m = await get('manpower');
+                
+                if (s) setSchools(s);
+                if (v) setVisits(v);
+                if (jl) setJhpmsLab(jl);
+                if (e) setEdustat(e);
+                if (m) setManpower(m);
+                
+                if (s && v) setActiveTab('dashboard');
+                else setActiveTab('setup');
+            } catch (err) {
+                console.error("Error loading from IndexedDB:", err);
+            } finally {
+                setIsLoadingData(false);
+            }
+        };
+        loadData();
     }, []);
 
     // Primary Data Processing Engine
@@ -247,7 +258,7 @@ const App = () => {
             const normalized = rows.map(row => normalizeRowHeaders(row, true, headers));
 
             setSchools(normalized);
-            localStorage.setItem('schools', JSON.stringify(normalized));
+            await set('schools', normalized);
             alert(`Successfully imported ${normalized.length} schools from Google Sheet securely!`);
         } catch (error) {
             console.error(error);
@@ -292,7 +303,7 @@ const App = () => {
                 .filter(r => r.visit_date);
 
             setVisits(normalized);
-            localStorage.setItem('visits', JSON.stringify(normalized));
+            await set('visits', normalized);
 
             // Auto-fill Dates Logic
             if (normalized.length > 0) {
@@ -437,11 +448,11 @@ const App = () => {
 
                     if (type === 'schools') {
                         setSchools(normalized);
-                        localStorage.setItem('schools', JSON.stringify(normalized));
+                        await set('schools', normalized);
                         alert(`Successfully uploaded ${normalized.length} schools master records!`);
                     } else if (type === 'visits') {
                         setVisits(normalized);
-                        localStorage.setItem('visits', JSON.stringify(normalized));
+                        await set('visits', normalized);
                         alert(`Successfully uploaded ${normalized.length} visit reports!`);
 
                         // Auto-fill Dates Logic
@@ -457,15 +468,15 @@ const App = () => {
                         }
                     } else if (type === 'jhpms_lab') {
                         setJhpmsLab(normalized);
-                        localStorage.setItem('jhpms_lab', JSON.stringify(normalized));
+                        await set('jhpms_lab', normalized);
                         alert(`Successfully uploaded ${normalized.length} JHPMS Lab usage records!`);
                     } else if (type === 'edustat') {
                         setEdustat(normalized);
-                        localStorage.setItem('edustat', JSON.stringify(normalized));
+                        await set('edustat', normalized);
                         alert(`Successfully uploaded ${normalized.length} Edustat records!`);
                     } else if (type === 'manpower') {
                         setManpower(normalized);
-                        localStorage.setItem('manpower', JSON.stringify(normalized));
+                        await set('manpower', normalized);
                         alert(`Successfully uploaded ${normalized.length} Instructor profiles!`);
                     }
                 } catch (err) {
@@ -497,8 +508,9 @@ const App = () => {
             return (
                 <Setup
                     onUpload={handleUpload}
-                    onReset={() => {
+                    onReset={async () => {
                         if (window.confirm("⚠️ WARNING: This will permanently wipe all local databases and visit logs from your browser cache.\n\nAre you absolutely sure you want to clear all data?")) {
+                            await clearIDB();
                             localStorage.clear();
                             sessionStorage.clear();
                             setSchools([]);
@@ -622,6 +634,16 @@ const App = () => {
                         School Visit Tracking & Reporting Portal • v2.2
                     </div>
                 </div>
+            </div>
+        );
+    }
+
+    if (isLoadingData) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+                <div className="w-16 h-16 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mb-4"></div>
+                <h2 className="text-xl font-bold text-teal-800 animate-pulse">Loading Application Data...</h2>
+                <p className="text-sm text-gray-500 mt-2 text-center max-w-md">Please wait while we securely load your data from the offline IndexedDB storage. This is very fast but might take a second for large datasets.</p>
             </div>
         );
     }

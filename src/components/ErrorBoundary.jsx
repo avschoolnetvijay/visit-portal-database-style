@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { clear as clearIDB } from 'idb-keyval';
 import { Icons } from './Icons';
 
 class ErrorBoundary extends Component {
@@ -16,7 +17,12 @@ class ErrorBoundary extends Component {
     console.error("ErrorBoundary caught an error:", error, errorInfo);
   }
 
-  handleClearAndReload = () => {
+  handleClearAndReload = async () => {
+    try {
+      await clearIDB();
+    } catch (e) {
+      console.error(e);
+    }
     localStorage.clear();
     sessionStorage.clear();
     window.location.reload();
