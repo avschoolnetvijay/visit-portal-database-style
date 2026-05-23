@@ -61,12 +61,12 @@ const FieldTeamPerformance = ({
                 };
             }
             ccMap[ccKey].totalSchools++;
-            ccMap[ccKey].udises.add(String(s.udise_code));
+            ccMap[ccKey].udises.add(String(s.udise_code || '').trim());
         });
 
         // 2. Process Manpower (Count working instructors)
         manpower.forEach(m => {
-            const udise = String(getVal(m, 'udise') || '');
+            const udise = String(m.udise || getVal(m, 'udise') || '').trim();
             const status = String(getVal(m, 'status') || '').toUpperCase();
             if (status.includes('WORKING')) {
                 // Find which CC owns this UDISE
@@ -90,7 +90,7 @@ const FieldTeamPerformance = ({
 
         // 3. Process Edustat (CPU / Mini PC usage)
         edustat.forEach(e => {
-            const udise = String(getVal(e, 'udise') || '');
+            const udise = String(e.udise || getVal(e, 'udise') || '').trim();
             const device = String(getVal(e, 'device') || '').toUpperCase();
             const installed = String(getVal(e, 'installed') || '').toUpperCase();
             const hours = parseHours(getVal(e, 'total used hours'));
@@ -112,28 +112,26 @@ const FieldTeamPerformance = ({
 
         // 4. Process JHPMS Lab Uses (ICT Classes & Smart Classes)
         jhpmsLab.forEach(l => {
-            const udise = String(getVal(l, 'udise') || '');
-            const d = new Date(getVal(l, 'date'));
-            const labType = String(l.labType || '').toUpperCase();
-            const subject = String(l.subject || '').toUpperCase();
+            const udise = String(l.udise || getVal(l, 'udise') || '').trim();
+            const labType = String(l.labType || getVal(l, 'lab type') || '').toUpperCase();
+            const subject = String(l.subject || getVal(l, 'subject') || '').toUpperCase();
             
-            // Only count if within date range
-            if (!isNaN(d.getTime()) && d >= start && d <= end) {
-                Object.values(ccMap).forEach(ccData => {
-                    if (ccData.udises.has(udise)) {
-                        if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                            ccData.ictClasses++;
-                        } else if (labType.includes('SMART')) {
-                            ccData.smartClasses++;
-                        }
+            // We count all classes matching the UDISE, regardless of date, 
+            // since JHPMS files might cover a wider range than visit reports.
+            Object.values(ccMap).forEach(ccData => {
+                if (ccData.udises.has(udise)) {
+                    if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                        ccData.ictClasses++;
+                    } else if (labType.includes('SMART')) {
+                        ccData.smartClasses++;
                     }
-                });
-            }
+                }
+            });
         });
 
         // 5. Process Visits (Total ICT Visit / Total Smart Visit)
         visits.forEach(v => {
-            const udise = String(v.udise_code);
+            const udise = String(v.udise_code || '').trim();
             const d = new Date(v.visit_date);
             const type = (v.visit_type || '').toLowerCase();
             
