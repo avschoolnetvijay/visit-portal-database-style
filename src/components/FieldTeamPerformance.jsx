@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { exportToExcel } from '../utils';
+import { exportToExcel, parseDateRobust } from '../utils';
 import { Icons } from './Icons';
 
 const FieldTeamPerformance = ({ 
@@ -116,17 +116,34 @@ const FieldTeamPerformance = ({
             const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
             const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
             
-            // We count all classes matching the UDISE, regardless of date, 
-            // since JHPMS files might cover a wider range than visit reports.
-            Object.values(ccMap).forEach(ccData => {
-                if (ccData.udises.has(udise)) {
-                    if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                        ccData.ictClasses++;
-                    } else if (labType.includes('SMART')) {
-                        ccData.smartClasses++;
-                    }
+            // Parse date and filter by range to ensure dynamically updated ICT / Smart Class counts
+            const rawDate = l.date || getVal(l, 'date');
+            const d = parseDateRobust(rawDate);
+            
+            if (d && !isNaN(d.getTime())) {
+                if (d >= start && d <= end) {
+                    Object.values(ccMap).forEach(ccData => {
+                        if (ccData.udises.has(udise)) {
+                            if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                                ccData.ictClasses++;
+                            } else if (labType.includes('SMART')) {
+                                ccData.smartClasses++;
+                            }
+                        }
+                    });
                 }
-            });
+            } else {
+                // Fallback: If date is invalid or missing, count it by default
+                Object.values(ccMap).forEach(ccData => {
+                    if (ccData.udises.has(udise)) {
+                        if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                            ccData.ictClasses++;
+                        } else if (labType.includes('SMART')) {
+                            ccData.smartClasses++;
+                        }
+                    }
+                });
+            }
         });
 
         // 5. Process Visits (Total ICT Visit / Total Smart Visit)
