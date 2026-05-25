@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import * as XLSX from 'xlsx';
-import { get, set, clearIDB } from './supabaseClient';
+import { get, set, clearIDB, hashPassword, supabase } from './supabaseClient';
 import ExcelWorker from './excelWorker.js?worker';
 import { Icons } from './components/Icons';
 import Dashboard from './components/Dashboard';
@@ -72,8 +72,17 @@ const App = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(
         () => sessionStorage.getItem('snet_authenticated') === 'true'
     );
+    const [usernameInput, setUsernameInput] = useState('');
     const [password, setPassword] = useState('');
     const [authError, setAuthError] = useState('');
+    const [userRole, setUserRole] = useState(() => localStorage.getItem('snet_user_role') || 'user');
+
+    const handleLogout = () => {
+        sessionStorage.removeItem('snet_authenticated');
+        localStorage.removeItem('snet_username');
+        localStorage.removeItem('snet_user_role');
+        window.location.reload();
+    };
 
     const [googleLoading, setGoogleLoading] = useState(false);
     const [jhpmsLoading, setJhpmsLoading] = useState(false);
@@ -550,6 +559,7 @@ const App = () => {
                     googleLoading={googleLoading}
                     onJhpmsSync={fetchJhpmsData}
                     jhpmsLoading={jhpmsLoading}
+                    userRole={userRole}
                 />
             );
         }
@@ -593,16 +603,52 @@ const App = () => {
         return <div className="p-10 text-center text-gray-500">Module under development</div>;
     };
 
-    // Password authentication gate
+    // Secure Database-driven Authentication Gate
     if (!isAuthenticated) {
-        const handleLogin = e => {
+        const handleLogin = async e => {
             e.preventDefault();
-            if (password === 'Schoolnet@2026') {
+            const u = usernameInput.trim().toLowerCase();
+            const p = password;
+            if (!u || !p) {
+                setAuthError('Please enter both User ID and Password.');
+                return;
+            }
+            setGlobalLoading(true);
+            setLoadingMessage('Authenticating...');
+            try {
+                // Cryptographically hash password client-side using SHA-256
+                const hash = await hashPassword(u, p);
+                
+                // Fetch credentials from the public users table in Supabase
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('username, role')
+                    .eq('username', u)
+                    .eq('password_hash', hash)
+                    .single();
+
+                if (error || !data) {
+                    setAuthError('Invalid User ID or Password.');
+                    setGlobalLoading(false);
+                    return;
+                }
+
+                // Store secure session data
                 sessionStorage.setItem('snet_authenticated', 'true');
+                localStorage.setItem('snet_username', data.username);
+                localStorage.setItem('snet_user_role', data.role);
+                
+                setUserRole(data.role);
                 setIsAuthenticated(true);
                 setAuthError('');
-            } else {
-                setAuthError('Invalid credentials. Access Denied.');
+                
+                // Refresh to reload all user namespaces
+                window.location.reload();
+            } catch (err) {
+                console.error("Login authentication error:", err);
+                setAuthError('Connection error. Please try again.');
+            } finally {
+                setGlobalLoading(false);
             }
         };
 
@@ -613,7 +659,7 @@ const App = () => {
                         <Icons.Lock className="w-8 h-8" />
                     </div>
                     <h2 className="text-2xl font-extrabold text-white text-center tracking-tight mb-1">
-                        Access Restricted
+                        Secure Access Portal
                     </h2>
                     <p className="text-teal-200/60 text-xs text-center mb-6 uppercase tracking-wider font-semibold">
                         Schoolnet India Limited
@@ -622,7 +668,21 @@ const App = () => {
                     <form onSubmit={handleLogin} className="w-full space-y-4">
                         <div>
                             <label className="block text-[11px] font-bold text-teal-200 uppercase tracking-widest mb-1.5 ml-1">
-                                Portal Access Password
+                                User ID / Username
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Enter Username"
+                                value={usernameInput}
+                                onChange={e => setUsernameInput(e.target.value)}
+                                className="w-full bg-slate-950/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all shadow-inner"
+                                autoFocus
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-[11px] font-bold text-teal-200 uppercase tracking-widest mb-1.5 ml-1">
+                                Secure Password
                             </label>
                             <input
                                 type="password"
@@ -630,7 +690,6 @@ const App = () => {
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                                 className="w-full bg-slate-950/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all shadow-inner"
-                                autoFocus
                             />
                         </div>
 
@@ -644,12 +703,12 @@ const App = () => {
                             type="submit"
                             className="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white text-xs uppercase tracking-widest font-extrabold py-3.5 rounded-xl shadow-lg shadow-teal-500/20 hover:shadow-teal-600/30 transition-all active:scale-[0.98] duration-150"
                         >
-                            Unlock Portal
+                            Sign In
                         </button>
                     </form>
 
                     <div className="mt-8 text-[10px] text-teal-200/40 text-center font-medium">
-                        School Visit Tracking & Reporting Portal • v2.2
+                        School Visit Tracking & Reporting Portal • v2.4 (Cloud Managed)
                     </div>
                 </div>
             </div>
@@ -772,6 +831,15 @@ const App = () => {
                 </nav>
                 <div className="p-4 border-t border-white/10 text-[10px] text-teal-200/60 text-center font-medium flex flex-col items-center gap-3">
                     <button
+                        onClick={handleLogout}
+                        className="flex items-center justify-center gap-2 bg-red-950/30 hover:bg-red-950/50 text-red-200 rounded-lg px-3 py-1.5 w-full text-xs font-semibold shadow-inner border border-red-500/20 transition"
+                        title="Sign Out of Portal"
+                    >
+                        <Icons.Lock className="w-4 h-4 text-red-300" />
+                        <span>Sign Out ({localStorage.getItem('snet_username') || 'User'})</span>
+                    </button>
+
+                    <button
                         onClick={() => setDarkMode(!darkMode)}
                         className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white rounded-lg px-3 py-1.5 w-full text-xs font-semibold shadow-inner border border-white/10 transition"
                     >
@@ -788,7 +856,7 @@ const App = () => {
                         )}
                     </button>
                     <div>
-                        v2.3 • Glass Edition
+                        v2.4 • Glass Edition
                         <br />
                         Made with ❤️ by Schoolnet
                     </div>

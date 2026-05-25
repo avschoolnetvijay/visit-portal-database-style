@@ -5,6 +5,22 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Natively hash password with username as salt using Web Crypto API (SHA-256)
+// This ensures plain-text passwords are never sent over the network or stored in the database.
+export async function hashPassword(username, password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(username.toLowerCase().trim() + ":" + password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Helper to get current user's namespace prefix
+function getPrefix() {
+  const user = localStorage.getItem('snet_username') || 'default';
+  return `${user}_`;
+}
+
 // Natively compress a JSON object into a GZIP blob using the browser's CompressionStream
 async function compressToGzipBlob(data) {
   const jsonString = JSON.stringify(data);
@@ -25,9 +41,10 @@ async function decompressFromGzipBlob(blob) {
 // Helper functions using CDN-optimized compressed storage for infinite scaling and zero timeouts
 export async function get(key) {
   try {
+    const prefix = getPrefix();
     const { data, error } = await supabase.storage
       .from('app-data')
-      .download(`${key}.json.gz`);
+      .download(`${prefix}${key}.json.gz`);
 
     if (error) {
       // Check if file is not found (400, 404)
@@ -47,11 +64,12 @@ export async function get(key) {
 
 export async function set(key, val) {
   try {
+    const prefix = getPrefix();
     const compressedBlob = await compressToGzipBlob(val);
     
     const { error } = await supabase.storage
       .from('app-data')
-      .upload(`${key}.json.gz`, compressedBlob, {
+      .upload(`${prefix}${key}.json.gz`, compressedBlob, {
         contentType: 'application/x-gzip',
         upsert: true
       });
@@ -68,17 +86,24 @@ export async function set(key, val) {
 
 export async function clearIDB() {
   try {
+    const prefix = getPrefix();
     const { data, error } = await supabase.storage
       .from('app-data')
       .list();
     if (error) throw error;
 
     if (data && data.length > 0) {
-      const filesToRemove = data.map(x => `${x.name}`);
-      const { error: deleteError } = await supabase.storage
-        .from('app-data')
-        .remove(filesToRemove);
-      if (deleteError) throw deleteError;
+      // Only delete files belonging to the current user
+      const filesToRemove = data
+        .filter(x => x.name.startsWith(prefix))
+        .map(x => `${x.name}`);
+      
+      if (filesToRemove.length > 0) {
+        const { error: deleteError } = await supabase.storage
+          .from('app-data')
+          .remove(filesToRemove);
+        if (deleteError) throw deleteError;
+      }
     }
   } catch (err) {
     console.error("Unexpected error clearing Supabase Storage:", err);
