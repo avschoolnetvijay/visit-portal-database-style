@@ -62,7 +62,7 @@ const Setup = ({
                 <div className="portal-card-header text-sm py-2">System Setup & Data Import</div>
                 <div className="p-8 text-center bg-white">
                     <Icons.Setup className="w-12 h-12 text-teal-600 mx-auto mb-4 animate-spin-slow" />
-                    <p className="text-gray-500 mb-6 text-xs">Upload your Excel files to populate the portal. Data is stored locally in your browser.</p>
+                    <p className="text-gray-500 mb-6 text-xs">Upload your Excel files to populate the portal. Data is securely stored in the Cloud Database (Supabase).</p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="border border-dashed border-gray-300 rounded p-6 hover:border-teal-500 bg-gray-50 transition relative">
@@ -144,7 +144,7 @@ const Setup = ({
                         <span className="mx-2">|</span>
                         <span className={status.manpower ? "text-green-600" : "text-gray-400"}>● Manpower: {status.manpower || 0}</span>
                     </div>
-                    <button onClick={onReset} className="text-red-600 text-xs font-bold hover:bg-red-50 px-3 py-1 rounded border border-red-200 transition">CLEAR DATA</button>
+                    <button onClick={onReset} className="text-red-600 text-xs font-bold hover:bg-red-50 px-3 py-1 rounded border border-red-200 transition">CLEAR CLOUD DATA</button>
                 </div>
             </div>
         </div>

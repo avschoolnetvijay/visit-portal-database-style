@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import * as XLSX from 'xlsx';
-import { get, set, clear as clearIDB } from 'idb-keyval';
+import { get, set, clearIDB } from './supabaseClient';
 import ExcelWorker from './excelWorker.js?worker';
 import { Icons } from './components/Icons';
 import Dashboard from './components/Dashboard';
@@ -236,6 +236,7 @@ const App = () => {
             // Fallback to production URL when running locally in development mode or offline
             const functionUrl =
                 window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1' ||
                 window.location.hostname === '' ||
                 window.location.protocol === 'file:'
                     ? 'https://schoolnet-visit-portal-vijay.netlify.app/.netlify/functions/fetch-schools'

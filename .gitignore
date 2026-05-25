@@ -17,6 +17,9 @@ node_modules/
 .netlify
 
 # Build artifacts
-dist/
-dist
+# Environment variables
+.env
 
+# Scratch and other files
+scratch/
+supabase_schema.sql

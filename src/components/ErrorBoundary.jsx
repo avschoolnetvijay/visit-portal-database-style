@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { clear as clearIDB } from 'idb-keyval';
+import { clearIDB } from '../supabaseClient';
 import { Icons } from './Icons';
 
 class ErrorBoundary extends Component {
