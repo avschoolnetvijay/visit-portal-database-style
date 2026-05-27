@@ -418,7 +418,7 @@ const FieldTeamPerformance = ({
                 </div>
             )}
 
-            <div className="overflow-x-auto bg-white/90 rounded-xl shadow-inner border border-gray-200">
+            <div className="max-h-[68vh] overflow-auto bg-white/90 rounded-xl shadow-inner border border-gray-200">
                 <table className="w-full text-left text-xs">
                     <thead className="bg-gradient-to-r from-teal-800 to-teal-700 text-white sticky top-0 z-30 shadow-md">
                         <tr>
