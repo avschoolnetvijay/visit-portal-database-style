@@ -125,11 +125,11 @@ const App = () => {
     const defSelBlocks = useDeferredValue(selBlocks);
     const defSelSchools = useDeferredValue(selSchools);
 
-    // Dynamic Working Days auto-calculation based on average unique JHPMS dates per active school matching active filters
+    // Dynamic Working Days auto-calculation based on maximum unique JHPMS dates per active school matching active filters
     const autoWorkingDays = useMemo(() => {
         if (!jhpmsLab.length) return 0;
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const start = new Date(defStartDate);
+        const end = new Date(defEndDate);
         end.setHours(23, 59, 59, 999);
 
         const getVal = (row, keyMatch) => {
@@ -173,22 +173,25 @@ const App = () => {
         const activeSchoolsList = Object.keys(schoolDatesMap);
         if (activeSchoolsList.length === 0) return 0;
 
-        // 3. Average the unique class dates per active school to represent true school-level operational days
-        let totalUniqueDatesSum = 0;
+        // 3. Find the maximum unique class dates recorded by any active school (Max Working Days)
+        let maxWorkingDays = 0;
         activeSchoolsList.forEach(udise => {
-            totalUniqueDatesSum += schoolDatesMap[udise].size;
+            const schoolCount = schoolDatesMap[udise].size;
+            if (schoolCount > maxWorkingDays) {
+                maxWorkingDays = schoolCount;
+            }
         });
 
-        return Math.round(totalUniqueDatesSum / activeSchoolsList.length);
-    }, [jhpmsLab, startDate, endDate, schools, defSelProjects, defSelDistricts, defSelBlocks, defSelSchools]);
+        return maxWorkingDays;
+    }, [jhpmsLab, defStartDate, defEndDate, schools, defSelProjects, defSelDistricts, defSelBlocks, defSelSchools]);
 
     // Synchronize workingDays state with auto-calculated value if not overridden
     useEffect(() => {
         if (!isWorkingDaysManual) {
-            const calculated = autoWorkingDays || Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)));
+            const calculated = autoWorkingDays || Math.max(1, Math.ceil((new Date(defEndDate) - new Date(defStartDate)) / (1000 * 60 * 60 * 24)));
             setWorkingDays(calculated);
         }
-    }, [autoWorkingDays, isWorkingDaysManual, startDate, endDate]);
+    }, [autoWorkingDays, isWorkingDaysManual, defStartDate, defEndDate]);
 
     // Reset manual override state when date range parameters change
     useEffect(() => {
