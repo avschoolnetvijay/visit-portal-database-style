@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { exportToExcel, parseDateRobust } from '../utils';
 import { Icons } from './Icons';
 
@@ -13,7 +13,8 @@ const FieldTeamPerformance = ({
     selProjects,
     selDistricts,
     selBlocks,
-    workingDays
+    workingDays,
+    onRegisterExport
 }) => {
     
     const performanceData = useMemo(() => {
@@ -305,6 +306,15 @@ const FieldTeamPerformance = ({
         exportToExcel(exportFormat, 'Field_Team_Performance_Report');
     };
 
+    useEffect(() => {
+        if (onRegisterExport) {
+            onRegisterExport(() => handleExport);
+        }
+        return () => {
+            if (onRegisterExport) onRegisterExport(null);
+        };
+    }, [handleExport, onRegisterExport]);
+
     if (!schools.length) {
         return (
             <div className="p-10 text-center text-gray-500 bg-white/80 rounded-2xl m-4 shadow-sm border border-white/40">
@@ -322,7 +332,7 @@ const FieldTeamPerformance = ({
     }
 
     return (
-        <div className="p-4 h-full flex flex-col space-y-4 animate-fade-in">
+        <div className="space-y-4 animate-fade-in">
             <style>{`
                 .custom-tooltip-trigger {
                     position: relative;
@@ -357,23 +367,6 @@ const FieldTeamPerformance = ({
                     opacity: 1;
                 }
             `}</style>
-            <div className="flex justify-between items-center bg-white/80 p-4 rounded-xl shadow-sm border border-white/40">
-                <div>
-                    <h2 className="text-lg font-bold text-teal-900 flex items-center gap-2">
-                        <Icons.Performance className="w-5 h-5 text-teal-600" />
-                        Field Team Performance Dashboard
-                    </h2>
-                    <p className="text-xs text-gray-500">
-                        Aggregated metrics for CC/DEF based on School Master, Visits, Edustat, and JHPMS Lab Data.
-                    </p>
-                </div>
-                <button
-                    onClick={handleExport}
-                    className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 flex items-center gap-2 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5 text-sm font-bold"
-                >
-                    <Icons.Export className="w-4 h-4" /> Export Excel
-                </button>
-            </div>
 
             {performanceData.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 border border-teal-100 p-2 rounded-xl bg-white shadow-sm shrink-0">
@@ -425,7 +418,7 @@ const FieldTeamPerformance = ({
                 </div>
             )}
 
-            <div className="flex-1 overflow-auto bg-white/90 rounded-xl shadow-inner border border-gray-200">
+            <div className="overflow-x-auto bg-white/90 rounded-xl shadow-inner border border-gray-200">
                 <table className="w-full text-left text-xs">
                     <thead className="bg-gradient-to-r from-teal-800 to-teal-700 text-white sticky top-0 z-30 shadow-md">
                         <tr>

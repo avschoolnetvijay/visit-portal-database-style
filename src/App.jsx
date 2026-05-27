@@ -97,6 +97,7 @@ const App = () => {
 
     const [workingDays, setWorkingDays] = useState('');
     const [isWorkingDaysManual, setIsWorkingDaysManual] = useState(false);
+    const [customExportHandler, setCustomExportHandler] = useState(null);
 
     const [selProjects, setSelProjects] = useState([]);
     const [selDistricts, setSelDistricts] = useState([]);
@@ -662,7 +663,7 @@ const App = () => {
         }
 
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
-        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} />;
+        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
         if (activeTab === 'plan') return <PlanView data={processedData} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
@@ -932,143 +933,149 @@ const App = () => {
 
             {/* Main Center Tab Panel */}
             <div className="flex-1 flex flex-col overflow-hidden relative m-3 md:my-3 md:mr-3 md:ml-0 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 shadow-xl">
-                {activeTab !== 'search' && activeTab !== 'setup' && (
-                    <div className="portal-filter-bar z-10 mx-4 mt-4 rounded-xl border border-white shadow-sm flex flex-col gap-2 no-print">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
-                            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
-                                {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
-                            </h2>
-                            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                                <button
-                                    onClick={() => {
-                                        setActiveTab('search');
-                                        setIsSidebarOpen(false);
-                                    }}
-                                    className="bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
-                                >
-                                    <Icons.Search className="w-3.5 h-3.5 text-gray-500" /> Advanced Search
-                                </button>
-                                <button
-                                    onClick={() => window.print()}
-                                    className="bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
-                                >
-                                    <Icons.Print className="w-3.5 h-3.5 text-teal-600" /> Print / PDF
-                                </button>
-                                <button
-                                    onClick={() => exportToExcel(processedData.schools, `Visit_Portal_Export_${activeTab}`)}
-                                    className="bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 flex items-center gap-2 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
-                                >
-                                    <Icons.Export className="w-3.5 h-3.5 text-teal-100" /> Export View
-                                </button>
-                            </div>
-                        </div>
-                        <div className="h-px bg-gray-200/80 w-full my-1"></div>
-                        <div className="flex flex-wrap gap-3 items-end">
-                            <div className="w-full sm:w-[calc(50%-6px)] md:w-44 text-left">
-                                <span className="portal-label">Agency</span>
-                                <select className="portal-input bg-gray-50 cursor-not-allowed opacity-70" disabled>
-                                    <option>Schoolnet India Limited</option>
-                                </select>
-                            </div>
-                            <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
-                                <MultiSelect
-                                    label="Projects"
-                                    options={opts.proj}
-                                    value={selProjects}
-                                    onChange={setSelProjects}
-                                    placeholder="All Projects"
-                                />
-                            </div>
-                            <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
-                                <MultiSelect
-                                    label="District"
-                                    options={opts.dist}
-                                    value={selDistricts}
-                                    onChange={setSelDistricts}
-                                    placeholder="All Districts"
-                                />
-                            </div>
-                            <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
-                                <MultiSelect
-                                    label="Block"
-                                    options={opts.blocks}
-                                    value={selBlocks}
-                                    onChange={setSelBlocks}
-                                    placeholder="All Blocks"
-                                />
-                            </div>
-                            <div className="w-full sm:w-[calc(50%-6px)] md:w-44 text-left">
-                                <MultiSelect
-                                    label="School"
-                                    options={opts.schoolNames}
-                                    value={selSchools}
-                                    onChange={setSelSchools}
-                                    placeholder="All Schools"
-                                />
-                            </div>
-                            <div className="w-full sm:w-auto flex flex-col text-left bg-gray-50 p-1.5 rounded-lg border border-gray-200 lg:ml-auto">
-                                <span className="portal-label text-[10px] mb-0.5 ml-1">Date Range</span>
-                                <div className="flex items-center gap-1">
-                                    <input
-                                        type="date"
-                                        value={startDate}
-                                        onChange={e => setStartDate(e.target.value)}
-                                        className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
-                                    />
-                                    <span className="text-gray-400">-</span>
-                                    <input
-                                        type="date"
-                                        value={endDate}
-                                        onChange={e => setEndDate(e.target.value)}
-                                        className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
-                                    />
+                <main className="flex-1 overflow-y-auto p-4 scroll-smooth">
+                    {activeTab !== 'search' && activeTab !== 'setup' && (
+                        <div className="portal-filter-bar z-10 mb-4 rounded-xl border border-white shadow-sm flex flex-col gap-2 no-print">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
+                                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                    <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
+                                    {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
+                                </h2>
+                                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                                    <button
+                                        onClick={() => {
+                                            setActiveTab('search');
+                                            setIsSidebarOpen(false);
+                                        }}
+                                        className="bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
+                                    >
+                                        <Icons.Search className="w-3.5 h-3.5 text-gray-500" /> Advanced Search
+                                    </button>
+                                    <button
+                                        onClick={() => window.print()}
+                                        className="bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
+                                    >
+                                        <Icons.Print className="w-3.5 h-3.5 text-teal-600" /> Print / PDF
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (activeTab === 'team-performance' && customExportHandler) {
+                                                customExportHandler();
+                                            } else {
+                                                exportToExcel(processedData.schools, `Visit_Portal_Export_${activeTab}`);
+                                            }
+                                        }}
+                                        className="bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 flex items-center gap-2 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
+                                    >
+                                        <Icons.Export className="w-3.5 h-3.5 text-teal-100" />
+                                        {activeTab === 'team-performance' ? 'Export Excel' : 'Export View'}
+                                    </button>
                                 </div>
                             </div>
-                            {activeTab === 'team-performance' && (
-                                <div className="w-full sm:w-auto flex flex-col text-left bg-gray-50 p-1.5 rounded-lg border border-gray-200">
-                                    <span className="portal-label text-[10px] mb-0.5 ml-1 flex items-center gap-1 text-teal-800 font-bold whitespace-nowrap">
-                                        Working Days
-                                        {isWorkingDaysManual && (
-                                            <span className="text-[8px] px-1 bg-amber-100 text-amber-800 rounded font-normal border border-amber-200">
-                                                Manual
-                                            </span>
-                                        )}
-                                    </span>
+                            <div className="h-px bg-gray-200/80 w-full my-1"></div>
+                            <div className="flex flex-wrap gap-3 items-end">
+                                <div className="w-full sm:w-[calc(50%-6px)] md:w-44 text-left">
+                                    <span className="portal-label">Agency</span>
+                                    <select className="portal-input bg-gray-50 cursor-not-allowed opacity-70" disabled>
+                                        <option>Schoolnet India Limited</option>
+                                    </select>
+                                </div>
+                                <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
+                                    <MultiSelect
+                                        label="Projects"
+                                        options={opts.proj}
+                                        value={selProjects}
+                                        onChange={setSelProjects}
+                                        placeholder="All Projects"
+                                    />
+                                </div>
+                                <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
+                                    <MultiSelect
+                                        label="District"
+                                        options={opts.dist}
+                                        value={selDistricts}
+                                        onChange={setSelDistricts}
+                                        placeholder="All Districts"
+                                    />
+                                </div>
+                                <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
+                                    <MultiSelect
+                                        label="Block"
+                                        options={opts.blocks}
+                                        value={selBlocks}
+                                        onChange={setSelBlocks}
+                                        placeholder="All Blocks"
+                                    />
+                                </div>
+                                <div className="w-full sm:w-[calc(50%-6px)] md:w-44 text-left">
+                                    <MultiSelect
+                                        label="School"
+                                        options={opts.schoolNames}
+                                        value={selSchools}
+                                        onChange={setSelSchools}
+                                        placeholder="All Schools"
+                                    />
+                                </div>
+                                <div className="w-full sm:w-auto flex flex-col text-left bg-gray-50 p-1.5 rounded-lg border border-gray-200 lg:ml-auto">
+                                    <span className="portal-label text-[10px] mb-0.5 ml-1">Date Range</span>
                                     <div className="flex items-center gap-1">
                                         <input
-                                            type="number"
-                                            min="1"
-                                            value={workingDays}
-                                            onChange={e => {
-                                                const val = parseInt(e.target.value, 10);
-                                                if (!isNaN(val) && val >= 1) {
-                                                    setWorkingDays(val);
-                                                    setIsWorkingDaysManual(true);
-                                                } else if (e.target.value === '') {
-                                                    setWorkingDays('');
-                                                    setIsWorkingDaysManual(true);
-                                                }
-                                            }}
-                                            className="portal-input h-7 w-16 text-xs bg-white font-extrabold text-center text-teal-800 border-teal-200 focus:border-teal-500"
+                                            type="date"
+                                            value={startDate}
+                                            onChange={e => setStartDate(e.target.value)}
+                                            className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
                                         />
-                                        {isWorkingDaysManual && (
-                                            <button
-                                                onClick={() => setIsWorkingDaysManual(false)}
-                                                className="h-7 px-1.5 rounded text-[10px] font-bold text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 flex items-center justify-center transition-colors"
-                                                title="Reset to Auto-calculated days"
-                                            >
-                                                Auto
-                                            </button>
-                                        )}
+                                        <span className="text-gray-400">-</span>
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={e => setEndDate(e.target.value)}
+                                            className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
+                                        />
                                     </div>
                                 </div>
-                            )}
+                                {activeTab === 'team-performance' && (
+                                    <div className="w-full sm:w-auto flex flex-col text-left bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                                        <span className="portal-label text-[10px] mb-0.5 ml-1 flex items-center gap-1 text-teal-800 font-bold whitespace-nowrap">
+                                            Working Days
+                                            {isWorkingDaysManual && (
+                                                <span className="text-[8px] px-1 bg-amber-100 text-amber-800 rounded font-normal border border-amber-200">
+                                                    Manual
+                                                </span>
+                                            )}
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={workingDays}
+                                                onChange={e => {
+                                                    const val = parseInt(e.target.value, 10);
+                                                    if (!isNaN(val) && val >= 1) {
+                                                        setWorkingDays(val);
+                                                        setIsWorkingDaysManual(true);
+                                                    } else if (e.target.value === '') {
+                                                        setWorkingDays('');
+                                                        setIsWorkingDaysManual(true);
+                                                    }
+                                                }}
+                                                className="portal-input h-7 w-16 text-xs bg-white font-extrabold text-center text-teal-800 border-teal-200 focus:border-teal-500"
+                                            />
+                                            {isWorkingDaysManual && (
+                                                <button
+                                                    onClick={() => setIsWorkingDaysManual(false)}
+                                                    className="h-7 px-1.5 rounded text-[10px] font-bold text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 flex items-center justify-center transition-colors"
+                                                    title="Reset to Auto-calculated days"
+                                                >
+                                                    Auto
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
-
-                <main className="flex-1 overflow-y-auto p-4 scroll-smooth">
+                    )}
                     {renderContent()}
                 </main>
             </div>
