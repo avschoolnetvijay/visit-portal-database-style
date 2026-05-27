@@ -95,6 +95,9 @@ const App = () => {
     );
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
+    const [workingDays, setWorkingDays] = useState('');
+    const [isWorkingDaysManual, setIsWorkingDaysManual] = useState(false);
+
     const [selProjects, setSelProjects] = useState([]);
     const [selDistricts, setSelDistricts] = useState([]);
     const [selBlocks, setSelBlocks] = useState([]);
@@ -121,6 +124,48 @@ const App = () => {
     const defSelDistricts = useDeferredValue(selDistricts);
     const defSelBlocks = useDeferredValue(selBlocks);
     const defSelSchools = useDeferredValue(selSchools);
+
+    // Dynamic Working Days auto-calculation based on unique JHPMS dates count
+    const autoWorkingDays = useMemo(() => {
+        if (!jhpmsLab.length) return 0;
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const getVal = (row, keyMatch) => {
+            const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
+            return key ? row[key] : null;
+        };
+
+        const uniqueDates = new Set();
+        jhpmsLab.forEach(l => {
+            const rawDate = l.date || getVal(l, 'date');
+            const d = parseDateRobust(rawDate);
+            if (d && !isNaN(d.getTime())) {
+                if (d >= start && d <= end) {
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    uniqueDates.add(`${yyyy}-${mm}-${dd}`);
+                }
+            }
+        });
+        return uniqueDates.size;
+    }, [jhpmsLab, startDate, endDate]);
+
+    // Synchronize workingDays state with auto-calculated value if not overridden
+    useEffect(() => {
+        if (!isWorkingDaysManual) {
+            const calculated = autoWorkingDays || Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)));
+            setWorkingDays(calculated);
+        }
+    }, [autoWorkingDays, isWorkingDaysManual, startDate, endDate]);
+
+    // Reset manual override state when date range parameters change
+    useEffect(() => {
+        setIsWorkingDaysManual(false);
+    }, [startDate, endDate]);
+
     const [isLoadingData, setIsLoadingData] = useState(true);
 
     useEffect(() => {
@@ -595,7 +640,7 @@ const App = () => {
         }
 
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
-        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} />;
+        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} />;
         if (activeTab === 'plan') return <PlanView data={processedData} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
@@ -940,7 +985,7 @@ const App = () => {
                                     placeholder="All Schools"
                                 />
                             </div>
-                            <div className="w-full lg:w-auto flex items-end gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200 lg:ml-auto">
+                            <div className="w-full lg:w-auto flex flex-wrap sm:flex-nowrap items-end gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200 lg:ml-auto">
                                 <div className="text-left w-full sm:w-auto">
                                     <span className="portal-label text-[10px] mb-0.5 ml-1">Date Range</span>
                                     <div className="flex items-center gap-1 w-full">
@@ -959,6 +1004,45 @@ const App = () => {
                                         />
                                     </div>
                                 </div>
+                                {activeTab === 'team-performance' && (
+                                    <div className="text-left w-full sm:w-auto border-l border-gray-200 pl-2 ml-1">
+                                        <span className="portal-label text-[10px] mb-0.5 ml-1 flex items-center gap-1 text-teal-800 font-bold whitespace-nowrap">
+                                            Working Days
+                                            {isWorkingDaysManual && (
+                                                <span className="text-[8px] px-1 bg-amber-100 text-amber-800 rounded font-normal border border-amber-200">
+                                                    Manual
+                                                </span>
+                                            )}
+                                        </span>
+                                        <div className="flex items-center gap-1 w-full">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={workingDays}
+                                                onChange={e => {
+                                                    const val = parseInt(e.target.value, 10);
+                                                    if (!isNaN(val) && val >= 1) {
+                                                        setWorkingDays(val);
+                                                        setIsWorkingDaysManual(true);
+                                                    } else if (e.target.value === '') {
+                                                        setWorkingDays('');
+                                                        setIsWorkingDaysManual(true);
+                                                    }
+                                                }}
+                                                className="portal-input h-7 w-16 text-xs bg-white font-extrabold text-center text-teal-800 border-teal-200 focus:border-teal-500"
+                                            />
+                                            {isWorkingDaysManual && (
+                                                <button
+                                                    onClick={() => setIsWorkingDaysManual(false)}
+                                                    className="h-7 px-1.5 rounded text-[10px] font-bold text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 flex items-center justify-center transition-colors"
+                                                    title="Reset to Auto-calculated days"
+                                                >
+                                                    Auto
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

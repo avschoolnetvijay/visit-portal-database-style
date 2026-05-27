@@ -12,7 +12,8 @@ const FieldTeamPerformance = ({
     endDate,
     selProjects,
     selDistricts,
-    selBlocks
+    selBlocks,
+    workingDays
 }) => {
     
     const performanceData = useMemo(() => {
@@ -162,8 +163,10 @@ const FieldTeamPerformance = ({
             }
         });
 
-        // Two-Pass Calculation for Weighted Performance Score
-        const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+        // Two-Pass Calculation for Weighted Performance Score using dynamic Working Days prop
+        const days = Number(workingDays) && Number(workingDays) >= 1
+            ? Number(workingDays)
+            : Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
         
         let maxAvgCpu = 0, maxAvgMini = 0;
         let maxAcademic = 0, maxSmart = 0;
@@ -261,7 +264,7 @@ const FieldTeamPerformance = ({
 
         return finalData;
 
-    }, [schools, visits, jhpmsLab, edustat, manpower, startDate, endDate, selProjects, selDistricts, selBlocks]);
+    }, [schools, visits, jhpmsLab, edustat, manpower, startDate, endDate, selProjects, selDistricts, selBlocks, workingDays]);
 
     const handleExport = () => {
         const exportFormat = performanceData.map(d => ({
@@ -437,13 +440,13 @@ const FieldTeamPerformance = ({
                                         <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for CPU</strong>
                                         <div className="border-t border-white/10 pt-1.5 mt-1">
                                             <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
-                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total CPU Hours / (Days in Range × CPUs Installed)</span>
+                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total CPU Hours / (Working Days × CPUs Installed)</span>
                                         </div>
                                         <p className="text-[10px] text-gray-300 mt-1.5">
                                             Shows the average daily usage hours for each active CPU device within the selected period.
                                         </p>
                                         <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[9px] text-gray-400">
-                                            <strong>Example:</strong> 5 CPUs used for 150 hours total over 30 days = 1.00 hr/day/school.
+                                            <strong>Example:</strong> 5 CPUs used for 150 hours total over 30 working days = 1.00 hr/working day/school.
                                         </div>
                                     </div>
                                 </div>
@@ -456,13 +459,13 @@ const FieldTeamPerformance = ({
                                         <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for Mini PC</strong>
                                         <div className="border-t border-white/10 pt-1.5 mt-1">
                                             <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
-                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Mini PC Hours / (Days in Range × Mini PCs Installed)</span>
+                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Mini PC Hours / (Working Days × Mini PCs Installed)</span>
                                         </div>
                                         <p className="text-[10px] text-gray-300 mt-1.5">
                                             Shows the average daily usage hours for each active Mini PC device within the selected period.
                                         </p>
                                         <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[9px] text-gray-400">
-                                            <strong>Example:</strong> 10 Mini PCs used for 300 hours total over 30 days = 1.00 hr/day/school.
+                                            <strong>Example:</strong> 10 Mini PCs used for 300 hours total over 30 working days = 1.00 hr/working day/school.
                                         </div>
                                     </div>
                                 </div>
@@ -476,13 +479,13 @@ const FieldTeamPerformance = ({
                                         <strong className="text-pink-300 font-bold block mb-1">Average ICT Classes per School per Day</strong>
                                         <div className="border-t border-white/10 pt-1.5 mt-1">
                                             <span className="font-mono text-pink-400 text-[10px] block">FORMULA:</span>
-                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Computer Classes / (Days in Range × Total Schools)</span>
+                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Computer Classes / (Working Days × Total Schools)</span>
                                         </div>
                                         <p className="text-[10px] text-gray-300 mt-1.5">
                                             Shows the average number of computer classes conducted per school per day during the selected period.
                                         </p>
                                         <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[9px] text-gray-400">
-                                            <strong>Example:</strong> 10 schools conducting 300 classes over 30 days = 1.00 class/school/day.
+                                            <strong>Example:</strong> 10 schools conducting 300 classes over 30 working days = 1.00 class/school/working day.
                                         </div>
                                     </div>
                                 </div>
@@ -496,13 +499,13 @@ const FieldTeamPerformance = ({
                                         <strong className="text-yellow-300 font-bold block mb-1">Average Smart Classes per School per Day</strong>
                                         <div className="border-t border-white/10 pt-1.5 mt-1">
                                             <span className="font-mono text-yellow-400 text-[10px] block">FORMULA:</span>
-                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Smart Classes / (Days in Range × Total Schools)</span>
+                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Smart Classes / (Working Days × Total Schools)</span>
                                         </div>
                                         <p className="text-[10px] text-gray-300 mt-1.5">
                                             Shows the average number of smart board/TV classes conducted per school per day during the selected period.
                                         </p>
                                         <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[9px] text-gray-400">
-                                            <strong>Example:</strong> 10 schools conducting 150 smart classes over 30 days = 0.50 class/school/day.
+                                            <strong>Example:</strong> 10 schools conducting 150 smart classes over 30 working days = 0.50 class/school/working day.
                                         </div>
                                     </div>
                                 </div>
