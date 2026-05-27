@@ -157,11 +157,11 @@ const App = () => {
             const rawDate = l.date || getVal(l, 'date');
             const d = parseDateRobust(rawDate);
             if (d && !isNaN(d.getTime())) {
-                if (d >= start && d <= end) {
-                    const yyyy = d.getFullYear();
-                    const mm = String(d.getMonth() + 1).padStart(2, '0');
-                    const dd = String(d.getDate()).padStart(2, '0');
-                    const dateStr = `${yyyy}-${mm}-${dd}`;
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-${dd}`;
+                if (dateStr >= defStartDate && dateStr <= defEndDate) {
                     if (!schoolDatesMap[udise]) {
                         schoolDatesMap[udise] = new Set();
                     }
@@ -242,7 +242,12 @@ const App = () => {
         const validUdise = new Set(fSchools.map(s => String(s.udise_code)));
         const fVisits = visits.filter(v => {
             const d = new Date(v.visit_date);
-            return !isNaN(d.getTime()) && d >= start && d <= end && validUdise.has(String(v.udise_code));
+            if (isNaN(d.getTime())) return false;
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const dateStr = `${yyyy}-${mm}-${dd}`;
+            return dateStr >= defStartDate && dateStr <= defEndDate && validUdise.has(String(v.udise_code));
         });
 
         const metrics = {};

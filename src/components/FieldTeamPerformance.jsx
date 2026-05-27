@@ -122,7 +122,11 @@ const FieldTeamPerformance = ({
             const d = parseDateRobust(rawDate);
             
             if (d && !isNaN(d.getTime())) {
-                if (d >= start && d <= end) {
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-${dd}`;
+                if (dateStr >= startDate && dateStr <= endDate) {
                     Object.values(ccMap).forEach(ccData => {
                         if (ccData.udises.has(udise)) {
                             if (labType.includes('ICT') && subject.includes('COMPUTER')) {
@@ -153,13 +157,19 @@ const FieldTeamPerformance = ({
             const d = new Date(v.visit_date);
             const type = (v.visit_type || '').toLowerCase();
             
-            if (!isNaN(d.getTime()) && d >= start && d <= end) {
-                Object.values(ccMap).forEach(ccData => {
-                    if (ccData.udises.has(udise)) {
-                        if (type.includes('ict')) ccData.totalIctVisits++;
-                        if (type.includes('smart')) ccData.totalSmartVisits++;
-                    }
-                });
+            if (!isNaN(d.getTime())) {
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-${dd}`;
+                if (dateStr >= startDate && dateStr <= endDate) {
+                    Object.values(ccMap).forEach(ccData => {
+                        if (ccData.udises.has(udise)) {
+                            if (type.includes('ict')) ccData.totalIctVisits++;
+                            if (type.includes('smart')) ccData.totalSmartVisits++;
+                        }
+                    });
+                }
             }
         });
 
