@@ -310,6 +310,40 @@ const FieldTeamPerformance = ({
 
     return (
         <div className="p-4 h-full flex flex-col space-y-4 animate-fade-in">
+            <style>{`
+                .custom-tooltip-trigger {
+                    position: relative;
+                    cursor: help;
+                }
+                .custom-tooltip-box {
+                    visibility: hidden;
+                    opacity: 0;
+                    position: absolute;
+                    top: 100%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    margin-top: 8px;
+                    width: 250px;
+                    padding: 12px;
+                    background: rgba(15, 23, 42, 0.95);
+                    color: #ffffff;
+                    font-size: 11px;
+                    font-weight: normal;
+                    line-height: 1.4;
+                    border-radius: 12px;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+                    backdrop-filter: blur(8px);
+                    z-index: 9999;
+                    white-space: normal;
+                    text-align: left;
+                    transition: opacity 0.2s, visibility 0.2s;
+                }
+                .custom-tooltip-trigger:hover .custom-tooltip-box {
+                    visibility: visible;
+                    opacity: 1;
+                }
+            `}</style>
             <div className="flex justify-between items-center bg-white/80 p-4 rounded-xl shadow-sm border border-white/40">
                 <div>
                     <h2 className="text-lg font-bold text-teal-900 flex items-center gap-2">
@@ -341,7 +375,7 @@ const FieldTeamPerformance = ({
                                 <div className="text-[10px] text-gray-600 font-medium truncate">{performanceData[0].district}</div>
                             </div>
                             <div className="bg-white/80 px-2.5 py-1 rounded-md font-extrabold text-xs text-yellow-700 shadow-sm border border-yellow-200 whitespace-nowrap">
-                                {performanceData[0].performanceScore}
+                                {performanceData[0].performanceScore}%
                             </div>
                         </div>
                     )}
@@ -356,7 +390,7 @@ const FieldTeamPerformance = ({
                                 <div className="text-[10px] text-gray-600 font-medium truncate">{performanceData[1].district}</div>
                             </div>
                             <div className="bg-white/80 px-2.5 py-1 rounded-md font-extrabold text-xs text-gray-700 shadow-sm border border-gray-300 whitespace-nowrap">
-                                {performanceData[1].performanceScore}
+                                {performanceData[1].performanceScore}%
                             </div>
                         </div>
                     )}
@@ -371,7 +405,7 @@ const FieldTeamPerformance = ({
                                 <div className="text-[10px] text-gray-600 font-medium truncate">{performanceData[2].district}</div>
                             </div>
                             <div className="bg-white/80 px-2.5 py-1 rounded-md font-extrabold text-xs text-amber-800 shadow-sm border border-amber-200 whitespace-nowrap">
-                                {performanceData[2].performanceScore}
+                                {performanceData[2].performanceScore}%
                             </div>
                         </div>
                     )}
@@ -395,16 +429,107 @@ const FieldTeamPerformance = ({
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 text-red-200 min-w-[90px]">No .Of Mini PC Not Used</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (CPU)</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (Mini PC)</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[100px]">Avg Hrs/Day/Sch/CPU</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[100px]">Avg Hrs/Day/Sch/Mini PC</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]">
+                                <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
+                                    <span>Avg Hrs/Day/Sch/CPU</span>
+                                    <span className="text-emerald-300">ⓘ</span>
+                                    <div className="custom-tooltip-box text-white font-normal">
+                                        <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for CPU</strong>
+                                        <div className="border-t border-white/10 pt-1.5 mt-1">
+                                            <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
+                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total CPU Hours / (Days in Range × CPUs Installed)</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-300 mt-1.5">
+                                            Shows the average daily usage hours for each active CPU device within the selected period.
+                                        </p>
+                                        <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[9px] text-gray-400">
+                                            <strong>Example:</strong> 5 CPUs used for 150 hours total over 30 days = 1.00 hr/day/school.
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]">
+                                <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
+                                    <span>Avg Hrs/Day/Sch/Mini PC</span>
+                                    <span className="text-emerald-300">ⓘ</span>
+                                    <div className="custom-tooltip-box text-white font-normal">
+                                        <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for Mini PC</strong>
+                                        <div className="border-t border-white/10 pt-1.5 mt-1">
+                                            <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
+                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Mini PC Hours / (Days in Range × Mini PCs Installed)</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-300 mt-1.5">
+                                            Shows the average daily usage hours for each active Mini PC device within the selected period.
+                                        </p>
+                                        <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[9px] text-gray-400">
+                                            <strong>Example:</strong> 10 Mini PCs used for 300 hours total over 30 days = 1.00 hr/day/school.
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-pink-900/40 min-w-[80px]">ICT Classes</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-pink-900/40 min-w-[100px]">Avg Classes/per school/Day</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-pink-900/40 min-w-[110px]">
+                                <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
+                                    <span>Avg Classes/per school/Day</span>
+                                    <span className="text-pink-300">ⓘ</span>
+                                    <div className="custom-tooltip-box text-white font-normal">
+                                        <strong className="text-pink-300 font-bold block mb-1">Average ICT Classes per School per Day</strong>
+                                        <div className="border-t border-white/10 pt-1.5 mt-1">
+                                            <span className="font-mono text-pink-400 text-[10px] block">FORMULA:</span>
+                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Computer Classes / (Days in Range × Total Schools)</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-300 mt-1.5">
+                                            Shows the average number of computer classes conducted per school per day during the selected period.
+                                        </p>
+                                        <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[9px] text-gray-400">
+                                            <strong>Example:</strong> 10 schools conducting 300 classes over 30 days = 1.00 class/school/day.
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-yellow-900/40 min-w-[80px]">Smart Classes</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-yellow-900/40 min-w-[100px]">Avg Smart Classes/per school/Day</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-yellow-900/40 min-w-[110px]">
+                                <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
+                                    <span>Avg Smart Classes/per school/Day</span>
+                                    <span className="text-yellow-300">ⓘ</span>
+                                    <div className="custom-tooltip-box text-white font-normal">
+                                        <strong className="text-yellow-300 font-bold block mb-1">Average Smart Classes per School per Day</strong>
+                                        <div className="border-t border-white/10 pt-1.5 mt-1">
+                                            <span className="font-mono text-yellow-400 text-[10px] block">FORMULA:</span>
+                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Smart Classes / (Days in Range × Total Schools)</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-300 mt-1.5">
+                                            Shows the average number of smart board/TV classes conducted per school per day during the selected period.
+                                        </p>
+                                        <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[9px] text-gray-400">
+                                            <strong>Example:</strong> 10 schools conducting 150 smart classes over 30 days = 0.50 class/school/day.
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">Total ICT Visit</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">Total Smart Visit</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[90px]">GrandTotal</th>
-                            <th className="p-3 text-center align-top bg-gradient-to-b from-indigo-700 to-indigo-800 text-white min-w-[100px] shadow-md border-l border-indigo-600 cursor-help" title="Calculated from utilization, academic delivery, monitoring and efficiency metrics">Performance Score ⓘ</th>
+                            <th className="p-3 text-center align-top bg-gradient-to-b from-indigo-700 to-indigo-800 text-white min-w-[120px] shadow-md border-l border-indigo-600">
+                                <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
+                                    <span>Performance Score</span>
+                                    <span className="text-indigo-300">ⓘ</span>
+                                    <div className="custom-tooltip-box text-white font-normal" style={{ width: '280px', transform: 'translateX(-85%)' }}>
+                                        <strong className="text-indigo-300 font-bold block mb-1">Performance Score (Max 100%)</strong>
+                                        <div className="border-t border-white/10 pt-1.5 mt-1 text-[9px] space-y-1">
+                                            <div className="flex justify-between border-b border-white/5 pb-1"><span className="text-gray-300">1. Infrastructure Util</span><span className="font-bold text-teal-400">25%</span></div>
+                                            <div className="flex justify-between border-b border-white/5 pb-1"><span className="text-gray-300">2. Usage Efficiency</span><span className="font-bold text-teal-400">20%</span></div>
+                                            <div className="flex justify-between border-b border-white/5 pb-1"><span className="text-gray-300">3. Academic Delivery (ICT)</span><span className="font-bold text-teal-400">20%</span></div>
+                                            <div className="flex justify-between border-b border-white/5 pb-1"><span className="text-gray-300">4. Smart Class Delivery</span><span className="font-bold text-teal-400">10%</span></div>
+                                            <div className="flex justify-between border-b border-white/5 pb-1"><span className="text-gray-300">5. Monitoring Visits</span><span className="font-bold text-teal-400">15%</span></div>
+                                            <div className="flex justify-between pb-1"><span className="text-gray-300">6. Instructor Availability</span><span className="font-bold text-teal-400">10%</span></div>
+                                        </div>
+                                        <p className="text-[9px] text-gray-400 mt-2 leading-tight">
+                                            Weighted benchmark score calculating resource utilization, class efficiency, monitoring coverage, and teacher availability.
+                                        </p>
+                                    </div>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-gray-700 whitespace-nowrap">
@@ -450,7 +575,7 @@ const FieldTeamPerformance = ({
                                 <td className="p-3 border-r border-gray-100 text-center">{row.totalIctVisits}</td>
                                 <td className="p-3 border-r border-gray-100 text-center">{row.totalSmartVisits}</td>
                                 <td className="p-3 border-r border-gray-100 text-center font-extrabold text-teal-800 bg-teal-50/50">{row.grandTotal}</td>
-                                <td className="p-3 text-center font-extrabold text-indigo-700 bg-indigo-50 border-l border-indigo-100 text-sm shadow-[inset_1px_0_0_rgba(0,0,0,0.05)]">{row.performanceScore}</td>
+                                <td className="p-3 text-center font-extrabold text-indigo-700 bg-indigo-50 border-l border-indigo-100 text-sm shadow-[inset_1px_0_0_rgba(0,0,0,0.05)]">{row.performanceScore}%</td>
                             </tr>
                         ))}
                         {performanceData.length === 0 && (
