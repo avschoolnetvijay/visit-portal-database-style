@@ -146,8 +146,8 @@ const App = () => {
 
         const allowedUdises = new Set(fSchools.map(s => String(s.udise_code || '').trim()));
 
-        // 2. Group unique JHPMS date strings per school UDISE code
-        const schoolDatesMap = {}; // UDISE -> Set of unique date strings
+        // 2. Group unique JHPMS date strings across all active schools matching active filters
+        const uniqueDates = new Set();
         jhpmsLab.forEach(l => {
             const udise = String(l.udise || getVal(l, 'udise') || '').trim();
             
@@ -162,27 +162,12 @@ const App = () => {
                 const dd = String(d.getDate()).padStart(2, '0');
                 const dateStr = `${yyyy}-${mm}-${dd}`;
                 if (dateStr >= defStartDate && dateStr <= defEndDate) {
-                    if (!schoolDatesMap[udise]) {
-                        schoolDatesMap[udise] = new Set();
-                    }
-                    schoolDatesMap[udise].add(dateStr);
+                    uniqueDates.add(dateStr);
                 }
             }
         });
 
-        const activeSchoolsList = Object.keys(schoolDatesMap);
-        if (activeSchoolsList.length === 0) return 0;
-
-        // 3. Find the maximum unique class dates recorded by any active school (Max Working Days)
-        let maxWorkingDays = 0;
-        activeSchoolsList.forEach(udise => {
-            const schoolCount = schoolDatesMap[udise].size;
-            if (schoolCount > maxWorkingDays) {
-                maxWorkingDays = schoolCount;
-            }
-        });
-
-        return maxWorkingDays;
+        return uniqueDates.size;
     }, [jhpmsLab, defStartDate, defEndDate, schools, defSelProjects, defSelDistricts, defSelBlocks, defSelSchools]);
 
     // Synchronize workingDays state with auto-calculated value if not overridden
