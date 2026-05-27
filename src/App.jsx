@@ -125,7 +125,7 @@ const App = () => {
     const defSelBlocks = useDeferredValue(selBlocks);
     const defSelSchools = useDeferredValue(selSchools);
 
-    // Dynamic Working Days auto-calculation based on unique JHPMS dates count
+    // Dynamic Working Days auto-calculation based on average unique JHPMS dates per active school matching active filters
     const autoWorkingDays = useMemo(() => {
         if (!jhpmsLab.length) return 0;
         const start = new Date(startDate);
@@ -137,8 +137,23 @@ const App = () => {
             return key ? row[key] : null;
         };
 
-        const uniqueDates = new Set();
+        // 1. Gather UDISE codes for schools matching the currently selected active filters
+        let fSchools = schools;
+        if (defSelProjects && defSelProjects.length) fSchools = fSchools.filter(s => defSelProjects.includes(s.project_name));
+        if (defSelDistricts && defSelDistricts.length) fSchools = fSchools.filter(s => defSelDistricts.includes(s.district));
+        if (defSelBlocks && defSelBlocks.length) fSchools = fSchools.filter(s => defSelBlocks.includes(s.block));
+        if (defSelSchools && defSelSchools.length) fSchools = fSchools.filter(s => defSelSchools.includes(s.school_name || s.school));
+
+        const allowedUdises = new Set(fSchools.map(s => String(s.udise_code || '').trim()));
+
+        // 2. Group unique JHPMS date strings per school UDISE code
+        const schoolDatesMap = {}; // UDISE -> Set of unique date strings
         jhpmsLab.forEach(l => {
+            const udise = String(l.udise || getVal(l, 'udise') || '').trim();
+            
+            // Only include data for schools that match the active project/district/block/school filters
+            if (allowedUdises.size > 0 && !allowedUdises.has(udise)) return;
+
             const rawDate = l.date || getVal(l, 'date');
             const d = parseDateRobust(rawDate);
             if (d && !isNaN(d.getTime())) {
@@ -146,12 +161,26 @@ const App = () => {
                     const yyyy = d.getFullYear();
                     const mm = String(d.getMonth() + 1).padStart(2, '0');
                     const dd = String(d.getDate()).padStart(2, '0');
-                    uniqueDates.add(`${yyyy}-${mm}-${dd}`);
+                    const dateStr = `${yyyy}-${mm}-${dd}`;
+                    if (!schoolDatesMap[udise]) {
+                        schoolDatesMap[udise] = new Set();
+                    }
+                    schoolDatesMap[udise].add(dateStr);
                 }
             }
         });
-        return uniqueDates.size;
-    }, [jhpmsLab, startDate, endDate]);
+
+        const activeSchoolsList = Object.keys(schoolDatesMap);
+        if (activeSchoolsList.length === 0) return 0;
+
+        // 3. Average the unique class dates per active school to represent true school-level operational days
+        let totalUniqueDatesSum = 0;
+        activeSchoolsList.forEach(udise => {
+            totalUniqueDatesSum += schoolDatesMap[udise].size;
+        });
+
+        return Math.round(totalUniqueDatesSum / activeSchoolsList.length);
+    }, [jhpmsLab, startDate, endDate, schools, defSelProjects, defSelDistricts, defSelBlocks, defSelSchools]);
 
     // Synchronize workingDays state with auto-calculated value if not overridden
     useEffect(() => {
@@ -985,65 +1014,63 @@ const App = () => {
                                     placeholder="All Schools"
                                 />
                             </div>
-                            <div className="w-full lg:w-auto flex flex-wrap sm:flex-nowrap items-end gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200 lg:ml-auto">
-                                <div className="text-left w-full sm:w-auto">
-                                    <span className="portal-label text-[10px] mb-0.5 ml-1">Date Range</span>
-                                    <div className="flex items-center gap-1 w-full">
+                            <div className="w-full sm:w-auto flex flex-col text-left bg-gray-50 p-1.5 rounded-lg border border-gray-200 lg:ml-auto">
+                                <span className="portal-label text-[10px] mb-0.5 ml-1">Date Range</span>
+                                <div className="flex items-center gap-1">
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={e => setStartDate(e.target.value)}
+                                        className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
+                                    />
+                                    <span className="text-gray-400">-</span>
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={e => setEndDate(e.target.value)}
+                                        className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
+                                    />
+                                </div>
+                            </div>
+                            {activeTab === 'team-performance' && (
+                                <div className="w-full sm:w-auto flex flex-col text-left bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                                    <span className="portal-label text-[10px] mb-0.5 ml-1 flex items-center gap-1 text-teal-800 font-bold whitespace-nowrap">
+                                        Working Days
+                                        {isWorkingDaysManual && (
+                                            <span className="text-[8px] px-1 bg-amber-100 text-amber-800 rounded font-normal border border-amber-200">
+                                                Manual
+                                            </span>
+                                        )}
+                                    </span>
+                                    <div className="flex items-center gap-1">
                                         <input
-                                            type="date"
-                                            value={startDate}
-                                            onChange={e => setStartDate(e.target.value)}
-                                            className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
+                                            type="number"
+                                            min="1"
+                                            value={workingDays}
+                                            onChange={e => {
+                                                const val = parseInt(e.target.value, 10);
+                                                if (!isNaN(val) && val >= 1) {
+                                                    setWorkingDays(val);
+                                                    setIsWorkingDaysManual(true);
+                                                } else if (e.target.value === '') {
+                                                    setWorkingDays('');
+                                                    setIsWorkingDaysManual(true);
+                                                }
+                                            }}
+                                            className="portal-input h-7 w-16 text-xs bg-white font-extrabold text-center text-teal-800 border-teal-200 focus:border-teal-500"
                                         />
-                                        <span className="text-gray-400">-</span>
-                                        <input
-                                            type="date"
-                                            value={endDate}
-                                            onChange={e => setEndDate(e.target.value)}
-                                            className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
-                                        />
+                                        {isWorkingDaysManual && (
+                                            <button
+                                                onClick={() => setIsWorkingDaysManual(false)}
+                                                className="h-7 px-1.5 rounded text-[10px] font-bold text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 flex items-center justify-center transition-colors"
+                                                title="Reset to Auto-calculated days"
+                                            >
+                                                Auto
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
-                                {activeTab === 'team-performance' && (
-                                    <div className="text-left w-full sm:w-auto border-l border-gray-200 pl-2 ml-1">
-                                        <span className="portal-label text-[10px] mb-0.5 ml-1 flex items-center gap-1 text-teal-800 font-bold whitespace-nowrap">
-                                            Working Days
-                                            {isWorkingDaysManual && (
-                                                <span className="text-[8px] px-1 bg-amber-100 text-amber-800 rounded font-normal border border-amber-200">
-                                                    Manual
-                                                </span>
-                                            )}
-                                        </span>
-                                        <div className="flex items-center gap-1 w-full">
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={workingDays}
-                                                onChange={e => {
-                                                    const val = parseInt(e.target.value, 10);
-                                                    if (!isNaN(val) && val >= 1) {
-                                                        setWorkingDays(val);
-                                                        setIsWorkingDaysManual(true);
-                                                    } else if (e.target.value === '') {
-                                                        setWorkingDays('');
-                                                        setIsWorkingDaysManual(true);
-                                                    }
-                                                }}
-                                                className="portal-input h-7 w-16 text-xs bg-white font-extrabold text-center text-teal-800 border-teal-200 focus:border-teal-500"
-                                            />
-                                            {isWorkingDaysManual && (
-                                                <button
-                                                    onClick={() => setIsWorkingDaysManual(false)}
-                                                    className="h-7 px-1.5 rounded text-[10px] font-bold text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 flex items-center justify-center transition-colors"
-                                                    title="Reset to Auto-calculated days"
-                                                >
-                                                    Auto
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                            )}
                         </div>
                     </div>
                 )}
