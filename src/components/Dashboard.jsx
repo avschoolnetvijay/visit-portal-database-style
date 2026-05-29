@@ -155,7 +155,7 @@ const AIInsightsCard = ({ schools, visits, onDrillDown }) => {
     if (dormant.length > 0) {
       list.push({
         type: 'info',
-        text: `💤 Dormancy Alert: ${dormant.length} schools not visited in 60+ days.`,
+        text: `💤 Idle Lab: ${dormant.length} schools not visited in 60+ days.`,
         title: 'Dormant Schools',
         data: dormant
       });

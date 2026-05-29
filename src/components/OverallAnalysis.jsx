@@ -494,7 +494,7 @@ const OverallAnalysis = ({
       const today = new Date();
       const daysSinceVisit = lastVisitDate ? Math.floor((today - new Date(lastVisitDate)) / (1000 * 60 * 60 * 24)) : 999;
       if (isVisitActive && daysSinceVisit > 45 && fieldVisits > 0 && rootCause === 'Normal') {
-        rootCause = 'Dormancy Alert';
+        rootCause = 'Idle Lab';
         recommendation = `Not visited in ${daysSinceVisit} days — schedule CC follow-up`;
       }
 
@@ -873,7 +873,7 @@ const OverallAnalysis = ({
         mom: compareMode && prevKPIs ? getMoMChange(avgScore, prevKPIs.avgScore) : null
       },
       {
-        label: 'Lab Functionality',
+        label: 'Working Labs',
         value: isJhpmsActive ? `${labPct}% (${finalEnriched.filter(s => s.jhpmsClasses > 0).length}/${total})` : 'Not Reporting',
         rawPct: labPct,
         icon: '🖥️',
@@ -881,7 +881,7 @@ const OverallAnalysis = ({
         mom: compareMode && prevKPIs ? getMoMChange(labPct, prevKPIs.labPct) : null
       },
       {
-        label: 'Physical Visit Coverage',
+        label: 'Schools Actually Visited',
         value: isVisitActive ? `${visitPct}% (${finalEnriched.filter(s => s.fieldVisits >= s.targetVisits).length}/${total})` : 'Not Reporting',
         rawPct: visitPct,
         icon: '✅',
@@ -889,7 +889,7 @@ const OverallAnalysis = ({
         mom: compareMode && prevKPIs ? getMoMChange(visitPct, prevKPIs.visitPct) : null
       },
       {
-        label: 'Total PC Hours Logged',
+        label: 'Total Computer Usage Hours',
         value: isEdustatActive ? fmt(deviceHours) : 'Not Reporting',
         rawPct: isEdustatActive ? clamp((deviceHours / (total * validWdays * 6)) * 100) : 0,
         icon: '⏱️',
@@ -897,7 +897,7 @@ const OverallAnalysis = ({
         mom: compareMode && prevKPIs ? getMoMChange(deviceHours, prevKPIs.deviceHours) : null
       },
       {
-        label: 'Critical Zone Schools',
+        label: 'Schools Needing Urgent Help',
         value: criticalCount,
         rawPct: total > 0 ? (100 - pct(criticalCount, total)) : 100,
         icon: '🚨',
@@ -1411,7 +1411,7 @@ const OverallAnalysis = ({
       `The composite regional performance rating stands at ${compositeScore}% (${healthData.grade}).`,
       `Dynamic component metrics reflect JHPMS Functionality at ${jhpmsGlobal}%, EduStat utilization at ${edustatGlobal}%, CC visit coverage at ${visitCov}%, and manpower status at ${manpowerGlobal}%.`,
       critCount > 0
-        ? `A total of ${critCount} school(s) fall into the high-risk "Critical Zone" (score < 30%), requiring immediate supervisory intervention.`
+        ? `A total of ${critCount} school(s) fall into the high-risk "Schools Needing Urgent Help" category (score < 30%), requiring immediate supervisory intervention.`
         : 'Superb data execution! No schools are flagged as critical during this evaluation window.'
     ];
   }, [finalEnriched, healthData, currentKPIs, selDistricts, selProjects, startDate, endDate]);
@@ -1456,11 +1456,11 @@ const OverallAnalysis = ({
   // Sparkline generator helper function for KPI Overview upgrades
   const renderSparkline = (label, color = '#0d9488') => {
     let points = "0,8 10,6 20,7 30,4 40,2"; // default upward
-    if (label.includes('Critical')) {
+    if (label.includes('Critical') || label.includes('Urgent') || label.includes('Help')) {
       points = "0,2 10,3 20,5 30,7 40,8"; // downward (fewer critical is good!)
     } else if (label.includes('Performance') || label.includes('Hours')) {
       points = "0,7 10,5 20,6 30,3 40,1"; // upward surge
-    } else if (label.includes('Visit') || label.includes('Functionality')) {
+    } else if (label.includes('Visit') || label.includes('Functionality') || label.includes('Labs')) {
       points = "0,9 10,6 20,8 30,4 40,2"; // moderate upward
     }
     return (
@@ -1608,7 +1608,7 @@ const OverallAnalysis = ({
       {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.kpis) && (
         <div className="page-break-after">
           <h2 className="text-sm font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider mb-3 flex items-center gap-2 font-serif">
-            <Icons.Dashboard className="w-5 h-5" /> Executive KPI Overview
+            <Icons.Dashboard className="w-5 h-5" /> Key Numbers at a Glance
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
             {kpis.map((kpi, i) => (
@@ -1662,7 +1662,7 @@ const OverallAnalysis = ({
             <SemiGauge
               value={healthData.composite}
               size={220}
-              label="Dynamic Health Gauge"
+              label="Overall Health Score"
               grade={healthData.grade}
               gradeColor={healthData.gradeColor}
               isReporting={isJhpmsActive || isEdustatActive || isVisitActive || isManpowerActive}
@@ -1686,7 +1686,7 @@ const OverallAnalysis = ({
               <Icons.Reports className="w-6 h-6 text-teal-700" />
               <div>
                 <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Data Quality & Trust Index</h3>
-                <p className="text-[10px] text-slate-400">Security audit of reporting compliance, name alignment, and records latency.</p>
+                <p className="text-[10px] text-slate-400">Shows how complete and reliable each data source is before you trust its numbers.</p>
               </div>
             </div>
 
@@ -1882,7 +1882,7 @@ const OverallAnalysis = ({
           <div className="portal-card bg-emerald-50/20 dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 font-sans">
             <div className="portal-card-header !bg-gradient-to-r !from-emerald-700 !to-teal-700 flex items-center gap-2 text-white font-serif">
               <Icons.Trophy className="w-6 h-6 shrink-0" />
-              REGIONAL ACHIEVEMENTS & WINS
+              What's Going Well
             </div>
             <div className="p-4 space-y-3.5">
               {achievements.map((item, idx) => (
@@ -1913,7 +1913,7 @@ const OverallAnalysis = ({
       {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.deepdive) && (
         <div className="portal-card bg-white dark:bg-slate-900 font-sans page-break-after">
           <div className="portal-card-header flex items-center justify-between flex-wrap gap-2">
-            <span className="font-serif">📊 ANALYTICAL DEEP-DIVE ENGINE</span>
+            <span className="font-serif">📊 Data Source Deep Dive</span>
             <div className="flex gap-1 bg-slate-950/20 p-1 rounded-lg no-print">
               <button
                 onClick={() => setActiveDeepDiveTab('jhpms')}
@@ -2170,7 +2170,7 @@ const OverallAnalysis = ({
             {anomaliesMatrix.length > 0 && (
               <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-5">
                 <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-rose-800 mb-3 flex items-center gap-1.5">
-                  <span className="text-sm">⚠️</span> Cross-Source Audit Matrix (System Discrepancies)
+                  <span className="text-sm">⚠️</span> Mismatched-Data Checker
                 </h4>
                 
                 {/* Genuine sync gap summary header as requested by Priority 3! */}
@@ -2225,8 +2225,8 @@ const OverallAnalysis = ({
           {/* Treemap Panel */}
           <div className="portal-card p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800">
             <div className="border-b pb-3 mb-4 flex items-center justify-between">
-              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Geographic Blocks Treemap</h3>
-              <span className="text-[10px] text-slate-400 font-bold font-sans">Size: Schools Count | Color: Score</span>
+              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Block Performance Map</h3>
+              <span className="text-[10px] text-slate-400 font-bold font-sans">Bigger box = more schools. Redder box = needs help.</span>
             </div>
 
             <div className="h-72 flex-1 rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800">
@@ -2248,8 +2248,8 @@ const OverallAnalysis = ({
           {/* Heatmap Grid Panel */}
           <div className="portal-card p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800">
             <div className="border-b pb-3 mb-4">
-              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">District x Block Heatmap Matrix</h3>
-              <p className="text-[10px] text-slate-400 font-sans">Score distribution of block allocations across each administrative district.</p>
+              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">District–Block Score Grid</h3>
+              <p className="text-[10px] text-slate-400 font-sans">Score for each district and block. A dash (–) means no data for that combination.</p>
             </div>
 
             {/* Premium Colored Heatmap Gradient Scale Legend */}
@@ -2318,8 +2318,8 @@ const OverallAnalysis = ({
           <div className="portal-card lg:col-span-2 p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800">
             <div className="border-b pb-3 mb-4 flex items-center justify-between">
               <div>
-                <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Pareto Root Cause Bottleneck Engine</h3>
-                <p className="text-[10px] text-slate-400 font-sans">80% of regional performance issues derive from these top 20% system bottlenecks.</p>
+                <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Biggest Problems — Fix These First</h3>
+                <p className="text-[10px] text-slate-400 font-sans">A few problems cause most of the trouble. Fixing the top 2–3 solves most of it.</p>
               </div>
               <span className="text-[10px] bg-red-100 text-red-800 px-2 py-0.5 rounded font-black font-sans">PARETO CHART</span>
             </div>
@@ -2341,13 +2341,18 @@ const OverallAnalysis = ({
                 <p className="text-slate-400 italic text-xs py-10 text-center">No systemic bottleneck anomalies detected.</p>
               )}
             </div>
+
+            {/* Takeaway note */}
+            <div className="mt-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-lg p-2.5 text-center text-xs text-amber-800 dark:text-amber-300 font-medium">
+              💡 Most of our problems come from the top 2 bars. Fix those first.
+            </div>
           </div>
 
           {/* Critical schools table list */}
           <div className="portal-card p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800">
             <div className="border-b pb-3 mb-4">
-              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Critical Schools List</h3>
-              <p className="text-[10px] text-slate-400 font-sans">Immediate action plans required for these critical-zone institutions (Score &lt; 30%).</p>
+              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Schools Needing Urgent Help</h3>
+              <p className="text-[10px] text-slate-400 font-sans">Immediate action plans required for these institutions needing urgent help (Score &lt; 30%).</p>
             </div>
 
             <div className="overflow-y-auto flex-1 max-h-64">
@@ -2549,7 +2554,7 @@ const OverallAnalysis = ({
       {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.reviewGrid) && (
         <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 font-sans">
           <div className="portal-card-header flex items-center justify-between py-3 px-4 font-serif">
-            <span>📋 PORTAL MANAGER (PM) EXECUTIVE REVIEW MATRIX</span>
+            <span>📋 School-by-School Review Table</span>
             <span className="text-[10px] font-extrabold bg-slate-950/20 px-2 py-0.5 rounded font-mono">
               Displaying {showAll ? finalEnriched.length : Math.min(50, finalEnriched.length)} of {finalEnriched.length}
             </span>
@@ -2570,7 +2575,7 @@ const OverallAnalysis = ({
                   <SortHeader label="JHPMS" field="jhpmsClasses" />
                   <SortHeader label="EduStat" field="eduHours" />
                   <SortHeader label="Score %" field="compositeScore" className="min-w-[100px]" />
-                  <SortHeader label="Diagnostic State" field="rootCause" />
+                  <SortHeader label="Status" field="rootCause" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -2659,17 +2664,31 @@ const OverallAnalysis = ({
               <div>
                 <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Select Slides to Include</span>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {Object.keys(selectedSlides).map((k) => (
-                    <label key={k} className="flex items-center gap-2 p-2 rounded bg-slate-50 dark:bg-slate-800 cursor-pointer hover:bg-slate-100 font-bold capitalize text-slate-700 dark:text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={selectedSlides[k]}
-                        onChange={(e) => setSelectedSlides(prev => ({ ...prev, [k]: e.target.checked }))}
-                        className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                      />
-                      {k.replace(/([A-Z])/g, ' $1')}
-                    </label>
-                  ))}
+                  {Object.keys(selectedSlides).map((k) => {
+                    const slideNameMap = {
+                      cover: 'Cover Slide',
+                      kpis: 'Key Numbers at a Glance',
+                      health: 'Overall Health Score',
+                      quality: 'Mismatched-Data Checker',
+                      mom: 'Month-over-Month Trends',
+                      deepdive: 'Data Source Deep Dive',
+                      bottlenecks: 'Biggest Problems — Fix These First',
+                      reviewGrid: 'School-by-School Review Table',
+                      rankings: 'Leaderboards & Rankings',
+                      geographic: 'Block Performance Map'
+                    };
+                    return (
+                      <label key={k} className="flex items-center gap-2 p-2 rounded bg-slate-50 dark:bg-slate-800 cursor-pointer hover:bg-slate-100 font-bold capitalize text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={selectedSlides[k]}
+                          onChange={(e) => setSelectedSlides(prev => ({ ...prev, [k]: e.target.checked }))}
+                          className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                        />
+                        {slideNameMap[k] || k.replace(/([A-Z])/g, ' $1')}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </div>
