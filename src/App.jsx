@@ -116,6 +116,58 @@ const App = () => {
     const [localWorkingDays, setLocalWorkingDays] = useState(workingDays);
     const [localIsWorkingDaysManual, setLocalIsWorkingDaysManual] = useState(isWorkingDaysManual);
 
+    // Sidebar Collapsible Folder States
+    const [expandedFolders, setExpandedFolders] = useState({
+        'Home & Insights': true,
+        'Performance Analysis': false,
+        'Operational Planning': false,
+        'Reports & Analytics': false,
+        'System Administration': false
+    });
+
+    const menuGroups = useMemo(() => [
+        {
+            title: 'Home & Insights',
+            icon: Icons.Home,
+            items: [
+                { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard },
+                { id: 'search', label: 'Search & Insights', icon: Icons.GlobalSearch }
+            ]
+        },
+        {
+            title: 'Performance Analysis',
+            icon: Icons.Performance,
+            items: [
+                { id: 'performance', label: 'Performance Matrix', icon: Icons.Performance },
+                { id: 'team-performance', label: 'Field Team Performance', icon: Icons.Performance },
+                { id: 'school-performance', label: 'School Performance', icon: Icons.Trophy }
+            ]
+        },
+        {
+            title: 'Operational Planning',
+            icon: Icons.Plan,
+            items: [
+                { id: 'plan', label: 'Visit Planning', icon: Icons.Plan },
+                { id: 'compliance', label: 'Compliance Check', icon: Icons.Compliance }
+            ]
+        },
+        {
+            title: 'Reports & Analytics',
+            icon: Icons.Reports,
+            items: [
+                { id: 'reports', label: 'Reports & Export', icon: Icons.Reports }
+            ]
+        },
+        {
+            title: 'System Administration',
+            icon: Icons.Setup,
+            items: [
+                { id: 'setup', label: 'System Setup', icon: Icons.Setup },
+                ...(userRole === 'admin' ? [{ id: 'profile-creation', label: 'Profile Creation', icon: Icons.Profile }] : [])
+            ]
+        }
+    ], [userRole]);
+
     // Sync local selections with global filters when global values are updated (e.g. initial load)
     useEffect(() => {
         setLocalStartDate(startDate);
@@ -127,6 +179,17 @@ const App = () => {
         setLocalWorkingDays(workingDays);
         setLocalIsWorkingDaysManual(isWorkingDaysManual);
     }, [startDate, endDate, selProjects, selDistricts, selBlocks, selSchools, workingDays, isWorkingDaysManual]);
+
+    // Auto-expand folder when active tab changes programmatically
+    useEffect(() => {
+        const parentGroup = menuGroups.find(g => g.items.some(item => item.id === activeTab));
+        if (parentGroup) {
+            setExpandedFolders(prev => ({
+                ...prev,
+                [parentGroup.title]: true
+            }));
+        }
+    }, [activeTab, menuGroups]);
 
     const handleApplyFilters = () => {
         setGlobalLoading(true);
@@ -983,53 +1046,113 @@ const App = () => {
                         <Icons.Close className="w-5 h-5" />
                     </button>
                 </div>
-                <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2">
-                    {[
-                        { id: 'dashboard', l: 'Dashboard', i: Icons.Dashboard },
-                        { id: 'search', l: 'Search & Insights', i: Icons.GlobalSearch },
-                        { id: 'setup', l: 'System Setup', i: Icons.Setup },
-                        ...(userRole === 'admin' ? [{ id: 'profile-creation', l: 'Profile Creation', i: Icons.Profile }] : []),
-                        { id: 'performance', l: 'Performance Matrix', i: Icons.Performance },
-                        { id: 'team-performance', l: 'Field Team Performance', i: Icons.Performance },
-                        { id: 'school-performance', l: 'School Performance', i: Icons.Trophy },
-                        { id: 'plan', l: 'Visit Planning', i: Icons.Plan },
-                        { id: 'compliance', l: 'Compliance Check', i: Icons.Compliance },
-                        { id: 'reports', l: 'Reports & Export', i: Icons.Reports }
-                    ].map(t => (
+                <nav className="flex-1 overflow-y-auto py-4 space-y-3 px-2 text-left select-none">
+                    <div className="space-y-1">
+                        {menuGroups.map(g => {
+                            if (g.items.length === 0) return null;
+                            const isExpanded = !!expandedFolders[g.title];
+                            
+                            return (
+                                <div key={g.title} className="space-y-0.5">
+                                    {/* Collapsible Folder Header */}
+                                    <button
+                                        onClick={() => {
+                                            setExpandedFolders(prev => ({
+                                                ...prev,
+                                                [g.title]: !prev[g.title]
+                                            }));
+                                        }}
+                                        className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-teal-100 hover:text-white rounded-lg hover:bg-white/5 transition duration-150"
+                                    >
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="p-1 bg-white/5 rounded-md text-teal-200">
+                                                <g.icon className="w-3.5 h-3.5" />
+                                            </span>
+                                            <span>{g.title}</span>
+                                        </div>
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className={`w-3 h-3 text-teal-300 transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={3}
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+
+                                    {/* Collapsible Submenu list */}
+                                    <div
+                                        className={`pl-3 space-y-0.5 overflow-hidden transition-all duration-300 ${
+                                            isExpanded ? 'max-h-64 opacity-100 py-1' : 'max-h-0 opacity-0 pointer-events-none'
+                                        }`}
+                                    >
+                                        {g.items.map(t => {
+                                            const isActive = activeTab === t.id;
+                                            return (
+                                                <button
+                                                    key={t.id}
+                                                    onClick={() => {
+                                                        setActiveTab(t.id);
+                                                        setIsSidebarOpen(false);
+                                                    }}
+                                                    className={`w-full flex items-center py-1.5 px-3 rounded-lg text-xs font-semibold transition ${
+                                                        isActive
+                                                            ? 'bg-teal-900/40 text-white font-extrabold border border-teal-500/20'
+                                                            : 'text-teal-200 hover:text-white hover:bg-white/5'
+                                                    }`}
+                                                >
+                                                    <span
+                                                        className={`mr-2.5 p-1 rounded-md transition-colors ${
+                                                            isActive
+                                                                ? 'bg-teal-900/30 text-teal-300'
+                                                                : 'bg-white/5 text-teal-100 group-hover:bg-white/10'
+                                                        }`}
+                                                    >
+                                                        <t.icon className="w-3.5 h-3.5" />
+                                                    </span>
+                                                    <span>{t.label}</span>
+                                                    {isActive && (
+                                                        <span className="ml-auto w-1 h-1 rounded-full bg-teal-400 animate-pulse"></span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Integrated Premium Logout Button inside sidebar nav list */}
+                    <div className="mt-4 pt-4 border-t border-white/10">
                         <button
-                            key={t.id}
-                            onClick={() => {
-                                setActiveTab(t.id);
-                                setIsSidebarOpen(false);
-                            }}
-                            className={`w-full nav-item group ${activeTab === t.id ? 'active' : ''}`}
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold text-red-200 hover:text-white hover:bg-red-950/40 transition duration-150 border border-transparent hover:border-red-900/30 group"
+                            title="Sign Out of Portal"
                         >
-                            <span
-                                className={`mr-3 p-1.5 rounded-md transition-colors ${
-                                    activeTab === t.id
-                                        ? 'bg-teal-900/20 text-teal-800'
-                                        : 'bg-white/10 text-teal-100 group-hover:bg-white/20'
-                                }`}
-                            >
-                                <t.i className="w-4 h-4" />
+                            <span className="p-1 bg-red-500/20 text-red-400 rounded-md group-hover:bg-red-500/30 transition-colors shadow-inner flex items-center justify-center">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="w-3.5 h-3.5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={3}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728M12 3v9"
+                                    />
+                                </svg>
                             </span>
-                            {t.l}
-                            {activeTab === t.id && (
-                                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse"></span>
-                            )}
+                            <span>Logout ({localStorage.getItem('snet_username') || 'User'})</span>
                         </button>
-                    ))}
+                    </div>
                 </nav>
                 <div className="p-4 border-t border-white/10 text-[10px] text-teal-200/60 text-center font-medium flex flex-col items-center gap-3">
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center justify-center gap-2 bg-red-950/30 hover:bg-red-950/50 text-red-200 rounded-lg px-3 py-1.5 w-full text-xs font-semibold shadow-inner border border-red-500/20 transition"
-                        title="Sign Out of Portal"
-                    >
-                        <Icons.Lock className="w-4 h-4 text-red-300" />
-                        <span>Sign Out ({localStorage.getItem('snet_username') || 'User'})</span>
-                    </button>
-
                     <button
                         onClick={() => setDarkMode(!darkMode)}
                         className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white rounded-lg px-3 py-1.5 w-full text-xs font-semibold shadow-inner border border-white/10 transition"
