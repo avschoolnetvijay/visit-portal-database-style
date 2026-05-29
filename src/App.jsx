@@ -1309,7 +1309,7 @@ const App = () => {
                                         placeholder="All Schools"
                                     />
                                 </div>
-                                <div className="w-full sm:w-auto flex flex-col text-left bg-gray-50 p-1.5 rounded-lg border border-gray-200 lg:ml-auto">
+                                <div className="w-full sm:w-auto flex flex-col text-left bg-transparent p-0 rounded-lg border border-transparent lg:ml-auto">
                                     <span className="portal-label text-[10px] mb-0.5 ml-1">Date Range</span>
                                     <div className="flex items-center gap-1">
                                         <input
@@ -1328,7 +1328,7 @@ const App = () => {
                                     </div>
                                 </div>
                                 {(activeTab === 'team-performance' || activeTab === 'school-performance') && (
-                                    <div className="w-full sm:w-auto flex flex-col text-left bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                                    <div className="w-full sm:w-auto flex flex-col text-left bg-transparent p-0 rounded-lg border border-transparent">
                                         <span className="portal-label text-[10px] mb-0.5 ml-1 flex items-center gap-1 text-teal-800 font-bold whitespace-nowrap">
                                             Working Days
                                             {localIsWorkingDaysManual && (
