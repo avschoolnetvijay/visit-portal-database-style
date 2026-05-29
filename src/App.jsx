@@ -145,21 +145,20 @@ const App = () => {
 
     // Sidebar Collapsible Folder States
     const [expandedFolders, setExpandedFolders] = useState({
-        'Home & Insights': true,
-        'Performance Analysis': false,
-        'Operational Planning': false,
-        'Reports & Analytics': false,
-        'System Administration': false
+        '🏠 Home': true,
+        'Lab Visit': false,
+        '🔬 Performance Analysis': false,
+        '🎓 Reports': false,
+        '🔐 System Setup': false,
+        '👤 Profile Creation': false
     });
 
     const menuGroups = useMemo(() => [
         {
-            title: 'Home',
+            title: '🏠 Home',
             icon: Icons.Home,
             items: [
-                { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard },
-                { id: 'search', label: 'Search & Insights', icon: Icons.GlobalSearch },
-                { id: 'overall-analysis', label: 'Overall Analysis', icon: Icons.ExecutiveClipboard }
+                { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard }
             ]
         },
         {
@@ -167,43 +166,39 @@ const App = () => {
             icon: Icons.Visit,
             items: [
                 { id: 'performance', label: 'Performance Matrix', icon: Icons.Performance },
+                { id: 'search', label: 'Search & Insights', icon: Icons.GlobalSearch },
+                { id: 'compliance', label: 'Compliance Check', icon: Icons.Compliance },
+                { id: 'plan', label: 'Visit Planning', icon: Icons.Plan }
+            ]
+        },
+        {
+            title: '🔬 Performance Analysis',
+            icon: Icons.Performance,
+            items: [
                 { id: 'team-performance', label: 'Field Team Performance', icon: Icons.Performance },
                 { id: 'school-performance', label: 'School Performance', icon: Icons.Trophy }
             ]
         },
         {
-            title: 'Profile Creation',
-            icon: Icons.Profile,
-            items: [
-                ...(userRole === 'admin' ? [{ id: 'profile-creation', label: 'Profile Creation Workbench', icon: Icons.Profile }] : [])
-            ]
-        },
-        {
-            title: 'Register',
-            icon: Icons.Register,
-            items: [
-                { id: 'plan', label: 'Visit Planning Console', icon: Icons.Plan }
-            ]
-        },
-        {
-            title: 'Helpdesk',
-            icon: Icons.Compliance,
-            items: [
-                { id: 'compliance', label: 'Compliance Check Center', icon: Icons.Compliance }
-            ]
-        },
-        {
-            title: 'Training',
+            title: '🎓 Reports',
             icon: Icons.Reports,
             items: [
-                { id: 'reports', label: 'Reports & Export Center', icon: Icons.Reports }
+                { id: 'reports', label: 'Reports & Export', icon: Icons.Reports },
+                { id: 'overall-analysis', label: 'Overall Analysis', icon: Icons.ExecutiveClipboard }
             ]
         },
         {
-            title: 'Permission',
-            icon: Icons.Lock,
+            title: '🔐 System Setup',
+            icon: Icons.Setup,
             items: [
-                { id: 'setup', label: 'System Setup Console', icon: Icons.Setup }
+                { id: 'setup', label: 'Data Upload', icon: Icons.Setup }
+            ]
+        },
+        {
+            title: '👤 Profile Creation',
+            icon: Icons.Profile,
+            items: [
+                ...(userRole === 'admin' ? [{ id: 'profile-creation', label: 'Profile Creation', icon: Icons.Profile }] : [])
             ]
         }
     ], [userRole]);
@@ -1228,6 +1223,19 @@ const App = () => {
                             );
                         })}
 
+                        {/* Helpdesk Menu Item */}
+                        <button
+                            onClick={() => alert("Helpdesk Console: Official support is always active. Feature coming soon!")}
+                            className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg text-[14px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <span className="p-0.5 rounded-md text-teal-200 shrink-0">
+                                    <Icons.Help className="w-5 h-5" />
+                                </span>
+                                <span>🛟 Helpdesk</span>
+                            </div>
+                        </button>
+
                         {/* Integrated Premium Logout Button inside sidebar nav list */}
                         <button
                             onClick={handleLogout}
@@ -1238,33 +1246,7 @@ const App = () => {
                                 <span className="p-0.5 rounded-md text-red-200 shrink-0">
                                     <Icons.Close className="w-5 h-5" />
                                 </span>
-                                <span>Logout</span>
-                            </div>
-                        </button>
-
-                        {/* Complain Box Menu Item */}
-                        <button
-                            onClick={() => alert("Complain Box: You can raise official complaints here. Feature coming soon!")}
-                            className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg text-[14px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <span className="p-0.5 rounded-md text-teal-200 shrink-0">
-                                    <Icons.ComplainBox className="w-5 h-5" />
-                                </span>
-                                <span>Complain Box</span>
-                            </div>
-                        </button>
-
-                        {/* Help Menu Item */}
-                        <button
-                            onClick={() => alert("Help Center: Official help documentation. Feature coming soon!")}
-                            className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg text-[14px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <span className="p-0.5 rounded-md text-teal-200 shrink-0">
-                                    <Icons.Help className="w-5 h-5" />
-                                </span>
-                                <span>Help</span>
+                                <span>🚪 Logout</span>
                             </div>
                         </button>
                     </div>
