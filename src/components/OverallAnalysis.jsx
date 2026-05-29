@@ -788,7 +788,7 @@ const OverallAnalysis = ({
       },
       {
         label: 'Lab Functionality',
-        value: isJhpmsActive ? `${labPct}%` : 'Not Reporting',
+        value: isJhpmsActive ? `${labPct}% (${finalEnriched.filter(s => s.jhpmsClasses > 0).length}/${total})` : 'Not Reporting',
         rawPct: labPct,
         icon: '🖥️',
         isActive: isJhpmsActive,
@@ -796,7 +796,7 @@ const OverallAnalysis = ({
       },
       {
         label: 'Physical Visit Coverage',
-        value: isVisitActive ? `${visitPct}%` : 'Not Reporting',
+        value: isVisitActive ? `${visitPct}% (${finalEnriched.filter(s => s.fieldVisits > 0).length}/${total})` : 'Not Reporting',
         rawPct: visitPct,
         icon: '✅',
         isActive: isVisitActive,
