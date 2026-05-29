@@ -248,6 +248,10 @@ const OverallAnalysis = ({
     return parsedEndDate.getTime() - parsedStartDate.getTime();
   }, [parsedStartDate, parsedEndDate]);
 
+  const durationMonths = useMemo(() => {
+    return Math.max(0.5, dateDurationMs / (30 * 24 * 60 * 60 * 1000));
+  }, [dateDurationMs]);
+
   const prevDateRange = useMemo(() => {
     if (!parsedStartDate || !parsedEndDate) return { start: null, end: null };
     const start = new Date(parsedStartDate.getTime() - dateDurationMs - (24 * 60 * 60 * 1000));
@@ -374,7 +378,8 @@ const OverallAnalysis = ({
       const vis = visitMap[udise] || { count: 0, lastDate: null };
 
       const fieldVisits = vis.count;
-      const targetVisits = s.targetVisits || 0;
+      const monthlyTarget = s.monthly_target > 0 ? s.monthly_target : (s.targetVisits > 0 ? s.targetVisits : 1);
+      const targetVisits = Math.max(1, Math.round(monthlyTarget * durationMonths));
       const lastVisitDate = s.lastVisit || vis.lastDate;
 
       // Component Sub-scores (0-100)
@@ -458,7 +463,7 @@ const OverallAnalysis = ({
         avgClassPerDay
       };
     });
-  }, [fSchools, jhpmsMap, edustatMap, manpowerMap, visitMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, weights, validWdays, ccNameMapping]);
+  }, [fSchools, jhpmsMap, edustatMap, manpowerMap, visitMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, weights, validWdays, ccNameMapping, durationMonths]);
 
   // 7. Enriched dataset with Prop-Filters applied (Exceptions & Performance Bands)
   const finalEnriched = useMemo(() => {
@@ -600,7 +605,9 @@ const OverallAnalysis = ({
 
       const jScore = isJhpmsActive ? clamp((jClasses / maxJhpms) * 100) : 0;
       const eScore = isEdustatActive ? clamp((eHours / maxEdustat) * 100) : 0;
-      const vScore = isVisitActive ? (s.targetVisits > 0 ? clamp((fVisits / s.targetVisits) * 100) : (fVisits > 0 ? 50 : 0)) : 0;
+      const monthlyTarget = s.monthly_target > 0 ? s.monthly_target : (s.targetVisits > 0 ? s.targetVisits : 1);
+      const dTarget = Math.max(1, Math.round(monthlyTarget * durationMonths));
+      const vScore = isVisitActive ? (dTarget > 0 ? clamp((fVisits / dTarget) * 100) : (fVisits > 0 ? 50 : 0)) : 0;
       const mScore = isManpowerActive ? (mpStatus === 'Active' ? 100 : mpStatus === 'Pending' ? 40 : 0) : 0;
 
       const score = (jScore * (weights.jhpms / 100)) +
@@ -657,8 +664,14 @@ const OverallAnalysis = ({
     });
 
     const labPct = pct(schoolList.filter(s => jhpmsLocalMap[cleanUdise(s.udise_code)] > 0).length, total);
-    // Physical coverage as schools visited / total allotted schools
-    const visitPct = pct(schoolList.filter(s => visitLocalMap[cleanUdise(s.udise_code)] > 0).length, total);
+    // Physical coverage as schools that met their scaled dynamic target
+    const visitPct = pct(schoolList.filter(s => {
+      const udise = cleanUdise(s.udise_code);
+      const visitsDone = visitLocalMap[udise] || 0;
+      const mTarget = s.monthly_target > 0 ? s.monthly_target : (s.targetVisits > 0 ? s.targetVisits : 1);
+      const dTarget = Math.max(1, Math.round(mTarget * durationMonths));
+      return visitsDone >= dTarget;
+    }).length, total);
     const edustatPct = pct(schoolList.filter(s => edustatLocalMap[cleanUdise(s.udise_code)] > 0).length, total);
     const manpowerPct = pct(schoolList.filter(s => manpowerLocalMap[cleanUdise(s.udise_code)] === 'Active').length, total);
 
@@ -796,7 +809,7 @@ const OverallAnalysis = ({
       },
       {
         label: 'Physical Visit Coverage',
-        value: isVisitActive ? `${visitPct}% (${finalEnriched.filter(s => s.fieldVisits > 0).length}/${total})` : 'Not Reporting',
+        value: isVisitActive ? `${visitPct}% (${finalEnriched.filter(s => s.fieldVisits >= s.targetVisits).length}/${total})` : 'Not Reporting',
         rawPct: visitPct,
         icon: '✅',
         isActive: isVisitActive,
