@@ -904,13 +904,20 @@ const OverallAnalysis = ({
     
     // Apply name-mapping correction BEFORE flagging mismatch!
     let mismatches = 0;
-    fSchools.forEach(s => {
-      const u = s.udise_code;
-      const mName = manpowerMap[u]?.name;
-      const rawVName = visits.find(v => cleanUdise(v.udise_code) === u)?.visitor_name;
-      const vName = rawVName ? (ccNameMapping[rawVName] || rawVName) : null;
-      if (mName && vName && mName !== '-' && vName !== '-' && mName.toLowerCase() !== vName.toLowerCase()) {
-        mismatches++;
+    visits.forEach(v => {
+      const u = cleanUdise(v.udise_code);
+      if (!validUdises.has(u)) return;
+      const school = fSchools.find(s => cleanUdise(s.udise_code) === u);
+      if (school) {
+        const assignedCC = String(school.visitor_name || school.visitorName || '').trim();
+        const visitor = String(v.visitor_name || '').trim();
+        if (assignedCC && visitor && assignedCC !== '-' && visitor !== '-' && assignedCC.toLowerCase() !== visitor.toLowerCase()) {
+          const resolvedCC = ccNameMapping[visitor] || visitor;
+          const resolvedAssigned = ccNameMapping[assignedCC] || assignedCC;
+          if (resolvedCC.toLowerCase() !== resolvedAssigned.toLowerCase()) {
+            mismatches++;
+          }
+        }
       }
     });
 

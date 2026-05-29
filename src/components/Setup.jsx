@@ -9,8 +9,62 @@ const Setup = ({
     googleLoading,
     onJhpmsSync,
     jhpmsLoading,
-    userRole
+    userRole,
+    schools = [],
+    visits = [],
+    manpower = [],
+    ccNameMapping = {},
+    onUpdateNameMapping
 }) => {
+    const mismatchList = React.useMemo(() => {
+        const mismatchListLocal = [];
+        const seenMismatches = new Set();
+        
+        schools.forEach(s => {
+            const u = String(s.udise_code || '').trim();
+            if (!u) return;
+            
+            // Find assigned CC in schools
+            const assignedCC = String(s.visitor_name || s.visitor || '').trim();
+            
+            // Find visiting CC name in visits for this school
+            const matchVisit = visits.find(v => String(v.udise_code || '').trim() === u);
+            const visitorName = matchVisit?.visitor_name ? String(matchVisit.visitor_name).trim() : '-';
+            
+            if (assignedCC && visitorName && assignedCC !== '-' && visitorName !== '-' && assignedCC.toLowerCase() !== visitorName.toLowerCase()) {
+                // If it is already mapped, skip!
+                if (ccNameMapping[visitorName] === assignedCC) return;
+                
+                const mappingKey = `${visitorName}::${assignedCC}`;
+                if (!seenMismatches.has(mappingKey)) {
+                    seenMismatches.add(mappingKey);
+                    mismatchListLocal.push({
+                        udise: u,
+                        schoolName: s.school_name || s.school || u,
+                        rosterName: assignedCC, // holds the assigned CC
+                        visitorName: visitorName // holds the visiting CC
+                    });
+                }
+            }
+        });
+        return mismatchListLocal;
+    }, [schools, visits, ccNameMapping]);
+
+
+    const handleConfirmMatch = (visitorName, rosterName) => {
+        const newMapping = { ...ccNameMapping, [visitorName]: rosterName };
+        onUpdateNameMapping(newMapping);
+    };
+
+    const handleAutoResolve = () => {
+        const newMapping = { ...ccNameMapping };
+        mismatchList.forEach(m => {
+            newMapping[m.visitorName] = m.rosterName;
+        });
+        onUpdateNameMapping(newMapping);
+        alert(`Successfully auto-resolved ${mismatchList.length} CC/UDISE name mismatches! Name trust established.`);
+    };
+
     return (
         <div className="max-w-4xl mx-auto p-6 animate-fade-in space-y-6">
             {/* Setup & Import Card */}
@@ -106,6 +160,76 @@ const Setup = ({
                     <button onClick={onReset} className="text-red-600 text-xs font-bold hover:bg-red-50 px-3 py-1 rounded border border-red-200 transition">CLEAR CLOUD DATA</button>
                 </div>
             </div>
+
+            {/* Name-Mapping Resolution Section */}
+            {schools.length > 0 && (
+                <div className="portal-card bg-white/80 backdrop-blur-md border border-slate-200 shadow-xl rounded-2xl overflow-hidden">
+                    <div className="portal-card-header text-sm py-3 px-6 bg-gradient-to-r from-amber-700 to-orange-800 text-white font-semibold flex items-center justify-between font-serif">
+                        <div className="flex items-center gap-2">
+                            <Icons.Reports className="w-5 h-5 text-amber-300" />
+                            <span>Roster & Visit Name-Mapping Resolution Console ({mismatchList.length} Mismatches)</span>
+                        </div>
+                        {mismatchList.length > 0 && (
+                            <button
+                                onClick={handleAutoResolve}
+                                className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg border border-amber-400 transition"
+                            >
+                                ⚡ Auto-Resolve All
+                            </button>
+                        )}
+                    </div>
+                    
+                    <div className="p-6 bg-white space-y-4">
+                        <p className="text-gray-500 text-[11px] leading-relaxed">
+                            Mismatches appear between the CC visitor name logged in Visits and the Roster instructor name logged in Manpower. Confirming matches maps the names dynamically, establishing high trust in data reporting.
+                        </p>
+                        
+                        <div className="overflow-auto max-h-[300px] border border-slate-100 rounded-xl shadow-inner">
+                            <table className="w-full text-xs text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                                        <th className="p-3">UDISE Code</th>
+                                        <th className="p-3">School Name</th>
+                                        <th className="p-3 text-amber-800">Assigned CC (Schools Master)</th>
+                                        <th className="p-3 text-teal-800">Visiting CC (Visit Log)</th>
+                                        <th className="p-3 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {mismatchList.slice(0, 100).map((item, idx) => (
+                                        <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
+                                            <td className="p-3 font-mono text-[11px] text-slate-600">{item.udise}</td>
+                                            <td className="p-3 font-bold text-slate-800 truncate max-w-[150px]" title={item.schoolName}>{item.schoolName}</td>
+                                            <td className="p-3 font-medium text-amber-800">{item.rosterName}</td>
+                                            <td className="p-3 font-medium text-teal-800">{item.visitorName}</td>
+                                            <td className="p-3 text-center">
+                                                <button
+                                                    onClick={() => handleConfirmMatch(item.visitorName, item.rosterName)}
+                                                    className="bg-teal-50 text-teal-700 font-bold px-3 py-1.5 rounded-lg border border-teal-200 hover:bg-teal-100 transition text-[10px]"
+                                                >
+                                                    Confirm Match
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {mismatchList.length === 0 && (
+                                        <tr>
+                                            <td colSpan="5" className="p-8 text-center text-emerald-600 font-bold italic text-xs">
+                                                🎉 All names successfully resolved! Data Trust Index is at High Trust.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        {mismatchList.length > 100 && (
+                            <div className="text-[10px] text-slate-400 text-center italic mt-2">
+                                Showing first 100 mismatches. Click Auto-Resolve to automatically map all remaining CC/instructor pairs.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
