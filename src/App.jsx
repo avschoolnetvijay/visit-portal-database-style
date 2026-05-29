@@ -1161,7 +1161,7 @@ const App = () => {
                                                 [g.title]: !prev[g.title]
                                             }));
                                         }}
-                                        className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[14px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[18px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
                                     >
                                         <div className="flex items-center gap-2.5">
                                             <span className="p-0.5 rounded-md text-white shrink-0">
@@ -1196,7 +1196,7 @@ const App = () => {
                                                         setActiveTab(t.id);
                                                         setIsSidebarOpen(false);
                                                     }}
-                                                    className={`w-full flex items-center py-2 px-3 rounded-lg text-[12.5px] font-bold transition font-serif ${
+                                                    className={`w-full flex items-center py-2 px-3 rounded-lg text-[15.5px] font-bold transition font-serif ${
                                                         isActive
                                                             ? 'bg-black/15 text-white font-extrabold border-l-4 border-white'
                                                             : 'text-teal-100 hover:text-white hover:bg-white/5'
@@ -1226,7 +1226,7 @@ const App = () => {
                         {/* Helpdesk Menu Item */}
                         <button
                             onClick={() => alert("Helpdesk Console: Official support is always active. Feature coming soon!")}
-                            className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg text-[14px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                            className="w-full flex items-center justify-between py-2 px-3 rounded-lg text-[18px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
                         >
                             <div className="flex items-center gap-2.5">
                                 <span className="p-0.5 rounded-md text-teal-200 shrink-0">
@@ -1239,7 +1239,7 @@ const App = () => {
                         {/* Integrated Premium Logout Button inside sidebar nav list */}
                         <button
                             onClick={handleLogout}
-                            className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg text-[14px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                            className="w-full flex items-center justify-between py-2 px-3 rounded-lg text-[18px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
                             title="Sign Out of Portal"
                         >
                             <div className="flex items-center gap-2.5">
