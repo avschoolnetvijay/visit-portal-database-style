@@ -575,6 +575,14 @@ const SchoolPerformance = ({
         return data;
     }, [performanceData.totalIct, performanceData.totalSmart]);
 
+    const hasTeacherData = useMemo(() => {
+        return (jhpmsLab || []).some(row => {
+            const teacherKey = Object.keys(row).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('subjectteacher'));
+            const teacher = teacherKey ? String(row[teacherKey] || '').trim() : getVal(row, 'teacher');
+            return !!teacher;
+        });
+    }, [jhpmsLab]);
+
     // Render helper for empty master data
     if (!schools.length) {
         return (
@@ -591,6 +599,7 @@ const SchoolPerformance = ({
             </div>
         );
     }
+
 
     return (
         <div className="flex flex-col gap-4 p-4 animate-fade-in overflow-hidden max-h-[85vh]">
@@ -1054,10 +1063,21 @@ const SchoolPerformance = ({
                             {performanceData.results.length === 0 && (
                                 <tr>
                                     <td colSpan="12" className="p-8 text-center text-gray-450 italic">
-                                        No data matches the selected filters.
+                                        {!hasTeacherData && (performanceType === 'ict_instructor' || performanceType === 'subject_teacher') ? (
+                                            <div className="flex flex-col items-center justify-center p-6 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl max-w-lg mx-auto not-italic shadow-sm animate-fade-in my-4">
+                                                <div className="text-3xl mb-2">⚠️</div>
+                                                <div className="font-extrabold text-sm mb-1 uppercase tracking-wider">No Teacher Names in Database</div>
+                                                <p className="text-[11px] leading-relaxed text-amber-700 font-semibold">
+                                                    Your local database does not contain Subject Teacher names. To populate teacher names and view instructor/teacher performance, please go to the <strong>System Setup</strong> tab and re-upload your <strong>Lab Uses by JHPMS</strong> Excel file.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            "No data matches the selected filters."
+                                        )}
                                     </td>
                                 </tr>
                             )}
+
                         </tbody>
                     </table>
                 </div>
