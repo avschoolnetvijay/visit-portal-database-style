@@ -114,6 +114,20 @@ const App = () => {
     const [showExceptions, setShowExceptions] = useState(false);
     const [compareMode, setCompareMode] = useState(false);
 
+    // CC Name-Mapping state
+    const [ccNameMapping, setCcNameMapping] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('ccNameMapping') || '{}');
+        } catch (e) {
+            return {};
+        }
+    });
+
+    const handleUpdateNameMapping = (newMapping) => {
+        setCcNameMapping(newMapping);
+        localStorage.setItem('ccNameMapping', JSON.stringify(newMapping));
+    };
+
     // Local filter state inputs (for non-laggy, staged selections)
     const [localStartDate, setLocalStartDate] = useState(startDate);
     const [localEndDate, setLocalEndDate] = useState(endDate);
@@ -243,16 +257,35 @@ const App = () => {
         }, 300);
     };
 
-    // Calculate auto working days dynamically for unapplied local selections to keep UI reactive
-    const localAutoWorkingDays = useMemo(() => {
-        if (!jhpmsLab.length) return 0;
-
-        const getVal = (row, keyMatch) => {
+    // Pre-parse JHPMS dates once when dataset changes to prevent datepicker lag
+    const parsedJhpmsDates = useMemo(() => {
+        if (!jhpmsLab || !jhpmsLab.length) return [];
+        
+        const getValLocal = (row, keyMatch) => {
             const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
             return key ? row[key] : null;
         };
 
-        let fSchools = schools;
+        return jhpmsLab.map(l => {
+            const udise = String(l.udise || getValLocal(l, 'udise') || '').trim();
+            const rawDate = l.date || getValLocal(l, 'date');
+            const d = parseDateRobust(rawDate);
+            if (d && !isNaN(d.getTime())) {
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return { udise, dateStr: `${yyyy}-${mm}-${dd}` };
+            }
+            return null;
+        }).filter(Boolean);
+    }, [jhpmsLab]);
+
+    // Calculate auto working days dynamically for unapplied local selections to keep UI reactive
+    const localAutoWorkingDays = useMemo(() => {
+        if (!parsedJhpmsDates.length) return 0;
+        if (!localStartDate || !localEndDate || localStartDate.length !== 10 || localEndDate.length !== 10) return 0;
+
+        let fSchools = schools || [];
         if (localSelProjects && localSelProjects.length) fSchools = fSchools.filter(s => localSelProjects.includes(s.project_name));
         if (localSelDistricts && localSelDistricts.length) fSchools = fSchools.filter(s => localSelDistricts.includes(s.district));
         if (localSelBlocks && localSelBlocks.length) fSchools = fSchools.filter(s => localSelBlocks.includes(s.block));
@@ -261,25 +294,15 @@ const App = () => {
         const allowedUdises = new Set(fSchools.map(s => String(s.udise_code || '').trim()));
 
         const uniqueDates = new Set();
-        jhpmsLab.forEach(l => {
-            const udise = String(l.udise || getVal(l, 'udise') || '').trim();
-            if (allowedUdises.size > 0 && !allowedUdises.has(udise)) return;
-
-            const rawDate = l.date || getVal(l, 'date');
-            const d = parseDateRobust(rawDate);
-            if (d && !isNaN(d.getTime())) {
-                const yyyy = d.getFullYear();
-                const mm = String(d.getMonth() + 1).padStart(2, '0');
-                const dd = String(d.getDate()).padStart(2, '0');
-                const dateStr = `${yyyy}-${mm}-${dd}`;
-                if (dateStr >= localStartDate && dateStr <= localEndDate) {
-                    uniqueDates.add(dateStr);
-                }
+        parsedJhpmsDates.forEach(l => {
+            if (allowedUdises.size > 0 && !allowedUdises.has(l.udise)) return;
+            if (l.dateStr >= localStartDate && l.dateStr <= localEndDate) {
+                uniqueDates.add(l.dateStr);
             }
         });
 
         return uniqueDates.size;
-    }, [jhpmsLab, localStartDate, localEndDate, schools, localSelProjects, localSelDistricts, localSelBlocks, localSelSchools]);
+    }, [parsedJhpmsDates, localStartDate, localEndDate, schools, localSelProjects, localSelDistricts, localSelBlocks, localSelSchools]);
 
     // Keep localWorkingDays state in sync with localAutoWorkingDays if not overridden
     useEffect(() => {
@@ -824,6 +847,11 @@ const App = () => {
                     onJhpmsSync={fetchJhpmsData}
                     jhpmsLoading={jhpmsLoading}
                     userRole={userRole}
+                    schools={schools}
+                    visits={visits}
+                    manpower={manpower}
+                    ccNameMapping={ccNameMapping}
+                    onUpdateNameMapping={handleUpdateNameMapping}
                 />
             );
         }
@@ -888,6 +916,7 @@ const App = () => {
                 compareMode={compareMode}
                 setLocalCompareMode={setLocalCompareMode}
                 handleApplyFilters={handleApplyFilters}
+                ccNameMapping={ccNameMapping}
             />
         );
 
@@ -1391,7 +1420,11 @@ const App = () => {
                                                 <input
                                                     type="checkbox"
                                                     checked={localCompareMode}
-                                                    onChange={e => setLocalCompareMode(e.target.checked)}
+                                                    onChange={e => {
+                                                        const checked = e.target.checked;
+                                                        setLocalCompareMode(checked);
+                                                        setCompareMode(checked);
+                                                    }}
                                                     className="w-4 h-4 accent-teal-600 rounded cursor-pointer"
                                                 />
                                                 <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider whitespace-nowrap">Compare MoM</span>
@@ -1400,12 +1433,16 @@ const App = () => {
                                                 <input
                                                     type="checkbox"
                                                     checked={localShowExceptions}
-                                                    onChange={e => setLocalShowExceptions(e.target.checked)}
+                                                    onChange={e => {
+                                                        const checked = e.target.checked;
+                                                        setLocalShowExceptions(checked);
+                                                        setShowExceptions(checked);
+                                                    }}
                                                     className="w-4 h-4 accent-red-600 rounded cursor-pointer"
                                                 />
                                                 <span className="text-[10px] font-bold text-red-700 uppercase tracking-wider whitespace-nowrap">Show Gaps Only</span>
                                             </label>
-                                        </div>
+                                            </div>
                                     </>
                                 )}
                                 <div className="w-full sm:w-auto flex flex-col text-left bg-transparent p-0 rounded-lg border border-transparent lg:ml-auto">
