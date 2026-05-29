@@ -144,6 +144,22 @@ const CustomTooltip = ({ active, payload }) => {
   );
 };
 
+/* ───── Safe Recharts Customized Label for Line/Area chart ───── */
+const CustomizedLabel = (props) => {
+  const { x, y, stroke, value } = props;
+  if (value === undefined || value === null || value === 0) return null;
+  const str = String(value);
+  const width = Math.max(26, str.length * 6 + 8);
+  return (
+    <g className="pointer-events-none select-none">
+      <rect x={x - width / 2} y={y - 20} width={width} height={16} rx={3} fill={stroke} />
+      <text x={x} y={y - 8} fill="#fff" fontSize={8} fontWeight="black" textAnchor="middle" dominantBaseline="middle">
+        {value}
+      </text>
+    </g>
+  );
+};
+
 /* ──────────────────────────────────────────────────────────── */
 /* MAIN COMPONENT                                              */
 /* ──────────────────────────────────────────────────────────── */
@@ -1006,6 +1022,61 @@ const OverallAnalysis = ({
     }));
   }, [finalEnriched]);
 
+  // 11b. Monthly Class Status dynamic trend dataset (Smart Class, ICT Class, MIS Work)
+  const monthlyClassStatusData = useMemo(() => {
+    if (!isJhpmsActive) return [];
+
+    const start = parsedStartDate || new Date('2025-06-01');
+    const end = parsedEndDate || new Date('2026-05-31');
+
+    const monthList = [];
+    let current = new Date(start.getFullYear(), start.getMonth(), 1);
+    const last = new Date(end.getFullYear(), end.getMonth(), 1);
+
+    let limit = 0;
+    while (current <= last && limit < 36) {
+      monthList.push({
+        key: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`,
+        name: current.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        'Smart Class': 0,
+        'ICT Class': 0,
+        'MIS Work': 0
+      });
+      current.setMonth(current.getMonth() + 1);
+      limit++;
+    }
+
+    const monthMap = {};
+    monthList.forEach(m => {
+      monthMap[m.key] = m;
+    });
+
+    jhpmsLab.forEach(l => {
+      const udise = cleanUdise(l.udise || l.udise_code || getVal(l, 'udise'));
+      if (!validUdises.has(udise)) return; // Apply active project/district/block/CC filters
+
+      const rawDate = l.date || getVal(l, 'date');
+      const d = parseDateRobust(rawDate);
+      if (!d) return;
+
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthMap[key]) return; // out of scope
+
+      const labType = String(l.labType || l.lab_type || getVal(l, 'lab') || '').toUpperCase();
+      const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
+
+      if (subject.includes('MIS')) {
+        monthMap[key]['MIS Work']++;
+      } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+        monthMap[key]['ICT Class']++;
+      } else if (labType.includes('SMART')) {
+        monthMap[key]['Smart Class']++;
+      }
+    });
+
+    return monthList;
+  }, [jhpmsLab, parsedStartDate, parsedEndDate, isJhpmsActive, validUdises]);
+
   // Treemap Custom Card Renderer
   const TreemapContent = (props) => {
     const { x, y, width, height, name, score } = props;
@@ -1834,17 +1905,36 @@ const OverallAnalysis = ({
                 </div>
 
                 <div className="p-3 border rounded-xl dark:border-slate-800 lg:col-span-2">
-                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Regional Activity Heatmap (Classes Conducted)</h4>
+                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">
+                    Month wise class status from {startDate ? formatDate(startDate) : 'Jun 2025'} to {endDate ? formatDate(endDate) : 'May 2026'}
+                  </h4>
                   {isJhpmsActive ? (
-                    <div className="h-44">
+                    <div className="h-48">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={treemapData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                        <AreaChart data={monthlyClassStatusData} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
+                          <defs>
+                            <linearGradient id="colorSmartClass" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#0088fe" stopOpacity={0.15}/>
+                              <stop offset="95%" stopColor="#0088fe" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="colorIctClass" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#00c49f" stopOpacity={0.15}/>
+                              <stop offset="95%" stopColor="#00c49f" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="colorMisWork" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#ffbb28" stopOpacity={0.15}/>
+                              <stop offset="95%" stopColor="#ffbb28" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                           <XAxis dataKey="name" tick={{ fontSize: 9 }} />
                           <YAxis tick={{ fontSize: 9 }} />
                           <Tooltip content={<CustomTooltip />} />
-                          <Bar dataKey="score" name="Classes Logged" fill="#0d9488" radius={[4, 4, 0, 0]} />
-                        </BarChart>
+                          <Legend verticalAlign="top" align="center" iconType="circle" height={36} wrapperStyle={{ fontSize: 10, fontWeight: 'bold' }} />
+                          <Area type="monotone" dataKey="Smart Class" stroke="#0088fe" strokeWidth={3} fillOpacity={1} fill="url(#colorSmartClass)" label={<CustomizedLabel />} />
+                          <Area type="monotone" dataKey="ICT Class" stroke="#00c49f" strokeWidth={3} fillOpacity={1} fill="url(#colorIctClass)" label={<CustomizedLabel />} />
+                          <Area type="monotone" dataKey="MIS Work" stroke="#ffbb28" strokeWidth={3} fillOpacity={1} fill="url(#colorMisWork)" label={<CustomizedLabel />} />
+                        </AreaChart>
                       </ResponsiveContainer>
                     </div>
                   ) : (
