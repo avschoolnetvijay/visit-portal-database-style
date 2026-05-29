@@ -3,6 +3,13 @@ import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Ba
 import { exportToExcel, parseDateRobust } from '../utils';
 import { Icons } from './Icons';
 
+// Robust helper to extract cell value from a row regardless of exact key casing or spacing
+const getVal = (row, keyMatch) => {
+    if (!row) return null;
+    const key = Object.keys(row).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(keyMatch.toLowerCase().replace(/[^a-z0-9]/g, '')));
+    return key ? row[key] : null;
+};
+
 const SchoolPerformance = ({
     schools = [],
     jhpmsLab = [],
@@ -63,10 +70,11 @@ const SchoolPerformance = ({
     const manpowerLookup = useMemo(() => {
         const map = {};
         (manpower || []).forEach(m => {
-            const name = String(m.instructorName || '').trim().toUpperCase();
-            const udise = String(m.udise || '').trim();
+            const udise = String(m.udise || getVal(m, 'udise') || '').trim();
+            const name = String(m.instructorName || getVal(m, 'instructor') || getVal(m, 'name') || '').trim().toUpperCase();
+            const status = String(m.status || getVal(m, 'status') || 'Active').trim();
             if (name && udise) {
-                map[`${name}_${udise}`] = m.status || 'Active';
+                map[`${name}_${udise}`] = status;
             }
         });
         return map;
@@ -78,19 +86,21 @@ const SchoolPerformance = ({
 
     const filteredJhpms = useMemo(() => {
         const list = [];
-        const start = startDate ? new Date(startDate) : null;
-        const end = endDate ? new Date(endDate) : null;
-        if (end) end.setHours(23, 59, 59, 999);
-
         (jhpmsLab || []).forEach(row => {
-            const udise = String(row.udise || '').trim();
+            const udise = String(row.udise || getVal(row, 'udise') || getVal(row, 'udisecode') || '').trim();
             if (!validUdises.has(udise)) return;
 
-            const d = parseDateRobust(row.date);
-            if (d) {
-                if (start && d < start) return;
-                if (end && d > end) return;
-                list.push(row);
+            const rawDate = row.date || getVal(row, 'date');
+            const d = parseDateRobust(rawDate);
+            if (d && !isNaN(d.getTime())) {
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-${dd}`;
+                
+                if (dateStr >= startDate && dateStr <= endDate) {
+                    list.push(row);
+                }
             }
         });
         return list;
@@ -105,6 +115,27 @@ const SchoolPerformance = ({
         return parseFloat(timeStr) || 0;
     };
 
+    // Helper to extract fields from JHPMS row regardless of raw or mapped format
+    const extractJhpmsRow = (row) => {
+        const udise = String(row.udise || getVal(row, 'udise') || getVal(row, 'udisecode') || '').trim();
+        const labType = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
+        
+        // Find "Subject Teacher" first
+        const teacherKey = Object.keys(row).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('subjectteacher'));
+        const teacher = teacherKey ? String(row[teacherKey] || '').trim() : (getVal(row, 'teacher') || '');
+        
+        // Find "Subject" excluding "Subject Teacher"
+        const subjectKey = Object.keys(row).find(k => k !== teacherKey && k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('sub'));
+        const subject = subjectKey ? String(row[subjectKey] || '').trim().toUpperCase() : '';
+
+        return {
+            udise,
+            labType,
+            teacher: String(teacher).trim(),
+            subject
+        };
+    };
+
     const performanceData = useMemo(() => {
         const validWdays = Number(workingDays) > 0 ? Number(workingDays) : 1;
 
@@ -114,14 +145,10 @@ const SchoolPerformance = ({
             let totalIct = 0;
 
             filteredJhpms.forEach(l => {
-                const labType = String(l.labType || '').trim().toUpperCase();
-                const subject = String(l.subject || '').trim().toUpperCase();
+                const { udise, labType, teacher, subject } = extractJhpmsRow(l);
 
                 if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                    const teacher = String(l.subjectTeacher || '').trim();
                     if (!teacher) return;
-
-                    const udise = String(l.udise || '').trim();
                     const key = `${teacher.toUpperCase()}_${udise}`;
 
                     totalIct++;
@@ -179,14 +206,10 @@ const SchoolPerformance = ({
             let totalSmart = 0;
 
             filteredJhpms.forEach(l => {
-                const labType = String(l.labType || '').trim().toUpperCase();
-                const subject = String(l.subject || '').trim().toUpperCase();
+                const { udise, labType, teacher, subject } = extractJhpmsRow(l);
 
                 if (labType.includes('SMART') && !subject.includes('COMPUTER')) {
-                    const teacher = String(l.subjectTeacher || '').trim();
                     if (!teacher) return;
-
-                    const udise = String(l.udise || '').trim();
                     const key = `${teacher.toUpperCase()}_${udise}`;
 
                     totalSmart++;
@@ -200,8 +223,9 @@ const SchoolPerformance = ({
                         };
                     }
                     groups[key].totalClasses++;
-                    if (l.subject) {
-                        groups[key].subjects.add(String(l.subject).trim());
+                    if (subject) {
+                        const origSubject = l.subject || getVal(l, 'subject') || getVal(l, 'sub') || subject;
+                        groups[key].subjects.add(String(origSubject).trim());
                     }
                 }
             });
@@ -252,9 +276,7 @@ const SchoolPerformance = ({
             let totalSmart = 0;
 
             filteredJhpms.forEach(l => {
-                const udise = String(l.udise || '').trim();
-                const labType = String(l.labType || '').trim().toUpperCase();
-                const subject = String(l.subject || '').trim().toUpperCase();
+                const { udise, labType, subject } = extractJhpmsRow(l);
 
                 if (!jhpmsGroups[udise]) {
                     jhpmsGroups[udise] = {
@@ -275,6 +297,7 @@ const SchoolPerformance = ({
                     totalSmart++;
                 }
             });
+
 
             // Group Edustat data
             const edustatGroups = {};
