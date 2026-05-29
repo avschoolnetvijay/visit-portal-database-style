@@ -3,22 +3,24 @@
 @tailwind utilities;
 
 :root {
-    --primary: #004d40;
-    --primary-light: #00695c;
-    --secondary: #b2dfdb;
+    --primary: #357e7d;
+    --primary-light: #449795;
+    --primary-dark: #276261;
+    --secondary: #d5eae8;
     --accent: #ffca28;
-    --bg-gradient: linear-gradient(135deg, #e0f2f1 0%, #f0fdfa 100%);
-    --glass-bg: rgba(255, 255, 255, 0.9);
-    --glass-border: rgba(255, 255, 255, 0.6);
-    --glass-shadow: 0 8px 32px 0 rgba(0, 77, 64, 0.05);
-    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-    --font-main: 'Inter', sans-serif;
+    --bg-gradient: #ecf4f3;
+    --glass-bg: rgba(255, 255, 255, 0.95);
+    --glass-border: rgba(255, 255, 255, 0.8);
+    --glass-shadow: 0 4px 20px 0 rgba(53, 126, 125, 0.08);
+    --card-shadow: 0 4px 10px rgba(53, 126, 125, 0.06);
+    --font-main: 'Times New Roman', Times, Georgia, serif;
+    --font-sans: 'Inter', sans-serif;
 }
 
 body {
     font-family: var(--font-main);
-    background: var(--bg-gradient);
-    color: #334155;
+    background: var(--bg-gradient) !important;
+    color: #274847;
     font-size: 13px;
     overflow: hidden; /* Prevent body scroll to enable modular app layout */
 }
@@ -65,10 +67,15 @@ body {
 
 /* Modern Sidebar */
 .portal-sidebar {
-    background: linear-gradient(180deg, #004d40 0%, #00695c 100%);
-    color: #e0f2f1;
-    box-shadow: var(--glass-shadow);
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    background: #357e7d !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+    font-family: var(--font-main) !important;
+}
+
+.portal-sidebar button, .portal-sidebar span, .portal-sidebar div {
+    font-family: var(--font-main) !important;
 }
 
 .nav-item {
@@ -79,21 +86,21 @@ body {
     border-left: none;
     display: flex;
     align-items: center;
-    font-weight: 500;
-    color: #b2dfdb;
+    font-weight: bold;
+    color: #d5eae8 !important;
 }
 
 .nav-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
+    background-color: rgba(0, 0, 0, 0.1) !important;
+    color: white !important;
     transform: translateX(2px);
 }
 
 .nav-item.active {
-    background: rgba(255, 255, 255, 0.15);
-    color: #ffca28;
-    font-weight: 600;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.15) !important;
+    color: white !important;
+    font-weight: bold !important;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
 /* Header & Filter Bar */
@@ -158,18 +165,19 @@ body {
 }
 
 .portal-card-header {
-    background: transparent;
-    color: #004d40;
-    font-size: 12px;
-    font-weight: 700;
+    background: #1c7d7b !important;
+    color: white !important;
+    font-size: 12px !important;
+    font-weight: bold !important;
     text-transform: uppercase;
-    padding: 12px 16px;
+    padding: 10px 16px !important;
     text-align: left;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: none !important;
     display: flex;
     align-items: center;
     gap: 8px;
+    font-family: var(--font-main) !important;
 }
 
 .portal-card-body {
@@ -177,6 +185,7 @@ body {
     flex: 1;
     display: flex;
     align-items: center;
+    font-family: var(--font-sans) !important;
 }
 
 .card-grid {
@@ -211,6 +220,7 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     margin-bottom: 4px;
+    font-family: var(--font-sans) !important;
 }
 
 .metric-value {
@@ -218,6 +228,7 @@ body {
     font-weight: 800;
     color: #1e293b;
     letter-spacing: -0.5px;
+    font-family: var(--font-sans) !important;
 }
 
 /* Glassmorphism Table Styling */
@@ -229,6 +240,7 @@ body {
     font-size: 11px;
     padding: 12px;
     border-bottom: 1px solid #e2e8f0;
+    font-family: var(--font-sans) !important;
 }
 
 .portal-table td {
@@ -236,6 +248,7 @@ body {
     border-bottom: 1px solid #f1f5f9;
     color: #334155;
     font-size: 12px;
+    font-family: var(--font-sans) !important;
 }
 
 .portal-table tr:hover {

@@ -1025,26 +1025,41 @@ const App = () => {
 
             {/* Sidebar Left Navigation Panel */}
             <div className={`fixed md:relative top-0 bottom-0 left-0 h-[calc(100vh-24px)] md:h-auto w-64 portal-sidebar flex flex-col z-40 md:z-20 m-3 rounded-2xl border border-white/10 shadow-2xl shrink-0 transition-transform duration-300 md:translate-x-0 no-print ${isSidebarOpen ? 'translate-x-0' : '-translate-x-[calc(100%+24px)]'}`}>
-                <div className="p-5 border-b border-white/10 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-white/10 text-white p-2.5 rounded-lg shadow-inner backdrop-blur-md font-bold text-xs ring-1 ring-white/20">
-                            PMS
-                        </div>
-                        <div className="text-left">
-                            <div className="font-bold text-white tracking-tight text-base shadow-black drop-shadow-md">
-                                Visit Portal
-                            </div>
-                            <div className="text-[10px] text-teal-200 uppercase tracking-widest font-semibold">
-                                Admin Console
-                            </div>
-                        </div>
-                    </div>
+                <div className="p-5 border-b border-white/10 flex flex-col items-center text-center relative select-none">
+                    {/* Mobile Close Button */}
                     <button
                         onClick={() => setIsSidebarOpen(false)}
-                        className="md:hidden text-teal-200 hover:text-white focus:outline-none"
+                        className="absolute top-4 right-4 md:hidden text-teal-200 hover:text-white focus:outline-none"
                     >
                         <Icons.Close className="w-5 h-5" />
                     </button>
+
+                    {/* Circular JEPC Emblem Logo */}
+                    <div className="w-16 h-16 rounded-full bg-white border-2 border-red-500/80 flex items-center justify-center overflow-hidden shadow-lg mb-4 transition-transform hover:scale-105 duration-200">
+                        <svg viewBox="0 0 100 100" className="w-12 h-12 text-red-600">
+                            <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="2.5" />
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2,2" />
+                            <path d="M35 40 L45 35 L55 38 L65 35 L70 42 L65 52 L58 50 L52 58 L42 62 L38 52 Z" fill="#e0f2f1" stroke="#357e7d" strokeWidth="2.5" />
+                            <circle cx="50" cy="48" r="4" fill="red" />
+                        </svg>
+                    </div>
+
+                    {/* User Profile Bar (Photo + Name) */}
+                    <div className="flex items-center gap-3 w-full bg-black/10 p-2.5 rounded-xl border border-white/5 shadow-inner">
+                        <div className="w-10 h-10 rounded-lg bg-teal-850 border border-white/20 flex items-center justify-center text-white shrink-0 overflow-hidden shadow-inner">
+                            <Icons.Profile className="w-6 h-6 text-teal-100" />
+                        </div>
+                        <div className="text-left overflow-hidden">
+                            <div className="font-bold text-white text-sm tracking-wide leading-tight truncate shadow-black drop-shadow-sm font-serif">
+                                {localStorage.getItem('snet_username') 
+                                    ? String(localStorage.getItem('snet_username')).toUpperCase() 
+                                    : 'SUVENDU SHEKHAR JANA'}
+                            </div>
+                            <div className="text-[9px] text-teal-200/80 uppercase tracking-widest font-black mt-0.5">
+                                {userRole === 'admin' ? 'Administrator' : 'Standard User'}
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <nav className="flex-1 overflow-y-auto py-4 space-y-3 px-2 text-left select-none">
                     <div className="space-y-1">
