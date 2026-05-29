@@ -1229,12 +1229,12 @@ const App = () => {
             {/* Main Center Tab Panel */}
             <div className="flex-1 flex flex-col overflow-hidden relative m-3 md:my-3 md:mr-3 md:ml-0 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 shadow-xl">
                 <main className="flex-1 overflow-y-auto p-4 scroll-smooth">
-                    {activeTab !== 'search' && activeTab !== 'setup' && activeTab !== 'profile-creation' && activeTab !== 'overall-analysis' && (
+                    {activeTab !== 'search' && activeTab !== 'setup' && activeTab !== 'profile-creation' && (
                         <div className="portal-filter-bar z-10 mb-4 rounded-xl border border-white shadow-sm flex flex-col gap-2 no-print">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
                                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                                     <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
-                                    {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
+                                    {activeTab === 'overall-analysis' ? 'Overall Analysis' : (activeTab.charAt(0).toUpperCase() + activeTab.slice(1))} View
                                 </h2>
                                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                     <button
@@ -1330,7 +1330,7 @@ const App = () => {
                                         />
                                     </div>
                                 </div>
-                                {(activeTab === 'team-performance' || activeTab === 'school-performance') && (
+                                {(activeTab === 'team-performance' || activeTab === 'school-performance' || activeTab === 'overall-analysis') && (
                                     <div className="w-full sm:w-auto flex flex-col text-left bg-transparent p-0 rounded-lg border border-transparent">
                                         <span className="portal-label text-[10px] mb-0.5 ml-1 flex items-center gap-1 text-teal-800 font-bold whitespace-nowrap">
                                             Working Days
