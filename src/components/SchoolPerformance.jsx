@@ -468,8 +468,8 @@ const SchoolPerformance = ({
                     'Project Name': d.projectName,
                     'Manpower Status': d.status,
                     'Total ICT Classes': d.totalClasses,
-                    'Avg Classes/Day': d.avgPerDay,
-                    'Performance Score %': d.score.toFixed(2)
+                    'Avg/Day': d.avgPerDay,
+                    'Score %': d.score.toFixed(2)
                 }));
             } else if (type === 'subject_teacher') {
                 exportFormat = performanceData.results.map(d => ({
@@ -483,8 +483,8 @@ const SchoolPerformance = ({
                     'Subject(s)': d.subjects,
                     'Manpower Status': d.status,
                     'Total Smart Classes': d.totalClasses,
-                    'Avg Classes/Day': d.avgPerDay,
-                    'Performance Score %': d.score.toFixed(2)
+                    'Avg/Day': d.avgPerDay,
+                    'Score %': d.score.toFixed(2)
                 }));
             } else if (type === 'school_jhpms') {
                 exportFormat = performanceData.results.map(d => ({
@@ -498,8 +498,8 @@ const SchoolPerformance = ({
                     'ICT Classes': d.ictClasses,
                     'Smart Classes': d.smartClasses,
                     'Total Classes': d.totalClasses,
-                    'Avg Classes/Day': d.avgPerDayDisp,
-                    'Performance Score %': d.score.toFixed(2)
+                    'Avg/Day': d.avgPerDayDisp,
+                    'Score %': d.score.toFixed(2)
                 }));
             } else if (type === 'school_edustat') {
                 exportFormat = performanceData.results.map(d => ({
@@ -511,8 +511,8 @@ const SchoolPerformance = ({
                     'CC/DEF Name': d.ccDef,
                     'Project Name': d.projectName,
                     'Total Hours': d.totalHoursDisp,
-                    'Avg Hours/Day': d.avgHrsPerDayDisp,
-                    'Performance Score %': d.score.toFixed(2)
+                    'Avg Hrs/Day': d.avgHrsPerDayDisp,
+                    'Score %': d.score.toFixed(2)
                 }));
             } else if (type === 'school_both') {
                 exportFormat = performanceData.results.map(d => ({

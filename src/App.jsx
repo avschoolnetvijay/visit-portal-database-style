@@ -971,12 +971,13 @@ const App = () => {
                                     </button>
                                     <button
                                         onClick={() => {
-                                            if (activeTab === 'team-performance' && customExportHandler) {
+                                            if ((activeTab === 'team-performance' || activeTab === 'school-performance') && customExportHandler) {
                                                 customExportHandler();
                                             } else {
                                                 exportToExcel(processedData.schools, `Visit_Portal_Export_${activeTab}`);
                                             }
                                         }}
+
                                         className="bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 flex items-center gap-2 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
                                     >
                                         <Icons.Export className="w-3.5 h-3.5 text-teal-100" />
