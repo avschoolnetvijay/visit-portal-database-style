@@ -12,6 +12,7 @@ import ReportsView from './components/ReportsView';
 import Setup from './components/Setup';
 import DrillDownModal from './components/DrillDownModal';
 import FieldTeamPerformance from './components/FieldTeamPerformance';
+import SchoolPerformance from './components/SchoolPerformance';
 import MultiSelect from './components/MultiSelect';
 import {
     parseDateRobust,
@@ -494,7 +495,10 @@ const App = () => {
                             const uKey = cleanKeys.find(k => k.clean.includes('udise'))?.orig;
                             const dKey = cleanKeys.find(k => k.clean === 'date' || k.clean.includes('date'))?.orig;
                             const labKey = cleanKeys.find(k => k.clean.includes('lab'))?.orig;
-                            const subKey = cleanKeys.find(k => k.clean.includes('sub'))?.orig;
+                            // Find "Subject Teacher" column first (more specific match)
+                            const teacherKey = cleanKeys.find(k => k.clean.includes('subjectteacher'))?.orig;
+                            // Find "Subject" column, excluding the "Subject Teacher" column
+                            const subKey = cleanKeys.find(k => k.orig !== teacherKey && k.clean.includes('sub'))?.orig;
                             
                             if (!labKey || !subKey) missingKeysAlert = true;
                             
@@ -502,7 +506,8 @@ const App = () => {
                                 udise: uKey ? r[uKey] : '', 
                                 date: dKey ? r[dKey] : '',
                                 labType: labKey ? r[labKey] : '',
-                                subject: subKey ? r[subKey] : ''
+                                subject: subKey ? r[subKey] : '',
+                                subjectTeacher: teacherKey ? String(r[teacherKey]).trim() : ''
                             };
                         });
                         
@@ -528,7 +533,12 @@ const App = () => {
                             const cleanKeys = Object.keys(r).map(k => ({ orig: k, clean: k.toLowerCase().replace(/[^a-z0-9]/g, '') }));
                             const uKey = cleanKeys.find(k => k.clean.includes('udise'))?.orig;
                             const statKey = cleanKeys.find(k => k.clean === 'status')?.orig;
-                            return { udise: uKey ? r[uKey] : '', status: statKey ? r[statKey] : '' };
+                            const nameKey = cleanKeys.find(k => k.clean.includes('instructorname') || (k.clean.includes('instructor') && k.clean.includes('name')))?.orig;
+                            return { 
+                                udise: uKey ? r[uKey] : '', 
+                                status: statKey ? r[statKey] : '',
+                                instructorName: nameKey ? String(r[nameKey]).trim() : ''
+                            };
                         });
                     } else {
                         normalized = data; 
@@ -664,6 +674,7 @@ const App = () => {
 
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
         if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
+        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={jhpmsLab} edustat={edustat} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
         if (activeTab === 'plan') return <PlanView data={processedData} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
@@ -869,6 +880,7 @@ const App = () => {
                         { id: 'setup', l: 'System Setup', i: Icons.Setup },
                         { id: 'performance', l: 'Performance Matrix', i: Icons.Performance },
                         { id: 'team-performance', l: 'Field Team Performance', i: Icons.Performance },
+                        { id: 'school-performance', l: 'School Performance', i: Icons.Trophy },
                         { id: 'plan', l: 'Visit Planning', i: Icons.Plan },
                         { id: 'compliance', l: 'Compliance Check', i: Icons.Compliance },
                         { id: 'reports', l: 'Reports & Export', i: Icons.Reports }
@@ -1034,7 +1046,7 @@ const App = () => {
                                         />
                                     </div>
                                 </div>
-                                {activeTab === 'team-performance' && (
+                                {(activeTab === 'team-performance' || activeTab === 'school-performance') && (
                                     <div className="w-full sm:w-auto flex flex-col text-left bg-gray-50 p-1.5 rounded-lg border border-gray-200">
                                         <span className="portal-label text-[10px] mb-0.5 ml-1 flex items-center gap-1 text-teal-800 font-bold whitespace-nowrap">
                                             Working Days
