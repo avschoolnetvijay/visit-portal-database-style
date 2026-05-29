@@ -367,37 +367,39 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 portal-card p-4">
-          <div className="portal-card-header !bg-transparent !p-0 !border-b !pb-3 !mb-2 flex justify-between items-center text-gray-800">
-            <h3 className="text-xs font-bold text-teal-800 uppercase flex items-center gap-2">
-              <Icons.Analytics className="w-4 h-4" /> Coverage Velocity
+        <div className="lg:col-span-2 portal-card">
+          <div className="portal-card-header flex justify-between items-center text-white bg-teal-600">
+            <h3 className="text-xs font-bold uppercase flex items-center gap-2 text-white">
+              <Icons.Analytics className="w-4 h-4 text-white" /> Coverage Velocity
             </h3>
-            <div className="flex gap-4 text-xs">
-              <span className="flex items-center gap-1.5 font-medium text-gray-400">
-                <span className="w-6 h-0.5 bg-gray-300 border-t border-dashed border-gray-400"></span> Target
+            <div className="flex gap-4 text-xs text-white">
+              <span className="flex items-center gap-1.5 font-medium text-white">
+                <span className="w-6 h-0.5 border-t border-dashed border-white/60"></span> Target
               </span>
-              <span className="flex items-center gap-1.5 font-bold text-teal-600">
-                <span className="w-2.5 h-2.5 rounded-full bg-teal-600"></span> Actual
+              <span className="flex items-center gap-1.5 font-bold text-white">
+                <span className="w-2.5 h-2.5 rounded-full bg-white"></span> Actual
               </span>
             </div>
           </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={velocityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 10, fill: '#64748b' }}
-                  axisLine={{ stroke: '#e2e8f0' }}
-                  tickLine={false}
-                  minTickGap={30}
-                />
-                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', fontSize: '11px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
-                <Line name="Target Goal" type="monotone" dataKey="Target" stroke="#cbd5e1" strokeDasharray="4 4" dot={false} strokeWidth={2} activeDot={false} />
-                <Line name="Actual Visits" type="monotone" dataKey="Actual" stroke="#0d9488" strokeWidth={3} dot={{ r: 3, fill: '#0d9488', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={false} />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="p-4 flex-1">
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={velocityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 10, fill: '#64748b' }}
+                    axisLine={{ stroke: '#e2e8f0' }}
+                    tickLine={false}
+                    minTickGap={30}
+                  />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', fontSize: '11px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                  <Line name="Target Goal" type="monotone" dataKey="Target" stroke="#cbd5e1" strokeDasharray="4 4" dot={false} strokeWidth={2} activeDot={false} />
+                  <Line name="Actual Visits" type="monotone" dataKey="Actual" stroke="#0d9488" strokeWidth={3} dot={{ r: 3, fill: '#0d9488', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
@@ -430,42 +432,44 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 portal-card p-4">
-          <div className="flex justify-between items-center mb-2 px-1 border-b border-gray-100 pb-3">
-            <h3 className="text-xs font-bold text-teal-800 uppercase flex items-center gap-2">
-              <Icons.Analytics className="w-4 h-4" /> Daily Trend Analysis
+        <div className="lg:col-span-2 portal-card">
+          <div className="portal-card-header flex justify-between items-center text-white bg-teal-600">
+            <h3 className="text-xs font-bold uppercase flex items-center gap-2 text-white">
+              <Icons.Analytics className="w-4 h-4 text-white" /> Daily Trend Analysis
             </h3>
-            <div className="flex gap-3 text-xs">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-teal-500"></span> Smart</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-500"></span> ICT</span>
+            <div className="flex gap-3 text-xs text-white">
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-teal-300"></span> Smart</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-300"></span> ICT</span>
             </div>
           </div>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={lineChartData}>
-                <defs>
-                  <linearGradient id="colorSmart" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.8} /><stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorICT" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8} /><stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} minTickGap={30} />
-                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', fontSize: '11px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                <Area type="monotone" dataKey="Smart" stroke="#0d9488" fillOpacity={1} fill="url(#colorSmart)" strokeWidth={2} />
-                <Area type="monotone" dataKey="ICT" stroke="#0891b2" fillOpacity={1} fill="url(#colorICT)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="p-4 flex-1">
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={lineChartData}>
+                  <defs>
+                    <linearGradient id="colorSmart" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.8} /><stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorICT" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8} /><stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} minTickGap={30} />
+                  <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', fontSize: '11px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                  <Area type="monotone" dataKey="Smart" stroke="#0d9488" fillOpacity={1} fill="url(#colorSmart)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="ICT" stroke="#0891b2" fillOpacity={1} fill="url(#colorICT)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
-        <div className="portal-card p-0 flex flex-col">
-          <div className="portal-card-header !bg-transparent !border-b !pb-3 !mb-2">
-            <h3 className="text-xs font-bold text-gray-700 uppercase">District Heatmap</h3>
+        <div className="portal-card flex flex-col">
+          <div className="portal-card-header flex items-center gap-2">
+            <Icons.Analytics className="w-4 h-4 text-white" /> DISTRICT HEATMAP
           </div>
-          <div className="h-full overflow-y-auto pr-2 pl-3 pb-3">
+          <div className="h-full overflow-y-auto pr-2 pl-3 py-3">
             {topDistricts.map(([dist, d], i) => {
               const pct = Math.round((d.visited / d.total) * 100);
               return (
