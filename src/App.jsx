@@ -1073,14 +1073,14 @@ const App = () => {
                         </div>
                     </div>
                 </div>
-                <nav className="flex-1 overflow-y-auto py-6 space-y-5 px-3 text-left select-none">
-                    <div className="space-y-4">
+                <nav className="flex-1 overflow-y-auto py-2 space-y-1.5 px-3 text-left select-none">
+                    <div className="space-y-1">
                         {menuGroups.map(g => {
                             if (g.items.length === 0) return null;
                             const isExpanded = !!expandedFolders[g.title];
                             
                             return (
-                                <div key={g.title} className="space-y-1.5">
+                                <div key={g.title} className="space-y-0.5">
                                     {/* Collapsible Folder Header */}
                                     <button
                                         onClick={() => {
@@ -1089,7 +1089,7 @@ const App = () => {
                                                 [g.title]: !prev[g.title]
                                             }));
                                         }}
-                                        className="w-full flex items-center justify-between px-3 py-3.5 rounded-lg text-[15px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                                        className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[14px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
                                     >
                                         <div className="flex items-center gap-2.5">
                                             <span className="p-0.5 rounded-md text-white shrink-0">
@@ -1111,8 +1111,8 @@ const App = () => {
 
                                     {/* Collapsible Submenu list */}
                                     <div
-                                        className={`pl-3 space-y-1 overflow-hidden transition-all duration-300 ${
-                                            isExpanded ? 'max-h-64 opacity-100 py-1' : 'max-h-0 opacity-0 pointer-events-none'
+                                        className={`pl-3 space-y-0.5 overflow-hidden transition-all duration-300 ${
+                                            isExpanded ? 'max-h-64 opacity-100 py-0.5' : 'max-h-0 opacity-0 pointer-events-none'
                                         }`}
                                     >
                                         {g.items.map(t => {
@@ -1124,7 +1124,7 @@ const App = () => {
                                                         setActiveTab(t.id);
                                                         setIsSidebarOpen(false);
                                                     }}
-                                                    className={`w-full flex items-center py-2.5 px-4 rounded-lg text-[13px] font-bold transition font-serif ${
+                                                    className={`w-full flex items-center py-2 px-3 rounded-lg text-[12.5px] font-bold transition font-serif ${
                                                         isActive
                                                             ? 'bg-black/15 text-white font-extrabold border-l-4 border-white'
                                                             : 'text-teal-100 hover:text-white hover:bg-white/5'
@@ -1137,7 +1137,7 @@ const App = () => {
                                                                 : 'bg-white/5'
                                                         }`}
                                                     >
-                                                        <t.icon className="w-5 h-5" />
+                                                        <t.icon className="w-4 h-4" />
                                                     </span>
                                                     <span>{t.label}</span>
                                                     {isActive && (
@@ -1154,7 +1154,7 @@ const App = () => {
                         {/* Integrated Premium Logout Button inside sidebar nav list */}
                         <button
                             onClick={handleLogout}
-                            className="w-full flex items-center justify-between py-3.5 px-3 rounded-lg text-[15px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                            className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg text-[14px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
                             title="Sign Out of Portal"
                         >
                             <div className="flex items-center gap-2.5">
@@ -1168,7 +1168,7 @@ const App = () => {
                         {/* Complain Box Menu Item */}
                         <button
                             onClick={() => alert("Complain Box: You can raise official complaints here. Feature coming soon!")}
-                            className="w-full flex items-center justify-between py-3.5 px-3 rounded-lg text-[15px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                            className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg text-[14px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
                         >
                             <div className="flex items-center gap-2.5">
                                 <span className="p-0.5 rounded-md text-teal-200 shrink-0">
@@ -1181,7 +1181,7 @@ const App = () => {
                         {/* Help Menu Item */}
                         <button
                             onClick={() => alert("Help Center: Official help documentation. Feature coming soon!")}
-                            className="w-full flex items-center justify-between py-3.5 px-3 rounded-lg text-[15px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                            className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg text-[14px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
                         >
                             <div className="flex items-center gap-2.5">
                                 <span className="p-0.5 rounded-md text-teal-200 shrink-0">
