@@ -27,7 +27,8 @@ const SchoolPerformance = ({
     const [performanceType, setPerformanceType] = useState('school'); // 'school' | 'ict_instructor' | 'subject_teacher'
     const [dataSource, setDataSource] = useState('jhpms'); // 'jhpms' | 'edustat' | 'both'
     const [currentPage, setCurrentPage] = useState(1);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [rowsPerPage, setRowsPerPage] = useState(20);
+
 
     // 2. Auto-switch effect: Edustat has no teacher names, so auto-switch to JHPMS if teacher selected
     useEffect(() => {
@@ -602,7 +603,8 @@ const SchoolPerformance = ({
 
 
     return (
-        <div className="flex flex-col gap-4 p-4 animate-fade-in overflow-hidden max-h-[85vh]">
+        <div className="flex flex-col gap-4 p-4 animate-fade-in">
+
             {/* 1. Header Filter Controls */}
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-white/70 backdrop-blur-md p-3 rounded-2xl border border-white/40 shadow-sm shrink-0">
                 <div className="flex flex-col gap-1.5 w-full md:w-auto">
@@ -881,8 +883,9 @@ const SchoolPerformance = ({
             )}
 
             {/* 4. Table / Leaderboard */}
-            <div className="flex flex-col bg-white/80 backdrop-blur-md rounded-2xl border border-teal-100 shadow-sm overflow-hidden flex-1 min-h-0">
-                <div className="overflow-auto flex-1 text-xs">
+            <div className="flex flex-col bg-white/80 backdrop-blur-md rounded-2xl border border-teal-100 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto text-xs">
+
                     <table className="w-full text-left">
                         <thead className="bg-gradient-to-r from-teal-800 to-teal-700 text-white sticky top-0 z-30 shadow-md">
                             {performanceData.type === 'ict_instructor' && (
@@ -1096,10 +1099,11 @@ const SchoolPerformance = ({
                                 className="px-2 py-1 text-xs border border-gray-200 rounded-lg font-bold text-gray-600 bg-white"
                             >
                                 <option value={10}>10 Rows</option>
-                                <option value={25}>25 Rows</option>
+                                <option value={20}>20 Rows</option>
                                 <option value={50}>50 Rows</option>
                                 <option value={100}>100 Rows</option>
                                 <option value="All">Show All</option>
+
                             </select>
                             <span className="text-[10px] text-gray-450 font-medium">
                                 Showing {rowsPerPage === 'All' ? 1 : (activePage - 1) * Number(rowsPerPage) + 1}-
