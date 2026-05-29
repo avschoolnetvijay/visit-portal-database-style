@@ -44,8 +44,8 @@ const StatusCards = ({ buckets, onDrillDown }) => {
 const PortalCard = ({ title, icon: IconComponent, items, onDrillDown }) => {
   return (
     <div className="portal-card">
-      <div className="portal-card-header">
-        {IconComponent && <IconComponent className="w-4 h-4 opacity-70" />}
+      <div className="portal-card-header flex items-center gap-2">
+        {IconComponent && <IconComponent className="w-6 h-6 shrink-0" />}
         {title}
       </div>
       <div className="portal-card-body p-0">
@@ -71,8 +71,8 @@ const PortalCard = ({ title, icon: IconComponent, items, onDrillDown }) => {
 const TargetCard = ({ target, achieved, gap, onDrillDown, schools }) => {
   return (
     <div className="portal-card">
-      <div className="portal-card-header">
-        <Icons.Target className="w-4 h-4 opacity-70" /> TARGET ANALYSIS
+      <div className="portal-card-header flex items-center gap-2">
+        <Icons.Target className="w-6 h-6 shrink-0" /> TARGET ANALYSIS
       </div>
       <div className="p-3 flex items-center h-full">
         <div className="flex-1 flex divide-x divide-gray-100">
@@ -166,8 +166,8 @@ const AIInsightsCard = ({ schools, visits, onDrillDown }) => {
 
   return (
     <div className="portal-card h-auto ring-1 ring-indigo-50 border-indigo-100">
-      <div className="portal-card-header bg-gradient-to-r from-indigo-600 to-indigo-700 !text-white !p-3">
-        <Icons.Robot className="w-4 h-4 text-white" /> AI STRATEGIC INSIGHTS
+      <div className="portal-card-header bg-gradient-to-r from-indigo-600 to-indigo-700 !text-white !p-3 flex items-center gap-2">
+        <Icons.Robot className="w-6 h-6 shrink-0" /> AI STRATEGIC INSIGHTS
       </div>
       <div className="p-3 bg-indigo-50/50 flex-1">
         <ul className="space-y-2">
@@ -370,7 +370,7 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
         <div className="lg:col-span-2 portal-card">
           <div className="portal-card-header flex justify-between items-center text-white bg-teal-600">
             <h3 className="text-xs font-bold uppercase flex items-center gap-2 text-white">
-              <Icons.Analytics className="w-4 h-4 text-white" /> Coverage Velocity
+              <Icons.Analytics className="w-6 h-6 shrink-0" /> Coverage Velocity
             </h3>
             <div className="flex gap-4 text-xs text-white">
               <span className="flex items-center gap-1.5 font-medium text-white">
@@ -405,7 +405,7 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
 
         <div className="portal-card p-0 flex flex-col">
           <div className="portal-card-header bg-gradient-to-r from-amber-500 to-amber-600 !text-white flex items-center justify-center gap-2 py-3 shadow-sm">
-            <Icons.Performance className="w-4 h-4 text-white" /> TOP PERFORMERS
+            <Icons.Performance className="w-6 h-6 shrink-0" /> TOP PERFORMERS
           </div>
           <div className="p-3 overflow-y-auto flex-1 h-64">
             {visitorLeaderboard.map((v, i) => (
@@ -435,7 +435,7 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
         <div className="lg:col-span-2 portal-card">
           <div className="portal-card-header flex justify-between items-center text-white bg-teal-600">
             <h3 className="text-xs font-bold uppercase flex items-center gap-2 text-white">
-              <Icons.Analytics className="w-4 h-4 text-white" /> Daily Trend Analysis
+              <Icons.Analytics className="w-6 h-6 shrink-0" /> Daily Trend Analysis
             </h3>
             <div className="flex gap-3 text-xs text-white">
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-teal-300"></span> Smart</span>
@@ -467,7 +467,7 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
 
         <div className="portal-card flex flex-col">
           <div className="portal-card-header flex items-center gap-2">
-            <Icons.Analytics className="w-4 h-4 text-white" /> DISTRICT HEATMAP
+            <Icons.Analytics className="w-6 h-6 shrink-0" /> DISTRICT HEATMAP
           </div>
           <div className="h-full overflow-y-auto pr-2 pl-3 py-3">
             {topDistricts.map(([dist, d], i) => {

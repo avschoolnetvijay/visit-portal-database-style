@@ -1,40 +1,370 @@
 import React from 'react';
 
-const Icon = ({ d, className, color }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke={color || "currentColor"} strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d={d} />
-  </svg>
-);
-
 export const Icons = {
-  Dashboard: (p) => <Icon {...p} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />,
-  Performance: (p) => <Icon {...p} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />,
-  School: (p) => <Icon {...p} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />,
-  Analytics: (p) => <Icon {...p} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />,
-  Alert: (p) => <Icon {...p} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />,
-  Reports: (p) => <Icon {...p} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />,
-  Setup: (p) => <Icon {...p} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />,
-  Filter: (p) => <Icon {...p} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />,
-  Export: (p) => <Icon {...p} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />,
-  Plan: (p) => <Icon {...p} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />,
-  Close: (p) => <Icon {...p} d="M6 18L18 6M6 6l12 12" />,
-  Users: (p) => <Icon {...p} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />,
-  SchoolSolid: (p) => <Icon {...p} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />,
-  Search: (p) => <Icon {...p} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />,
-  Home: (p) => <Icon {...p} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />,
-  Visit: (p) => <Icon {...p} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />,
-  Profile: (p) => <Icon {...p} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />,
-  Register: (p) => <Icon {...p} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />,
-  Gallery: (p) => <Icon {...p} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />,
-  Target: (p) => <Icon {...p} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />,
-  Robot: (p) => <Icon {...p} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />,
-  Compliance: (p) => <Icon {...p} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />,
-  GoogleSheet: (p) => <Icon {...p} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />,
-  GlobalSearch: (p) => <Icon {...p} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />,
-  Lock: (p) => <Icon {...p} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />,
-  Print: (p) => <Icon {...p} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />,
-  Menu: (p) => <Icon {...p} d="M4 6h16M4 12h16M4 18h16" />,
-  Sun: (p) => <Icon {...p} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />,
-  Moon: (p) => <Icon {...p} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />,
-  Trophy: (p) => <Icon {...p} d="M5 3h14l-1.5 5H15a3 3 0 11-6 0H6.5L5 3zM9 8a3 3 0 006 0M4 3H2l1.5 5M20 3h2l-1.5 5M12 11v5m-3 5h6a1 1 0 001-1v-1H8v1a1 1 0 001 1z" />
+  Dashboard: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="8" width="52" height="34" rx="4" fill="#339af0" stroke="#fff" strokeWidth="2" />
+      <rect x="10" y="12" width="44" height="26" fill="#1c7d7b" rx="2" />
+      <rect x="14" y="24" width="6" height="10" fill="#ffd43b" />
+      <rect x="22" y="18" width="6" height="16" fill="#51cf66" />
+      <rect x="30" y="28" width="6" height="6" fill="#ff6b6b" />
+      <path d="M26 42h12v6H26z" fill="#dee2e6" stroke="#495057" strokeWidth="2" />
+      <path d="M16 48h32" stroke="#495057" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  ),
+  Performance: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="6" width="44" height="14" rx="3" fill="#e9ecef" stroke="#495057" strokeWidth="2" />
+      <rect x="10" y="24" width="44" height="14" rx="3" fill="#e9ecef" stroke="#495057" strokeWidth="2" />
+      <rect x="10" y="42" width="44" height="14" rx="3" fill="#e9ecef" stroke="#495057" strokeWidth="2" />
+      <circle cx="16" cy="13" r="2.5" fill="#51cf66" />
+      <circle cx="16" cy="31" r="2.5" fill="#51cf66" />
+      <circle cx="16" cy="49" r="2.5" fill="#fa5252" />
+      <circle cx="23" cy="13" r="2" fill="#ffd43b" />
+      <circle cx="23" cy="31" r="2" fill="#ffd43b" />
+      <circle cx="23" cy="49" r="2" fill="#ffd43b" />
+      <line x1="30" y1="13" x2="48" y2="13" stroke="#adb5bd" strokeWidth="2" strokeLinecap="round" />
+      <line x1="30" y1="31" x2="48" y2="31" stroke="#adb5bd" strokeWidth="2" strokeLinecap="round" />
+      <line x1="30" y1="49" x2="48" y2="49" stroke="#adb5bd" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  School: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="24" width="48" height="32" rx="2" fill="#74c0fc" stroke="#228be6" strokeWidth="2" />
+      <polygon points="32,4 6,24 58,24" fill="#ff6b6b" stroke="#fa5252" strokeWidth="2" />
+      <rect x="26" y="38" width="12" height="18" fill="#ffd43b" stroke="#f59f00" strokeWidth="1.5" />
+      <circle cx="32" cy="14" r="3" fill="#ffe066" />
+      <path d="M32 28l-8-4 8-4 8 4-8 4z" fill="#343a40" />
+      <path d="M28 26v4c0 1.5 1.5 2 4 2s4-.5 4-2v-4" fill="#343a40" />
+    </svg>
+  ),
+  Analytics: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="10" width="52" height="34" rx="4" fill="#339af0" stroke="#fff" strokeWidth="2" />
+      <rect x="10" y="14" width="44" height="26" rx="2" fill="#f8f9fa" />
+      <path d="M2 48h60l-4 6H6l-4-6z" fill="#ced4da" stroke="#495057" strokeWidth="2" />
+      <line x1="28" y1="51" x2="36" y2="51" stroke="#868e96" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="26" cy="27" r="5" fill="#fcc419" stroke="#fab005" strokeWidth="1.5" />
+      <circle cx="37" cy="23" r="4" fill="#51cf66" stroke="#37b24d" strokeWidth="1.5" />
+    </svg>
+  ),
+  Alert: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M32 6L4 54h56L32 6z" fill="#ffd43b" stroke="#fab005" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M32 18v18" stroke="#343a40" strokeWidth="5" strokeLinecap="round" />
+      <circle cx="32" cy="45" r="3.5" fill="#343a40" />
+    </svg>
+  ),
+  Reports: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="20" fill="#20c997" stroke="#fff" strokeWidth="2" />
+      <path d="M12 20l8 8 16-16" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  Setup: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="32" r="14" fill="#ffd43b" stroke="#f59f00" strokeWidth="2" />
+      <circle cx="32" cy="32" r="6" fill="#fff" />
+      <path d="M32 10v8M32 46v8M10 32h8M46 32h8M16 16l6 6M42 42l6 6M16 48l6-6M42 16l6-6" stroke="#f59f00" strokeWidth="4.5" strokeLinecap="round" />
+    </svg>
+  ),
+  Filter: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="4,8 20,26 20,42 28,42 28,26 44,8" fill="#ff922b" stroke="#fff" strokeWidth="2.5" />
+      <line x1="8" y1="12" x2="40" y2="12" stroke="#fff" strokeWidth="2" />
+    </svg>
+  ),
+  Export: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 30v8a4 4 0 004 4h28a4 4 0 004-4v-8" stroke="#339af0" strokeWidth="3" strokeLinecap="round" />
+      <path d="M24 6v22M14 18l10 10 10-10" stroke="#ff922b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  Plan: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="10" width="32" height="34" rx="3" fill="#e9ecef" stroke="#495057" strokeWidth="2" />
+      <rect x="18" y="4" width="12" height="8" rx="2" fill="#ffd43b" stroke="#fab005" strokeWidth="1.5" />
+      <path d="M14 20l4 4 14-14" stroke="#51cf66" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="16" y1="28" x2="32" y2="28" stroke="#ced4da" strokeWidth="2" />
+      <line x1="16" y1="34" x2="28" y2="34" stroke="#ced4da" strokeWidth="2" />
+    </svg>
+  ),
+  Close: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="20" fill="#ff6b6b" stroke="#fff" strokeWidth="2" />
+      <path d="M24 14v10" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M17 18.5a10 10 0 1014 0" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" />
+    </svg>
+  ),
+  Users: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="24" r="7" fill="#ffe066" stroke="#fab005" strokeWidth="1.5" />
+      <path d="M10 44c0-5 4-8 10-8s10 3 10 8" fill="#ff6b6b" stroke="#fa5252" strokeWidth="1.5" />
+      <circle cx="44" cy="24" r="7" fill="#ffe066" stroke="#fab005" strokeWidth="1.5" />
+      <path d="M34 44c0-5 4-8 10-8s10 3 10 8" fill="#51cf66" stroke="#37b24d" strokeWidth="1.5" />
+      <circle cx="32" cy="20" r="8" fill="#ffd43b" stroke="#f59f00" strokeWidth="1.5" />
+      <path d="M20 42c0-6 5.373-10 12-10s12 4 12 10" fill="#339af0" stroke="#228be6" strokeWidth="1.5" />
+    </svg>
+  ),
+  SchoolSolid: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="24" width="48" height="32" rx="2" fill="#74c0fc" stroke="#228be6" strokeWidth="2" />
+      <polygon points="32,4 6,24 58,24" fill="#ff6b6b" stroke="#fa5252" strokeWidth="2" />
+      <rect x="26" y="38" width="12" height="18" fill="#ffd43b" stroke="#f59f00" strokeWidth="1.5" />
+      <circle cx="32" cy="14" r="3" fill="#ffe066" />
+      <path d="M32 28l-8-4 8-4 8 4-8 4z" fill="#343a40" />
+      <path d="M28 26v4c0 1.5 1.5 2 4 2s4-.5 4-2v-4" fill="#343a40" />
+    </svg>
+  ),
+  Search: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="20" r="12" fill="#e7f5ff" stroke="#339af0" strokeWidth="3" />
+      <line x1="28" y1="28" x2="42" y2="42" stroke="#495057" strokeWidth="4.5" strokeLinecap="round" />
+    </svg>
+  ),
+  Home: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M24 4L6 18v22a2 2 0 002 2h10V30h12v12h10a2 2 0 002-2V18L24 4z" fill="#ff6b6b" />
+      <path d="M18 30h12v12H18V30z" fill="#ffe066" />
+      <path d="M24 4L6 18h8v24h20V18h8L24 4z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  Visit: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="6" fill="#ff6b6b" stroke="#fa5252" strokeWidth="1.5" />
+      <circle cx="48" cy="16" r="6" fill="#339af0" stroke="#228be6" strokeWidth="1.5" />
+      <circle cx="32" cy="44" r="8" fill="#51cf66" stroke="#37b24d" strokeWidth="2" />
+      <line x1="20" y1="20" x2="28" y2="38" stroke="#ced4da" strokeWidth="2" strokeDasharray="3,3" />
+      <line x1="44" y1="20" x2="36" y2="38" stroke="#ced4da" strokeWidth="2" strokeDasharray="3,3" />
+      <line x1="22" y1="16" x2="42" y2="16" stroke="#ced4da" strokeWidth="2" />
+    </svg>
+  ),
+  Profile: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="6" width="36" height="36" rx="4" fill="#339af0" stroke="#fff" strokeWidth="2" />
+      <circle cx="24" cy="18" r="7" fill="#fff" />
+      <path d="M12 36c0-6 5.373-10 12-10s12 4 12 10H12z" fill="#fff" />
+    </svg>
+  ),
+  Register: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="6" width="28" height="36" rx="3" fill="#fcc419" stroke="#fff" strokeWidth="2" />
+      <rect x="16" y="12" width="16" height="24" rx="1" fill="#fff" />
+      <line x1="20" y1="18" x2="28" y2="18" stroke="#fab005" strokeWidth="2" strokeLinecap="round" />
+      <line x1="20" y1="24" x2="28" y2="24" stroke="#fab005" strokeWidth="2" strokeLinecap="round" />
+      <line x1="20" y1="30" x2="28" y2="30" stroke="#fab005" strokeWidth="2" strokeLinecap="round" />
+      <path d="M8 12h4M8 20h4M8 28h4M8 36h4" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  ),
+  Gallery: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="6" width="36" height="36" rx="4" fill="#339af0" stroke="#fff" strokeWidth="2" />
+      <circle cx="16" cy="16" r="4" fill="#ffd43b" />
+      <polygon points="10,38 20,24 30,34 38,26 42,38" fill="#51cf66" stroke="#fff" strokeWidth="1.5" />
+    </svg>
+  ),
+  Target: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="12" y="10" width="40" height="48" rx="3" fill="#ffe3e3" stroke="#ffc9c9" strokeWidth="2" />
+      <rect x="16" y="16" width="32" height="38" fill="#fff" rx="1" />
+      <rect x="20" y="24" width="6" height="22" fill="#ff6b6b" />
+      <rect x="29" y="30" width="6" height="16" fill="#4dabf7" />
+      <rect x="38" y="20" width="6" height="26" fill="#51cf66" />
+    </svg>
+  ),
+  Robot: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="14" y="14" width="36" height="44" rx="3" fill="#2b8a3e" stroke="#fff" strokeWidth="2" />
+      <rect x="18" y="10" width="28" height="44" rx="2" fill="#51cf66" stroke="#fff" strokeWidth="2" />
+      <path d="M32 24l-10-5 10-5 10 5-10 5z" fill="#343a40" />
+      <path d="M26 21.5v4c0 1.5 1.5 2 6 2s6-.5 6-2v-4" fill="#343a40" />
+      <path d="M38 19l3 3" stroke="#ffd43b" strokeWidth="1.5" />
+    </svg>
+  ),
+  Compliance: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="20" fill="#51cf66" stroke="#fff" strokeWidth="2" />
+      <path d="M14 26a10 10 0 0120 0v2H14v-2z" fill="#fff" />
+      <circle cx="24" cy="18" r="5" fill="#fff" />
+      <path d="M12 22a2 2 0 012-2h20a2 2 0 012 2v2H12v-2z" fill="#2b8a3e" />
+      <path d="M30 20a4 4 0 014 4v2" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  GoogleSheet: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="6" width="28" height="36" rx="3" fill="#20c997" stroke="#fff" strokeWidth="2" />
+      <rect x="16" y="16" width="16" height="16" fill="#fff" />
+      <line x1="16" y1="21" x2="32" y2="21" stroke="#20c997" strokeWidth="1.5" />
+      <line x1="16" y1="27" x2="32" y2="27" stroke="#20c997" strokeWidth="1.5" />
+      <line x1="21" y1="16" x2="21" y2="32" stroke="#20c997" strokeWidth="1.5" />
+      <line x1="27" y1="16" x2="27" y2="32" stroke="#20c997" strokeWidth="1.5" />
+    </svg>
+  ),
+  GlobalSearch: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="20" r="14" fill="#e7f5ff" stroke="#339af0" strokeWidth="2" />
+      <ellipse cx="20" cy="20" rx="10" ry="4" stroke="#74c0fc" strokeWidth="1.5" />
+      <ellipse cx="20" cy="20" rx="4" ry="10" stroke="#74c0fc" strokeWidth="1.5" />
+      <line x1="20" y1="6" x2="20" y2="34" stroke="#74c0fc" strokeWidth="1.5" />
+      <line x1="6" y1="20" x2="34" y2="20" stroke="#74c0fc" strokeWidth="1.5" />
+      <line x1="30" y1="30" x2="42" y2="42" stroke="#495057" strokeWidth="4.5" strokeLinecap="round" />
+    </svg>
+  ),
+  Lock: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="18" width="28" height="24" rx="4" fill="#339af0" stroke="#fff" strokeWidth="2" />
+      <path d="M16 18v-6a8 8 0 0116 0v6" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="24" cy="30" r="3" fill="#fff" />
+      <path d="M24 33v5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  ),
+  Print: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 18h28v14H10z" fill="#ced4da" stroke="#495057" strokeWidth="2" />
+      <rect x="14" y="6" width="20" height="12" fill="#fff" stroke="#495057" strokeWidth="2" />
+      <rect x="14" y="24" width="20" height="18" fill="#ffd43b" stroke="#fab005" strokeWidth="2" />
+      <line x1="18" y1="30" x2="30" y2="30" stroke="#fff" strokeWidth="2" />
+      <line x1="18" y1="36" x2="26" y2="36" stroke="#fff" strokeWidth="2" />
+    </svg>
+  ),
+  Menu: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 12h36M6 24h36M6 36h36" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+    </svg>
+  ),
+  Sun: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="10" fill="#ffd43b" stroke="#fab005" strokeWidth="2" />
+      <path d="M24 4v6M24 38v6M4 24h6M38 24h6M9.8 9.8l4.3 4.3M33.9 33.9l4.3 4.3M9.8 38.2l4.3-4.3M33.9 14.1l4.3-4.3" stroke="#fab005" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  ),
+  Moon: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 28a16 16 0 1020-15.5 16 16 0 01-20 15.5z" fill="#74c0fc" stroke="#228be6" strokeWidth="2.5" />
+    </svg>
+  ),
+  Trophy: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M16 6h32v24c0 8.837-7.163 16-16 16s-16-7.163-16-16V6z" fill="#ffd43b" stroke="#fab005" strokeWidth="2" />
+      <path d="M24 46h16v10H24z" fill="#ced4da" stroke="#495057" strokeWidth="2" />
+      <path d="M12 56h40" stroke="#495057" strokeWidth="3" strokeLinecap="round" />
+      <path d="M16 14H8a4 4 0 00-4 4v6a4 4 0 004 4h8" stroke="#fab005" strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M48 14h8a4 4 0 014 4v6a4 4 0 01-4 4h-8" stroke="#fab005" strokeWidth="3.5" strokeLinecap="round" />
+    </svg>
+  ),
+  // Additional specialized premium illustrations corresponding directly to JHPMS dashboard card icons
+  Agency: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="12" y="18" width="40" height="38" rx="2" fill="#e9ecef" stroke="#495057" strokeWidth="2" />
+      <rect x="18" y="24" width="10" height="10" rx="1" fill="#ffe066" stroke="#fab005" strokeWidth="1.5" />
+      <rect x="36" y="24" width="10" height="10" rx="1" fill="#ffe066" stroke="#fab005" strokeWidth="1.5" />
+      <rect x="18" y="40" width="10" height="10" rx="1" fill="#ffe066" stroke="#fab005" strokeWidth="1.5" />
+      <rect x="36" y="40" width="10" height="10" rx="1" fill="#ffe066" stroke="#fab005" strokeWidth="1.5" />
+      <rect x="27" y="48" width="10" height="8" rx="1" fill="#4dabf7" stroke="#228be6" strokeWidth="1.5" />
+      <path d="M8 56h48" stroke="#495057" strokeWidth="2.5" strokeLinecap="round" />
+      <rect x="22" y="6" width="20" height="12" rx="1" fill="#339af0" stroke="#228be6" strokeWidth="1.5" />
+      <circle cx="32" cy="12" r="2" fill="#fff" />
+    </svg>
+  ),
+  ICTLab: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="14" y="26" width="36" height="24" rx="2" fill="#ffd8a8" stroke="#f59f00" strokeWidth="2" />
+      <rect x="18" y="30" width="28" height="16" fill="#fff" />
+      <rect x="24" y="32" width="16" height="10" rx="1" fill="#4dabf7" />
+      <circle cx="16" cy="18" r="5" fill="#ffd43b" />
+      <path d="M8 32c0-4 4-6 8-6s8 2 8 6" fill="#ff6b6b" />
+      <line x1="20" y1="24" x2="26" y2="18" stroke="#ffd43b" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  SmartClass: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="10" width="52" height="36" rx="3" fill="#20c997" stroke="#0ca678" strokeWidth="2" />
+      <rect x="10" y="14" width="44" height="28" fill="#121212" rx="1" />
+      <circle cx="20" cy="24" r="4" fill="#ff6b6b" />
+      <line x1="28" y1="22" x2="40" y2="22" stroke="#4dabf7" strokeWidth="2" strokeLinecap="round" />
+      <line x1="28" y1="26" x2="36" y2="26" stroke="#ffd43b" strokeWidth="2" strokeLinecap="round" />
+      <path d="M22 46l-4 12h28l-4-12" stroke="#495057" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  Teachers: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="22" y="10" width="36" height="26" rx="2" fill="#0ca678" stroke="#087f5b" strokeWidth="2" />
+      <text x="28" y="26" fill="#fff" fontSize="12" fontWeight="bold" fontFamily="sans-serif">A B C</text>
+      <circle cx="14" cy="22" r="6" fill="#ffd43b" stroke="#f59f00" strokeWidth="1" />
+      <path d="M6 38c0-5 4-8 8-8s8 3 8 8" fill="#ff6b6b" stroke="#fa5252" strokeWidth="1" />
+      <line x1="16" y1="28" x2="26" y2="20" stroke="#ffd43b" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  Instructors: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="24" width="44" height="28" rx="2" fill="#e9ecef" stroke="#495057" strokeWidth="2" />
+      <rect x="14" y="28" width="36" height="20" fill="#228be6" rx="1" />
+      <circle cx="32" cy="14" r="6" fill="#ffd43b" />
+      <path d="M22 24c0-4 4-6 10-6s10 2 10 6" fill="#ffd43b" />
+    </svg>
+  ),
+  ClassConducted: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="8" width="52" height="34" rx="3" fill="#845ef7" stroke="#7048e8" strokeWidth="2" />
+      <rect x="10" y="12" width="44" height="26" fill="#f8f9fa" />
+      <path d="M2 42h60" stroke="#495057" strokeWidth="3" />
+      <circle cx="20" cy="28" r="3" fill="#ff8787" />
+      <circle cx="32" cy="28" r="3" fill="#74c0fc" />
+      <circle cx="44" cy="28" r="3" fill="#8ce99a" />
+    </svg>
+  ),
+  IssueFound: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="14" y="6" width="36" height="52" rx="4" fill="#ffd43b" stroke="#fab005" strokeWidth="2" />
+      <rect x="20" y="12" width="24" height="40" fill="#fff" rx="1" />
+      <path d="M32 18v16" stroke="#fa5252" strokeWidth="5" strokeLinecap="round" />
+      <circle cx="32" cy="42" r="3.5" fill="#fa5252" />
+    </svg>
+  ),
+  CallStatus: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="16" y="6" width="32" height="52" rx="5" fill="#495057" stroke="#343a40" strokeWidth="2" />
+      <rect x="19" y="10" width="26" height="40" fill="#fff" />
+      <path d="M23 20l3 3 6-6M23 30l3 3 6-6M23 40l3 3 6-6" stroke="#51cf66" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="32" cy="53" r="2" fill="#fff" />
+    </svg>
+  ),
+  StatusReport: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="12" y="10" width="40" height="48" rx="3" fill="#ffe3e3" stroke="#ffc9c9" strokeWidth="2" />
+      <rect x="16" y="16" width="32" height="38" fill="#fff" rx="1" />
+      <rect x="20" y="24" width="6" height="22" fill="#ff6b6b" />
+      <rect x="29" y="30" width="6" height="16" fill="#4dabf7" />
+      <rect x="38" y="20" width="6" height="26" fill="#51cf66" />
+    </svg>
+  ),
+  JGuruji: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="14" y="14" width="36" height="44" rx="3" fill="#2b8a3e" stroke="#fff" strokeWidth="2" />
+      <rect x="18" y="10" width="28" height="44" rx="2" fill="#51cf66" stroke="#fff" strokeWidth="2" />
+      <path d="M32 24l-10-5 10-5 10 5-10 5z" fill="#343a40" />
+      <path d="M26 21.5v4c0 1.5 1.5 2 6 2s6-.5 6-2v-4" fill="#343a40" />
+      <path d="M38 19l3 3" stroke="#ffd43b" strokeWidth="1.5" />
+    </svg>
+  ),
+  MDM: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-8 h-8"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="32" r="26" fill="#ffe3e3" stroke="#ffc9c9" strokeWidth="2" />
+      <path d="M16 32a16 16 0 0032 0H16z" fill="#ff6b6b" stroke="#fa5252" strokeWidth="1.5" />
+      <path d="M24 20v8M40 20v8" stroke="#ff8787" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  // Additional decorative navigation icons for complete brand duplication
+  ComplainBox: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="10" width="36" height="28" rx="4" fill="#b197fc" stroke="#fff" strokeWidth="2" />
+      <path d="M6 14l18 12 18-12" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  Help: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="20" fill="#4dabf7" stroke="#fff" strokeWidth="2" />
+      <text x="24" y="31" fill="#fff" fontSize="22" fontWeight="bold" fontFamily="sans-serif" textAnchor="middle">?</text>
+    </svg>
+  )
 };

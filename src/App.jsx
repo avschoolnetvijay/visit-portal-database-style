@@ -1046,8 +1046,8 @@ const App = () => {
 
                     {/* User Profile Bar (Photo + Name) */}
                     <div className="flex items-center gap-3 w-full bg-black/10 p-2.5 rounded-xl border border-white/5 shadow-inner">
-                        <div className="w-10 h-10 rounded-lg bg-teal-850 border border-white/20 flex items-center justify-center text-white shrink-0 overflow-hidden shadow-inner">
-                            <Icons.Profile className="w-6 h-6 text-teal-100" />
+                        <div className="w-10 h-10 rounded-lg bg-transparent flex items-center justify-center shrink-0 overflow-hidden">
+                            <Icons.Profile className="w-8 h-8 shrink-0" />
                         </div>
                         <div className="text-left overflow-hidden">
                             <div className="font-bold text-white text-sm tracking-wide leading-tight truncate shadow-black drop-shadow-sm font-serif">
@@ -1080,8 +1080,8 @@ const App = () => {
                                         className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-teal-100 hover:text-white rounded-lg hover:bg-white/5 transition duration-150"
                                     >
                                         <div className="flex items-center gap-2.5">
-                                            <span className="p-1 bg-white/5 rounded-md text-teal-200">
-                                                <g.icon className="w-3.5 h-3.5" />
+                                            <span className="p-0.5 rounded-md text-teal-200 shrink-0">
+                                                <g.icon className="w-5 h-5" />
                                             </span>
                                             <span>{g.title}</span>
                                         </div>
@@ -1119,13 +1119,13 @@ const App = () => {
                                                     }`}
                                                 >
                                                     <span
-                                                        className={`mr-2.5 p-1 rounded-md transition-colors ${
+                                                        className={`mr-2.5 p-0.5 rounded-md transition-colors shrink-0 ${
                                                             isActive
-                                                                ? 'bg-teal-900/30 text-teal-300'
-                                                                : 'bg-white/5 text-teal-100 group-hover:bg-white/10'
+                                                                ? 'bg-teal-900/30'
+                                                                : 'bg-white/5'
                                                         }`}
                                                     >
-                                                        <t.icon className="w-3.5 h-3.5" />
+                                                        <t.icon className="w-5 h-5" />
                                                     </span>
                                                     <span>{t.label}</span>
                                                     {isActive && (
