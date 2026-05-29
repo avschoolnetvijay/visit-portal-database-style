@@ -105,7 +105,14 @@ const App = () => {
     const [selProjects, setSelProjects] = useState([]);
     const [selDistricts, setSelDistricts] = useState([]);
     const [selBlocks, setSelBlocks] = useState([]);
+    const [selCCs, setSelCCs] = useState([]);
     const [selSchools, setSelSchools] = useState([]);
+
+    // Advanced dashboard filter states
+    const [activeSources, setActiveSources] = useState(['jhpms', 'edustat', 'visits', 'manpower']);
+    const [perfBands, setPerfBands] = useState([]);
+    const [showExceptions, setShowExceptions] = useState(false);
+    const [compareMode, setCompareMode] = useState(false);
 
     // Local filter state inputs (for non-laggy, staged selections)
     const [localStartDate, setLocalStartDate] = useState(startDate);
@@ -113,9 +120,14 @@ const App = () => {
     const [localSelProjects, setLocalSelProjects] = useState(selProjects);
     const [localSelDistricts, setLocalSelDistricts] = useState(selDistricts);
     const [localSelBlocks, setLocalSelBlocks] = useState(selBlocks);
+    const [localSelCCs, setLocalSelCCs] = useState([]);
     const [localSelSchools, setLocalSelSchools] = useState(selSchools);
     const [localWorkingDays, setLocalWorkingDays] = useState(workingDays);
     const [localIsWorkingDaysManual, setLocalIsWorkingDaysManual] = useState(isWorkingDaysManual);
+    const [localActiveSources, setLocalActiveSources] = useState(['jhpms', 'edustat', 'visits', 'manpower']);
+    const [localPerfBands, setLocalPerfBands] = useState([]);
+    const [localShowExceptions, setLocalShowExceptions] = useState(false);
+    const [localCompareMode, setLocalCompareMode] = useState(false);
 
     // Sidebar Collapsible Folder States
     const [expandedFolders, setExpandedFolders] = useState({
@@ -189,10 +201,15 @@ const App = () => {
         setLocalSelProjects(selProjects);
         setLocalSelDistricts(selDistricts);
         setLocalSelBlocks(selBlocks);
+        setLocalSelCCs(selCCs);
         setLocalSelSchools(selSchools);
         setLocalWorkingDays(workingDays);
         setLocalIsWorkingDaysManual(isWorkingDaysManual);
-    }, [startDate, endDate, selProjects, selDistricts, selBlocks, selSchools, workingDays, isWorkingDaysManual]);
+        setLocalActiveSources(activeSources);
+        setLocalPerfBands(perfBands);
+        setLocalShowExceptions(showExceptions);
+        setLocalCompareMode(compareMode);
+    }, [startDate, endDate, selProjects, selDistricts, selBlocks, selCCs, selSchools, workingDays, isWorkingDaysManual, activeSources, perfBands, showExceptions, compareMode]);
 
     // Auto-expand folder when active tab changes programmatically
     useEffect(() => {
@@ -214,9 +231,14 @@ const App = () => {
             setSelProjects(localSelProjects);
             setSelDistricts(localSelDistricts);
             setSelBlocks(localSelBlocks);
+            setSelCCs(localSelCCs);
             setSelSchools(localSelSchools);
             setWorkingDays(localWorkingDays);
             setIsWorkingDaysManual(localIsWorkingDaysManual);
+            setActiveSources(localActiveSources);
+            setPerfBands(localPerfBands);
+            setShowExceptions(localShowExceptions);
+            setCompareMode(localCompareMode);
             setGlobalLoading(false);
         }, 300);
     };
@@ -761,14 +783,16 @@ const App = () => {
     // Calculate Cascading Options
     const opts = useMemo(() => {
         const proj = [...new Set(schools.map(s => s.project_name))].filter(x => x).sort();
-        const filteredByProj = schools.filter(s => selProjects.length === 0 || selProjects.includes(s.project_name));
+        const filteredByProj = schools.filter(s => localSelProjects.length === 0 || localSelProjects.includes(s.project_name));
         const dist = [...new Set(filteredByProj.map(s => s.district))].filter(x => x).sort();
-        const filteredByDist = filteredByProj.filter(s => selDistricts.length === 0 || selDistricts.includes(s.district));
+        const filteredByDist = filteredByProj.filter(s => localSelDistricts.length === 0 || localSelDistricts.includes(s.district));
         const blocks = [...new Set(filteredByDist.map(s => s.block))].filter(x => x).sort();
-        const filteredByBlocks = filteredByDist.filter(s => selBlocks.length === 0 || selBlocks.includes(s.block));
-        const schoolNames = [...new Set(filteredByBlocks.map(s => s.school_name))].filter(x => x).sort();
-        return { proj, dist, blocks, schoolNames };
-    }, [schools, selProjects, selDistricts, selBlocks]);
+        const filteredByBlocks = filteredByDist.filter(s => localSelBlocks.length === 0 || localSelBlocks.includes(s.block));
+        const ccs = [...new Set(filteredByBlocks.map(s => s.visitor_name))].filter(x => x).sort();
+        const filteredByCCs = filteredByBlocks.filter(s => localSelCCs.length === 0 || localSelCCs.includes(s.visitor_name));
+        const schoolNames = [...new Set(filteredByCCs.map(s => s.school_name))].filter(x => x).sort();
+        return { proj, dist, blocks, ccs, schoolNames };
+    }, [schools, localSelProjects, localSelDistricts, localSelBlocks, localSelCCs]);
 
     const renderContent = () => {
         if (activeTab === 'setup') {
@@ -844,7 +868,28 @@ const App = () => {
         if (activeTab === 'plan') return <PlanView data={processedData} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
-        if (activeTab === 'overall-analysis') return <OverallAnalysis schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} />;
+        if (activeTab === 'overall-analysis') return (
+            <OverallAnalysis 
+                schools={schools} 
+                visits={visits} 
+                jhpmsLab={jhpmsLab} 
+                edustat={edustat} 
+                manpower={manpower} 
+                startDate={defStartDate} 
+                endDate={defEndDate} 
+                selProjects={defSelProjects} 
+                selDistricts={defSelDistricts} 
+                selBlocks={defSelBlocks} 
+                selCCs={selCCs}
+                workingDays={workingDays} 
+                activeSources={activeSources}
+                perfBands={perfBands}
+                showExceptions={showExceptions}
+                compareMode={compareMode}
+                setLocalCompareMode={setLocalCompareMode}
+                handleApplyFilters={handleApplyFilters}
+            />
+        );
 
         return <div className="p-10 text-center text-gray-500">Module under development</div>;
     };
@@ -1303,6 +1348,15 @@ const App = () => {
                                         placeholder="All Blocks"
                                     />
                                 </div>
+                                <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
+                                    <MultiSelect
+                                        label="Cluster Coordinator (CC)"
+                                        options={opts.ccs}
+                                        value={localSelCCs}
+                                        onChange={setLocalSelCCs}
+                                        placeholder="All CCs"
+                                    />
+                                </div>
                                 <div className="w-full sm:w-[calc(50%-6px)] md:w-44 text-left">
                                     <MultiSelect
                                         label="School"
@@ -1312,6 +1366,48 @@ const App = () => {
                                         placeholder="All Schools"
                                     />
                                 </div>
+                                {activeTab === 'overall-analysis' && (
+                                    <>
+                                        <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
+                                            <MultiSelect
+                                                label="Data Sources"
+                                                options={['jhpms', 'edustat', 'visits', 'manpower']}
+                                                value={localActiveSources}
+                                                onChange={setLocalActiveSources}
+                                                placeholder="All Sources"
+                                            />
+                                        </div>
+                                        <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
+                                            <MultiSelect
+                                                label="Perf Bands"
+                                                options={['Excellent', 'Good', 'Average', 'Poor']}
+                                                value={localPerfBands}
+                                                onChange={setLocalPerfBands}
+                                                placeholder="All Bands"
+                                            />
+                                        </div>
+                                        <div className="w-full sm:w-auto flex items-center gap-4 bg-transparent p-0.5 rounded-lg border border-transparent self-center">
+                                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={localCompareMode}
+                                                    onChange={e => setLocalCompareMode(e.target.checked)}
+                                                    className="w-4 h-4 accent-teal-600 rounded cursor-pointer"
+                                                />
+                                                <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider whitespace-nowrap">Compare MoM</span>
+                                            </label>
+                                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={localShowExceptions}
+                                                    onChange={e => setLocalShowExceptions(e.target.checked)}
+                                                    className="w-4 h-4 accent-red-600 rounded cursor-pointer"
+                                                />
+                                                <span className="text-[10px] font-bold text-red-700 uppercase tracking-wider whitespace-nowrap">Show Gaps Only</span>
+                                            </label>
+                                        </div>
+                                    </>
+                                )}
                                 <div className="w-full sm:w-auto flex flex-col text-left bg-transparent p-0 rounded-lg border border-transparent lg:ml-auto">
                                     <span className="portal-label text-[10px] mb-0.5 ml-1">Date Range</span>
                                     <div className="flex items-center gap-1">
