@@ -14,6 +14,7 @@ import DrillDownModal from './components/DrillDownModal';
 import FieldTeamPerformance from './components/FieldTeamPerformance';
 import SchoolPerformance from './components/SchoolPerformance';
 import ProfileCreation from './components/ProfileCreation';
+import OverallAnalysis from './components/OverallAnalysis';
 import MultiSelect from './components/MultiSelect';
 import {
     parseDateRobust,
@@ -131,7 +132,8 @@ const App = () => {
             icon: Icons.Home,
             items: [
                 { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard },
-                { id: 'search', label: 'Search & Insights', icon: Icons.GlobalSearch }
+                { id: 'search', label: 'Search & Insights', icon: Icons.GlobalSearch },
+                { id: 'overall-analysis', label: 'Overall Analysis', icon: Icons.ExecutiveClipboard }
             ]
         },
         {
@@ -842,6 +844,7 @@ const App = () => {
         if (activeTab === 'plan') return <PlanView data={processedData} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
+        if (activeTab === 'overall-analysis') return <OverallAnalysis schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} />;
 
         return <div className="p-10 text-center text-gray-500">Module under development</div>;
     };
@@ -1226,7 +1229,7 @@ const App = () => {
             {/* Main Center Tab Panel */}
             <div className="flex-1 flex flex-col overflow-hidden relative m-3 md:my-3 md:mr-3 md:ml-0 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 shadow-xl">
                 <main className="flex-1 overflow-y-auto p-4 scroll-smooth">
-                    {activeTab !== 'search' && activeTab !== 'setup' && activeTab !== 'profile-creation' && (
+                    {activeTab !== 'search' && activeTab !== 'setup' && activeTab !== 'profile-creation' && activeTab !== 'overall-analysis' && (
                         <div className="portal-filter-bar z-10 mb-4 rounded-xl border border-white shadow-sm flex flex-col gap-2 no-print">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
                                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">

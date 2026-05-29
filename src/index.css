@@ -503,3 +503,94 @@ body, body *, body .portal-sidebar, body .portal-card, body .portal-filter-bar {
     transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
+/* ====== Executive Overall Analysis Dashboard Styles ====== */
+
+/* Executive KPI Card Sparkline Shimmer */
+.exec-kpi-card {
+    position: relative;
+    overflow: hidden;
+}
+.exec-kpi-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    animation: exec-shimmer 3s ease-in-out infinite;
+}
+@keyframes exec-shimmer {
+    0% { left: -100%; }
+    50% { left: 100%; }
+    100% { left: 100%; }
+}
+
+/* Gauge needle animation */
+.gauge-needle {
+    transform-origin: center bottom;
+    animation: gauge-swing 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes gauge-swing {
+    0% { transform: rotate(-90deg); }
+}
+
+/* Section divider with premium teal accent */
+.exec-section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #1c7d7b, transparent);
+    margin: 24px 0;
+    opacity: 0.3;
+}
+
+/* Executive narrative block */
+.exec-narrative {
+    background: linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 50%, #f0fdf4 100%);
+    border-left: 4px solid #1c7d7b;
+    padding: 20px 24px;
+    border-radius: 8px;
+    font-family: var(--font-main);
+    font-size: 14px;
+    line-height: 1.8;
+    color: #1e293b;
+}
+
+/* Root cause badge styles */
+.root-cause-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+/* Executive print-specific styles */
+@media print {
+    .exec-dashboard-container {
+        page-break-before: always;
+    }
+    .exec-dashboard-container .no-print {
+        display: none !important;
+    }
+    .exec-dashboard-container .portal-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        box-shadow: none !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+    .exec-dashboard-container table {
+        page-break-inside: auto;
+    }
+    .exec-dashboard-container tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    .exec-dashboard-container thead {
+        display: table-header-group;
+    }
+    .exec-kpi-card::after {
+        display: none;
+    }
+}

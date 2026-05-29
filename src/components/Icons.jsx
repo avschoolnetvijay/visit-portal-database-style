@@ -366,5 +366,25 @@ export const Icons = {
       <circle cx="24" cy="24" r="20" fill="#4dabf7" stroke="#fff" strokeWidth="2" />
       <text x="24" y="31" fill="#fff" fontSize="22" fontWeight="bold" fontFamily="sans-serif" textAnchor="middle">?</text>
     </svg>
+  ),
+  ExecutiveClipboard: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="12" y="8" width="40" height="50" rx="4" fill="#1c7d7b" stroke="#fff" strokeWidth="2" />
+      <rect x="22" y="4" width="20" height="10" rx="3" fill="#ffd43b" stroke="#f59f00" strokeWidth="1.5" />
+      <circle cx="32" cy="9" r="2.5" fill="#f59f00" />
+      <rect x="18" y="22" width="28" height="3" rx="1.5" fill="#fff" opacity="0.9" />
+      <rect x="18" y="29" width="20" height="3" rx="1.5" fill="#fff" opacity="0.7" />
+      <rect x="18" y="36" width="24" height="3" rx="1.5" fill="#fff" opacity="0.5" />
+      <rect x="18" y="43" width="16" height="3" rx="1.5" fill="#51cf66" opacity="0.9" />
+      <path d="M40 44l3 3 6-6" stroke="#51cf66" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  Gauge: (p) => (
+    <svg viewBox="0 0 48 48" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 30a18 18 0 0136 0" stroke="#e9ecef" strokeWidth="5" strokeLinecap="round" />
+      <path d="M6 30a18 18 0 0124.5-16.8" stroke="#1c7d7b" strokeWidth="5" strokeLinecap="round" />
+      <circle cx="24" cy="30" r="3" fill="#1c7d7b" />
+      <line x1="24" y1="30" x2="34" y2="18" stroke="#1c7d7b" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
   )
 };
