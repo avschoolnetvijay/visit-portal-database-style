@@ -127,7 +127,7 @@ const App = () => {
 
     const menuGroups = useMemo(() => [
         {
-            title: 'Home & Insights',
+            title: 'Home',
             icon: Icons.Home,
             items: [
                 { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard },
@@ -135,8 +135,8 @@ const App = () => {
             ]
         },
         {
-            title: 'Performance Analysis',
-            icon: Icons.Performance,
+            title: 'Lab Visit',
+            icon: Icons.Visit,
             items: [
                 { id: 'performance', label: 'Performance Matrix', icon: Icons.Performance },
                 { id: 'team-performance', label: 'Field Team Performance', icon: Icons.Performance },
@@ -144,26 +144,38 @@ const App = () => {
             ]
         },
         {
-            title: 'Operational Planning',
-            icon: Icons.Plan,
+            title: 'Profile Creation',
+            icon: Icons.Profile,
             items: [
-                { id: 'plan', label: 'Visit Planning', icon: Icons.Plan },
-                { id: 'compliance', label: 'Compliance Check', icon: Icons.Compliance }
+                ...(userRole === 'admin' ? [{ id: 'profile-creation', label: 'Profile Creation Workbench', icon: Icons.Profile }] : [])
             ]
         },
         {
-            title: 'Reports & Analytics',
+            title: 'Register',
+            icon: Icons.Register,
+            items: [
+                { id: 'plan', label: 'Visit Planning Console', icon: Icons.Plan }
+            ]
+        },
+        {
+            title: 'Helpdesk',
+            icon: Icons.Compliance,
+            items: [
+                { id: 'compliance', label: 'Compliance Check Center', icon: Icons.Compliance }
+            ]
+        },
+        {
+            title: 'Training',
             icon: Icons.Reports,
             items: [
-                { id: 'reports', label: 'Reports & Export', icon: Icons.Reports }
+                { id: 'reports', label: 'Reports & Export Center', icon: Icons.Reports }
             ]
         },
         {
-            title: 'System Administration',
-            icon: Icons.Setup,
+            title: 'Permission',
+            icon: Icons.Lock,
             items: [
-                { id: 'setup', label: 'System Setup', icon: Icons.Setup },
-                ...(userRole === 'admin' ? [{ id: 'profile-creation', label: 'Profile Creation', icon: Icons.Profile }] : [])
+                { id: 'setup', label: 'System Setup Console', icon: Icons.Setup }
             ]
         }
     ], [userRole]);
@@ -1061,14 +1073,14 @@ const App = () => {
                         </div>
                     </div>
                 </div>
-                <nav className="flex-1 overflow-y-auto py-4 space-y-3 px-2 text-left select-none">
-                    <div className="space-y-1">
+                <nav className="flex-1 overflow-y-auto py-6 space-y-5 px-3 text-left select-none">
+                    <div className="space-y-4">
                         {menuGroups.map(g => {
                             if (g.items.length === 0) return null;
                             const isExpanded = !!expandedFolders[g.title];
                             
                             return (
-                                <div key={g.title} className="space-y-0.5">
+                                <div key={g.title} className="space-y-1.5">
                                     {/* Collapsible Folder Header */}
                                     <button
                                         onClick={() => {
@@ -1077,17 +1089,17 @@ const App = () => {
                                                 [g.title]: !prev[g.title]
                                             }));
                                         }}
-                                        className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-teal-100 hover:text-white rounded-lg hover:bg-white/5 transition duration-150"
+                                        className="w-full flex items-center justify-between px-3 py-3.5 rounded-lg text-[15px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
                                     >
                                         <div className="flex items-center gap-2.5">
-                                            <span className="p-0.5 rounded-md text-teal-200 shrink-0">
+                                            <span className="p-0.5 rounded-md text-white shrink-0">
                                                 <g.icon className="w-5 h-5" />
                                             </span>
                                             <span>{g.title}</span>
                                         </div>
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
-                                            className={`w-3 h-3 text-teal-300 transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                                            className={`w-4 h-4 text-white transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                                             fill="none"
                                             viewBox="0 0 24 24"
                                             stroke="currentColor"
@@ -1099,7 +1111,7 @@ const App = () => {
 
                                     {/* Collapsible Submenu list */}
                                     <div
-                                        className={`pl-3 space-y-0.5 overflow-hidden transition-all duration-300 ${
+                                        className={`pl-3 space-y-1 overflow-hidden transition-all duration-300 ${
                                             isExpanded ? 'max-h-64 opacity-100 py-1' : 'max-h-0 opacity-0 pointer-events-none'
                                         }`}
                                     >
@@ -1112,10 +1124,10 @@ const App = () => {
                                                         setActiveTab(t.id);
                                                         setIsSidebarOpen(false);
                                                     }}
-                                                    className={`w-full flex items-center py-1.5 px-3 rounded-lg text-xs font-semibold transition ${
+                                                    className={`w-full flex items-center py-2.5 px-4 rounded-lg text-[13px] font-bold transition font-serif ${
                                                         isActive
-                                                            ? 'bg-teal-900/40 text-white font-extrabold border border-teal-500/20'
-                                                            : 'text-teal-200 hover:text-white hover:bg-white/5'
+                                                            ? 'bg-black/15 text-white font-extrabold border-l-4 border-white'
+                                                            : 'text-teal-100 hover:text-white hover:bg-white/5'
                                                     }`}
                                                 >
                                                     <span
@@ -1129,7 +1141,7 @@ const App = () => {
                                                     </span>
                                                     <span>{t.label}</span>
                                                     {isActive && (
-                                                        <span className="ml-auto w-1 h-1 rounded-full bg-teal-400 animate-pulse"></span>
+                                                        <span className="ml-auto w-1 h-1 rounded-full bg-white animate-pulse"></span>
                                                     )}
                                                 </button>
                                             );
@@ -1138,36 +1150,50 @@ const App = () => {
                                 </div>
                             );
                         })}
-                    </div>
 
-                    {/* Integrated Premium Logout Button inside sidebar nav list */}
-                    <div className="mt-4 pt-4 border-t border-white/10">
+                        {/* Integrated Premium Logout Button inside sidebar nav list */}
                         <button
                             onClick={handleLogout}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold text-red-200 hover:text-white hover:bg-red-950/40 transition duration-150 border border-transparent hover:border-red-900/30 group"
+                            className="w-full flex items-center justify-between py-3.5 px-3 rounded-lg text-[15px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
                             title="Sign Out of Portal"
                         >
-                            <span className="p-1 bg-red-500/20 text-red-400 rounded-md group-hover:bg-red-500/30 transition-colors shadow-inner flex items-center justify-center">
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="w-3.5 h-3.5"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={3}
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728M12 3v9"
-                                    />
-                                </svg>
-                            </span>
-                            <span>Logout ({localStorage.getItem('snet_username') || 'User'})</span>
+                            <div className="flex items-center gap-2.5">
+                                <span className="p-0.5 rounded-md text-red-200 shrink-0">
+                                    <Icons.Close className="w-5 h-5" />
+                                </span>
+                                <span>Logout</span>
+                            </div>
+                        </button>
+
+                        {/* Complain Box Menu Item */}
+                        <button
+                            onClick={() => alert("Complain Box: You can raise official complaints here. Feature coming soon!")}
+                            className="w-full flex items-center justify-between py-3.5 px-3 rounded-lg text-[15px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <span className="p-0.5 rounded-md text-teal-200 shrink-0">
+                                    <Icons.ComplainBox className="w-5 h-5" />
+                                </span>
+                                <span>Complain Box</span>
+                            </div>
+                        </button>
+
+                        {/* Help Menu Item */}
+                        <button
+                            onClick={() => alert("Help Center: Official help documentation. Feature coming soon!")}
+                            className="w-full flex items-center justify-between py-3.5 px-3 rounded-lg text-[15px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <span className="p-0.5 rounded-md text-teal-200 shrink-0">
+                                    <Icons.Help className="w-5 h-5" />
+                                </span>
+                                <span>Help</span>
+                            </div>
                         </button>
                     </div>
                 </nav>
-                <div className="p-4 border-t border-white/10 text-[10px] text-teal-200/60 text-center font-medium flex flex-col items-center gap-3">
+                <div className="p-4 border-t border-white/10 text-center flex flex-col items-center gap-3 mt-auto shrink-0 select-none">
+                    {/* Theme switcher toggle button */}
                     <button
                         onClick={() => setDarkMode(!darkMode)}
                         className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white rounded-lg px-3 py-1.5 w-full text-xs font-semibold shadow-inner border border-white/10 transition"
@@ -1184,10 +1210,15 @@ const App = () => {
                             </>
                         )}
                     </button>
-                    <div>
-                        v2.4 • Glass Edition
-                        <br />
-                        Made with ❤️ by Schoolnet
+                    
+                    {/* Official JHPMS Schoolnet Branding */}
+                    <div className="mt-2 text-white font-sans">
+                        <div className="text-[10px] uppercase tracking-[0.2em] font-black text-white/70">Powered By</div>
+                        <div className="text-xl font-black tracking-wider flex items-center justify-center gap-0.5 mt-1 font-serif">
+                            <span>SCH</span>
+                            <span className="w-4 h-4 rounded-full bg-gradient-to-tr from-orange-600 to-amber-400 inline-block shadow-sm shadow-orange-500/50"></span>
+                            <span>OLNET</span>
+                        </div>
                     </div>
                 </div>
             </div>
