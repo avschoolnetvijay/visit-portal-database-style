@@ -363,6 +363,28 @@ const OverallAnalysis = ({
     return map;
   }, [currentJhpms, validUdises]);
 
+  const jhpmsSplitMap = useMemo(() => {
+    const map = {};
+    currentJhpms.forEach((row) => {
+      const udise = cleanUdise(row.udise || row.udise_code || getVal(row, 'udise'));
+      if (!validUdises.has(udise)) return;
+      if (!map[udise]) {
+        map[udise] = { total: 0, ict: 0, smart: 0, mis: 0 };
+      }
+      map[udise].total++;
+      const labType = String(row.labType || row.lab_type || getVal(row, 'lab') || '').toUpperCase();
+      const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
+      if (subject.includes('MIS')) {
+        map[udise].mis++;
+      } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+        map[udise].ict++;
+      } else if (labType.includes('SMART')) {
+        map[udise].smart++;
+      }
+    });
+    return map;
+  }, [currentJhpms, validUdises]);
+
   const edustatMap = useMemo(() => {
     const map = {};
     (edustat || []).forEach((e) => {
@@ -418,6 +440,9 @@ const OverallAnalysis = ({
       const project = s.project_name || '-';
 
       const jhpmsClasses = jhpmsMap[udise] || 0;
+      const ictClasses = jhpmsSplitMap[udise]?.ict || 0;
+      const smartClasses = jhpmsSplitMap[udise]?.smart || 0;
+      const misClasses = jhpmsSplitMap[udise]?.mis || 0;
       const eduHours = edustatMap[udise] || 0;
       const mp = manpowerMap[udise] || { status: 'Vacant', name: '-' };
       const vis = visitMap[udise] || { count: 0, lastDate: null };
@@ -496,6 +521,9 @@ const OverallAnalysis = ({
         staffStatus: mp.status,
         staffName: mp.name !== '-' ? (ccNameMapping[mp.name] || mp.name) : '-',
         jhpmsClasses,
+        ictClasses,
+        smartClasses,
+        misClasses,
         eduHours,
         jhpmsScore,
         edustatScore,
@@ -508,7 +536,7 @@ const OverallAnalysis = ({
         avgClassPerDay
       };
     });
-  }, [fSchools, jhpmsMap, edustatMap, manpowerMap, visitMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, weights, validWdays, ccNameMapping, durationMonths]);
+  }, [fSchools, jhpmsMap, jhpmsSplitMap, edustatMap, manpowerMap, visitMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, weights, validWdays, ccNameMapping, durationMonths]);
 
   // 7. Enriched dataset with Prop-Filters applied (Exceptions & Performance Bands)
   const finalEnriched = useMemo(() => {
@@ -1304,25 +1332,32 @@ const OverallAnalysis = ({
       (a, b) => b[1].sum / b[1].count - a[1].sum / a[1].count
     )[0];
     if (bestDist) {
+      const districtSchools = finalEnriched.filter(s => s.district === bestDist[0]);
+      const projects = [...new Set(districtSchools.map(s => s.project))].filter(p => p && p !== '-');
+      const projStr = projects.join(', ') || '-';
+      const totalIct = districtSchools.reduce((acc, s) => acc + (s.ictClasses || 0), 0);
+      const totalSmart = districtSchools.reduce((acc, s) => acc + (s.smartClasses || 0), 0);
+      const totalEdu = districtSchools.reduce((acc, s) => acc + (s.eduHours || 0), 0);
+
       wins.push({
         label: 'Top Performing District',
         value: bestDist[0],
-        detail: `Avg Score: ${(bestDist[1].sum / bestDist[1].count).toFixed(1)}% across ${bestDist[1].count} schools`
+        detail: `Project: ${projStr} | ICT Classes: ${totalIct} | Smart Classes: ${totalSmart} | EduStat: ${totalEdu.toFixed(1)} Hrs`
       });
     }
 
-    const starSchool = [...finalEnriched].sort((a, b) => (b.jhpmsClasses + b.eduHours) - (a.jhpmsClasses + a.eduHours))[0];
-    if (starSchool && (starSchool.jhpmsClasses > 0 || starSchool.eduHours > 0)) {
+    const starSchool = [...finalEnriched].sort((a, b) => (b.ictClasses + b.smartClasses + b.eduHours) - (a.ictClasses + a.smartClasses + a.eduHours))[0];
+    if (starSchool && (starSchool.ictClasses > 0 || starSchool.smartClasses > 0 || starSchool.eduHours > 0)) {
       wins.push({
         label: 'Star Utilization School',
         value: starSchool.schoolName,
-        detail: `${starSchool.jhpmsClasses} classes, ${starSchool.eduHours.toFixed(1)} device hours`
+        detail: `Project: ${starSchool.project} | District: ${starSchool.district} | ICT Classes: ${starSchool.ictClasses} | Smart Classes: ${starSchool.smartClasses} | EduStat: ${starSchool.eduHours.toFixed(1)} Hrs`
       });
     }
 
     const ccScores = {};
     finalEnriched.forEach((s) => {
-      if (s.staffName === '-') return;
+      if (s.staffName === '-' || !s.staffName) return;
       if (!ccScores[s.staffName]) ccScores[s.staffName] = { sum: 0, count: 0 };
       ccScores[s.staffName].sum += s.compositeScore;
       ccScores[s.staffName].count++;
@@ -1331,10 +1366,17 @@ const OverallAnalysis = ({
       (a, b) => b[1].sum / b[1].count - a[1].sum / a[1].count
     )[0];
     if (bestCC) {
+      const ccSchools = finalEnriched.filter(s => s.staffName === bestCC[0]);
+      const projStr = [...new Set(ccSchools.map(s => s.project))].filter(p => p && p !== '-').join(', ') || '-';
+      const distStr = [...new Set(ccSchools.map(s => s.district))].filter(d => d && d !== '-').join(', ') || '-';
+      const totalIct = ccSchools.reduce((acc, s) => acc + (s.ictClasses || 0), 0);
+      const totalSmart = ccSchools.reduce((acc, s) => acc + (s.smartClasses || 0), 0);
+      const totalEdu = ccSchools.reduce((acc, s) => acc + (s.eduHours || 0), 0);
+
       wins.push({
-        label: 'Top Performing Field Coordinator',
+        label: 'Top Performing ICT Instructor',
         value: bestCC[0],
-        detail: `Portfolio Avg: ${(bestCC[1].sum / bestCC[1].count).toFixed(1)}%`
+        detail: `Project: ${projStr} | District: ${distStr} | ICT Classes: ${totalIct} | Smart Classes: ${totalSmart} | EduStat: ${totalEdu.toFixed(1)} Hrs`
       });
     }
 
