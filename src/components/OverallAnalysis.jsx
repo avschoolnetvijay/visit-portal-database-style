@@ -146,18 +146,47 @@ const CustomTooltip = ({ active, payload }) => {
 
 /* ───── Safe Recharts Customized Label for Line/Area chart ───── */
 const CustomizedLabel = (props) => {
-  const { x, y, stroke, value } = props;
+  const { x, y, value, fill } = props;
   if (value === undefined || value === null || value === 0) return null;
   const str = String(value);
-  const width = Math.max(26, str.length * 6 + 8);
+  const width = Math.max(28, str.length * 6 + 10);
+  const bg = fill || '#0f172a';
   return (
     <g className="pointer-events-none select-none">
-      <rect x={x - width / 2} y={y - 20} width={width} height={16} rx={3} fill={stroke} />
-      <text x={x} y={y - 8} fill="#fff" fontSize={8} fontWeight="black" textAnchor="middle" dominantBaseline="middle">
+      <rect x={x - width / 2} y={y - 20} width={width} height={16} rx={3} fill={bg} stroke="#ffffff" strokeWidth={1.5} />
+      <text x={x} y={y - 8} fill="#ffffff" fontSize={8} fontWeight="black" textAnchor="middle" dominantBaseline="middle">
         {value}
       </text>
     </g>
   );
+};
+
+/* ───── Premium Dark Tooltip for Month-wise Class Status ───── */
+const ClassStatusTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-[#111827] text-white p-3 rounded-xl shadow-2xl border border-[#374151] text-xs font-sans min-w-[170px] pointer-events-none select-none">
+      <p className="font-extrabold text-[#f3f4f6] text-sm mb-2 border-b border-[#374151] pb-1">{label}</p>
+      {payload.map((p, idx) => {
+        const circleColor = p.name === 'Smart Class' ? '#0088fe' : p.name === 'ICT Class' ? '#00c49f' : '#ffbb28';
+        return (
+          <div key={idx} className="flex items-center justify-between gap-4 font-bold py-1">
+            <div className="flex items-center gap-1.5 text-[#d1d5db]">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: circleColor }} />
+              <span>{p.name}:</span>
+            </div>
+            <span className="font-black text-white">{p.value}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/* ───── Custom Legend text formatter matching Pic2 ───── */
+const renderLegendText = (value) => {
+  const color = value === 'Smart Class' ? '#0088fe' : value === 'ICT Class' ? '#00c49f' : '#ffbb28';
+  return <span style={{ color, fontWeight: '700', fontSize: 12, marginRight: 16, fontFamily: 'Inter, sans-serif' }}>{value}</span>;
 };
 
 /* ──────────────────────────────────────────────────────────── */
@@ -1875,8 +1904,8 @@ const OverallAnalysis = ({
             {/* TAB 1: JHPMS */}
             {activeDeepDiveTab === 'jhpms' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div className="flex flex-col items-center justify-center p-3 border rounded-xl dark:border-slate-800">
-                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3 text-center">Active vs Inactive JHPMS Labs</h4>
+                <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-[#edf6f7] dark:bg-slate-900 border border-[#cbdfe1] dark:border-slate-800 shadow-sm">
+                  <h4 className="text-slate-800 dark:text-slate-200 text-xs md:text-sm font-semibold tracking-tight mb-3 text-center font-sans">Active vs Inactive JHPMS Labs</h4>
                   {isJhpmsActive ? (
                     <div className="h-44 w-full">
                       <ResponsiveContainer width="100%" height="100%">
@@ -1904,8 +1933,8 @@ const OverallAnalysis = ({
                   )}
                 </div>
 
-                <div className="p-3 border rounded-xl dark:border-slate-800 lg:col-span-2">
-                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">
+                <div className="p-4 rounded-2xl bg-[#edf6f7] dark:bg-slate-900 border border-[#cbdfe1] dark:border-slate-800 shadow-sm lg:col-span-2">
+                  <h4 className="text-slate-800 dark:text-slate-200 text-base md:text-lg font-semibold tracking-tight mb-3 font-sans pl-2">
                     Month wise class status from {startDate ? formatDate(startDate) : 'Jun 2025'} to {endDate ? formatDate(endDate) : 'May 2026'}
                   </h4>
                   {isJhpmsActive ? (
@@ -1926,14 +1955,14 @@ const OverallAnalysis = ({
                               <stop offset="95%" stopColor="#ffbb28" stopOpacity={0}/>
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                          <YAxis tick={{ fontSize: 9 }} />
-                          <Tooltip content={<CustomTooltip />} />
-                          <Legend verticalAlign="top" align="center" iconType="circle" height={36} wrapperStyle={{ fontSize: 10, fontWeight: 'bold' }} />
-                          <Area type="monotone" dataKey="Smart Class" stroke="#0088fe" strokeWidth={3} fillOpacity={1} fill="url(#colorSmartClass)" label={<CustomizedLabel />} />
-                          <Area type="monotone" dataKey="ICT Class" stroke="#00c49f" strokeWidth={3} fillOpacity={1} fill="url(#colorIctClass)" label={<CustomizedLabel />} />
-                          <Area type="monotone" dataKey="MIS Work" stroke="#ffbb28" strokeWidth={3} fillOpacity={1} fill="url(#colorMisWork)" label={<CustomizedLabel />} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" strokeOpacity={0.4} />
+                          <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 'bold' }} />
+                          <YAxis tick={{ fontSize: 9, fontWeight: 'bold' }} />
+                          <Tooltip content={<ClassStatusTooltip />} cursor={{ stroke: '#94a3b8', strokeDasharray: '3 3' }} />
+                          <Legend verticalAlign="top" align="center" iconType="circle" height={36} formatter={renderLegendText} />
+                          <Area type="monotone" dataKey="Smart Class" stroke="#0088fe" strokeWidth={3.5} fillOpacity={1} fill="url(#colorSmartClass)" label={<CustomizedLabel fill="#0088fe" />} />
+                          <Area type="monotone" dataKey="ICT Class" stroke="#00c49f" strokeWidth={3.5} fillOpacity={1} fill="url(#colorIctClass)" label={<CustomizedLabel fill="#00c49f" />} />
+                          <Area type="monotone" dataKey="MIS Work" stroke="#ffbb28" strokeWidth={3.5} fillOpacity={1} fill="url(#colorMisWork)" label={<CustomizedLabel fill="#ffbb28" />} />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
