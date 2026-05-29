@@ -145,17 +145,17 @@ const App = () => {
 
     // Sidebar Collapsible Folder States
     const [expandedFolders, setExpandedFolders] = useState({
-        '🏠 Home': true,
+        'Home': true,
         'Lab Visit': false,
-        '🔬 Performance Analysis': false,
-        '🎓 Reports': false,
-        '🔐 System Setup': false,
-        '👤 Profile Creation': false
+        'Performance Analysis': false,
+        'Reports': false,
+        'System Setup': false,
+        'Profile Creation': false
     });
 
     const menuGroups = useMemo(() => [
         {
-            title: '🏠 Home',
+            title: 'Home',
             icon: Icons.Home,
             items: [
                 { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard }
@@ -172,7 +172,7 @@ const App = () => {
             ]
         },
         {
-            title: '🔬 Performance Analysis',
+            title: 'Performance Analysis',
             icon: Icons.Performance,
             items: [
                 { id: 'team-performance', label: 'Field Team Performance', icon: Icons.Performance },
@@ -180,7 +180,7 @@ const App = () => {
             ]
         },
         {
-            title: '🎓 Reports',
+            title: 'Reports',
             icon: Icons.Reports,
             items: [
                 { id: 'reports', label: 'Reports & Export', icon: Icons.Reports },
@@ -188,14 +188,14 @@ const App = () => {
             ]
         },
         {
-            title: '🔐 System Setup',
+            title: 'System Setup',
             icon: Icons.Setup,
             items: [
                 { id: 'setup', label: 'Data Upload', icon: Icons.Setup }
             ]
         },
         {
-            title: '👤 Profile Creation',
+            title: 'Profile Creation',
             icon: Icons.Profile,
             items: [
                 ...(userRole === 'admin' ? [{ id: 'profile-creation', label: 'Profile Creation', icon: Icons.Profile }] : [])
@@ -1232,7 +1232,7 @@ const App = () => {
                                 <span className="p-0.5 rounded-md text-teal-200 shrink-0">
                                     <Icons.Help className="w-5 h-5" />
                                 </span>
-                                <span>🛟 Helpdesk</span>
+                                <span>Helpdesk</span>
                             </div>
                         </button>
 
@@ -1246,7 +1246,7 @@ const App = () => {
                                 <span className="p-0.5 rounded-md text-red-200 shrink-0">
                                     <Icons.Close className="w-5 h-5" />
                                 </span>
-                                <span>🚪 Logout</span>
+                                <span>Logout</span>
                             </div>
                         </button>
                     </div>
