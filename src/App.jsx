@@ -105,6 +105,90 @@ const App = () => {
     const [selBlocks, setSelBlocks] = useState([]);
     const [selSchools, setSelSchools] = useState([]);
 
+    // Local filter state inputs (for non-laggy, staged selections)
+    const [localStartDate, setLocalStartDate] = useState(startDate);
+    const [localEndDate, setLocalEndDate] = useState(endDate);
+    const [localSelProjects, setLocalSelProjects] = useState(selProjects);
+    const [localSelDistricts, setLocalSelDistricts] = useState(selDistricts);
+    const [localSelBlocks, setLocalSelBlocks] = useState(selBlocks);
+    const [localSelSchools, setLocalSelSchools] = useState(selSchools);
+    const [localWorkingDays, setLocalWorkingDays] = useState(workingDays);
+    const [localIsWorkingDaysManual, setLocalIsWorkingDaysManual] = useState(isWorkingDaysManual);
+
+    // Sync local selections with global filters when global values are updated (e.g. initial load)
+    useEffect(() => {
+        setLocalStartDate(startDate);
+        setLocalEndDate(endDate);
+        setLocalSelProjects(selProjects);
+        setLocalSelDistricts(selDistricts);
+        setLocalSelBlocks(selBlocks);
+        setLocalSelSchools(selSchools);
+        setLocalWorkingDays(workingDays);
+        setLocalIsWorkingDaysManual(isWorkingDaysManual);
+    }, [startDate, endDate, selProjects, selDistricts, selBlocks, selSchools, workingDays, isWorkingDaysManual]);
+
+    const handleApplyFilters = () => {
+        setGlobalLoading(true);
+        setLoadingMessage('Applying filters and recalculating performance...');
+        setTimeout(() => {
+            setStartDate(localStartDate);
+            setEndDate(localEndDate);
+            setSelProjects(localSelProjects);
+            setSelDistricts(localSelDistricts);
+            setSelBlocks(localSelBlocks);
+            setSelSchools(localSelSchools);
+            setWorkingDays(localWorkingDays);
+            setIsWorkingDaysManual(localIsWorkingDaysManual);
+            setGlobalLoading(false);
+        }, 300);
+    };
+
+    // Calculate auto working days dynamically for unapplied local selections to keep UI reactive
+    const localAutoWorkingDays = useMemo(() => {
+        if (!jhpmsLab.length) return 0;
+
+        const getVal = (row, keyMatch) => {
+            const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
+            return key ? row[key] : null;
+        };
+
+        let fSchools = schools;
+        if (localSelProjects && localSelProjects.length) fSchools = fSchools.filter(s => localSelProjects.includes(s.project_name));
+        if (localSelDistricts && localSelDistricts.length) fSchools = fSchools.filter(s => localSelDistricts.includes(s.district));
+        if (localSelBlocks && localSelBlocks.length) fSchools = fSchools.filter(s => localSelBlocks.includes(s.block));
+        if (localSelSchools && localSelSchools.length) fSchools = fSchools.filter(s => localSelSchools.includes(s.school_name || s.school));
+
+        const allowedUdises = new Set(fSchools.map(s => String(s.udise_code || '').trim()));
+
+        const uniqueDates = new Set();
+        jhpmsLab.forEach(l => {
+            const udise = String(l.udise || getVal(l, 'udise') || '').trim();
+            if (allowedUdises.size > 0 && !allowedUdises.has(udise)) return;
+
+            const rawDate = l.date || getVal(l, 'date');
+            const d = parseDateRobust(rawDate);
+            if (d && !isNaN(d.getTime())) {
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-${dd}`;
+                if (dateStr >= localStartDate && dateStr <= localEndDate) {
+                    uniqueDates.add(dateStr);
+                }
+            }
+        });
+
+        return uniqueDates.size;
+    }, [jhpmsLab, localStartDate, localEndDate, schools, localSelProjects, localSelDistricts, localSelBlocks, localSelSchools]);
+
+    // Keep localWorkingDays state in sync with localAutoWorkingDays if not overridden
+    useEffect(() => {
+        if (!localIsWorkingDaysManual) {
+            const calculated = localAutoWorkingDays || Math.max(1, Math.ceil((new Date(localEndDate) - new Date(localStartDate)) / (1000 * 60 * 60 * 24)));
+            setLocalWorkingDays(calculated);
+        }
+    }, [localAutoWorkingDays, localIsWorkingDaysManual, localStartDate, localEndDate]);
+
     const [darkMode, setDarkMode] = useState(
         () => localStorage.getItem('snet_dark_mode') === 'true'
     );
@@ -796,10 +880,17 @@ const App = () => {
 
     if (isLoadingData) {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-                <div className="w-16 h-16 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mb-4"></div>
-                <h2 className="text-xl font-bold text-teal-800 animate-pulse">Loading Application Data...</h2>
-                <p className="text-sm text-gray-500 mt-2 text-center max-w-md">Please wait while we securely load your data from the offline IndexedDB storage. This is very fast but might take a second for large datasets.</p>
+            <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 flex flex-col items-center justify-center p-4">
+                <div className="relative w-28 h-28 flex items-center justify-center">
+                    {/* Outer glowing ring */}
+                    <div className="absolute inset-0 rounded-full border border-teal-500/20 animate-pulse"></div>
+                    {/* Middle rotating dashed ring */}
+                    <div className="absolute w-24 h-24 rounded-full border-2 border-dashed border-teal-400/40 animate-[spin_8s_linear_infinite]"></div>
+                    {/* Inner rotating solid ring */}
+                    <div className="absolute w-16 h-16 rounded-full border-4 border-teal-500 border-t-transparent animate-spin"></div>
+                    {/* Core glowing orb */}
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-400 to-emerald-400 shadow-[0_0_20px_rgba(20,184,166,0.6)] animate-ping opacity-75"></div>
+                </div>
             </div>
         );
     }
@@ -808,9 +899,23 @@ const App = () => {
         <div className="flex flex-col md:flex-row h-screen overflow-hidden text-gray-800 text-sm selection:bg-teal-100 selection:text-teal-900">
             {/* Global Glassmorphic Progress Loading Spinner Overlay */}
             {globalLoading && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[999] flex flex-col items-center justify-center text-white no-print">
-                    <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mb-4 shadow-lg shadow-teal-500/20"></div>
-                    <p className="text-sm font-bold tracking-wide animate-pulse">{loadingMessage || 'Processing...'}</p>
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-[999] flex flex-col items-center justify-center p-4 text-white no-print">
+                    <div className="relative flex flex-col items-center justify-center gap-5 bg-slate-900/80 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl">
+                        <div className="relative w-24 h-24 flex items-center justify-center">
+                            {/* Glowing backdrop blur */}
+                            <div className="absolute w-20 h-20 bg-teal-500/20 rounded-full blur-xl animate-pulse"></div>
+                            {/* Elegant gradient arc spinner */}
+                            <div className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-purple-500 border-r-teal-500 animate-spin"></div>
+                            {/* Core pulsing dot */}
+                            <div className="w-8 h-8 rounded-full bg-slate-950 flex items-center justify-center">
+                                <div className="w-3 h-3 rounded-full bg-teal-400 animate-ping"></div>
+                            </div>
+                        </div>
+                        <div className="flex flex-col items-center gap-1.5">
+                            <h3 className="text-xs font-black text-white tracking-widest uppercase opacity-85">Calculating</h3>
+                            <p className="text-xs font-semibold text-teal-300 animate-pulse text-center max-w-[200px]">{loadingMessage || 'Processing data...'}</p>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -997,8 +1102,8 @@ const App = () => {
                                     <MultiSelect
                                         label="Projects"
                                         options={opts.proj}
-                                        value={selProjects}
-                                        onChange={setSelProjects}
+                                        value={localSelProjects}
+                                        onChange={setLocalSelProjects}
                                         placeholder="All Projects"
                                     />
                                 </div>
@@ -1006,8 +1111,8 @@ const App = () => {
                                     <MultiSelect
                                         label="District"
                                         options={opts.dist}
-                                        value={selDistricts}
-                                        onChange={setSelDistricts}
+                                        value={localSelDistricts}
+                                        onChange={setLocalSelDistricts}
                                         placeholder="All Districts"
                                     />
                                 </div>
@@ -1015,8 +1120,8 @@ const App = () => {
                                     <MultiSelect
                                         label="Block"
                                         options={opts.blocks}
-                                        value={selBlocks}
-                                        onChange={setSelBlocks}
+                                        value={localSelBlocks}
+                                        onChange={setLocalSelBlocks}
                                         placeholder="All Blocks"
                                     />
                                 </div>
@@ -1024,8 +1129,8 @@ const App = () => {
                                     <MultiSelect
                                         label="School"
                                         options={opts.schoolNames}
-                                        value={selSchools}
-                                        onChange={setSelSchools}
+                                        value={localSelSchools}
+                                        onChange={setLocalSelSchools}
                                         placeholder="All Schools"
                                     />
                                 </div>
@@ -1034,15 +1139,15 @@ const App = () => {
                                     <div className="flex items-center gap-1">
                                         <input
                                             type="date"
-                                            value={startDate}
-                                            onChange={e => setStartDate(e.target.value)}
+                                            value={localStartDate}
+                                            onChange={e => setLocalStartDate(e.target.value)}
                                             className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
                                         />
                                         <span className="text-gray-400">-</span>
                                         <input
                                             type="date"
-                                            value={endDate}
-                                            onChange={e => setEndDate(e.target.value)}
+                                            value={localEndDate}
+                                            onChange={e => setLocalEndDate(e.target.value)}
                                             className="portal-input h-7 w-full sm:w-28 text-xs bg-white"
                                         />
                                     </div>
@@ -1051,7 +1156,7 @@ const App = () => {
                                     <div className="w-full sm:w-auto flex flex-col text-left bg-gray-50 p-1.5 rounded-lg border border-gray-200">
                                         <span className="portal-label text-[10px] mb-0.5 ml-1 flex items-center gap-1 text-teal-800 font-bold whitespace-nowrap">
                                             Working Days
-                                            {isWorkingDaysManual && (
+                                            {localIsWorkingDaysManual && (
                                                 <span className="text-[8px] px-1 bg-amber-100 text-amber-800 rounded font-normal border border-amber-200">
                                                     Manual
                                                 </span>
@@ -1061,22 +1166,22 @@ const App = () => {
                                             <input
                                                 type="number"
                                                 min="1"
-                                                value={workingDays}
+                                                value={localWorkingDays}
                                                 onChange={e => {
                                                     const val = parseInt(e.target.value, 10);
                                                     if (!isNaN(val) && val >= 1) {
-                                                        setWorkingDays(val);
-                                                        setIsWorkingDaysManual(true);
+                                                        setLocalWorkingDays(val);
+                                                        setLocalIsWorkingDaysManual(true);
                                                     } else if (e.target.value === '') {
-                                                        setWorkingDays('');
-                                                        setIsWorkingDaysManual(true);
+                                                        setLocalWorkingDays('');
+                                                        setLocalIsWorkingDaysManual(true);
                                                     }
                                                 }}
                                                 className="portal-input h-7 w-16 text-xs bg-white font-extrabold text-center text-teal-800 border-teal-200 focus:border-teal-500"
                                             />
-                                            {isWorkingDaysManual && (
+                                            {localIsWorkingDaysManual && (
                                                 <button
-                                                    onClick={() => setIsWorkingDaysManual(false)}
+                                                    onClick={() => setLocalIsWorkingDaysManual(false)}
                                                     className="h-7 px-1.5 rounded text-[10px] font-bold text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 flex items-center justify-center transition-colors"
                                                     title="Reset to Auto-calculated days"
                                                 >
@@ -1086,6 +1191,13 @@ const App = () => {
                                         </div>
                                     </div>
                                 )}
+                                <button
+                                    onClick={handleApplyFilters}
+                                    className="h-10 px-4 bg-teal-600 hover:bg-teal-700 text-white rounded-lg flex items-center justify-center gap-2 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5 text-xs font-black shrink-0 self-end"
+                                    title="Click to apply selected filter criteria and update dashboard views"
+                                >
+                                    <Icons.Filter className="w-4 h-4 text-teal-100" /> Apply Filters
+                                </button>
                             </div>
                         </div>
                     )}
