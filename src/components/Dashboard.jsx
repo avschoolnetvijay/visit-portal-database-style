@@ -103,7 +103,7 @@ const PortalCard = ({ title, icon: IconComponent, items, onDrillDown }) => {
                 {items.map((item, idx) => (
                   <td 
                     key={idx} 
-                    onClick={() => item.drillData && onDrillDown(item.label + " - " + title, item.drillData)}
+                    onClick={() => item.drillData && onDrillDown(item.label + " - " + title, typeof item.drillData === 'function' ? item.drillData() : item.drillData)}
                     className="py-1.5 px-1 font-black text-sm text-teal-950 dark:text-teal-100 cursor-pointer hover:bg-teal-600/10 dark:hover:bg-teal-400/10 transition-colors border-r border-[#7bbcb8] dark:border-teal-800 last:border-r-0 text-center"
                   >
                     {item.value}
@@ -585,38 +585,44 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
 
   // --- Class Conducted Calculations ---
   const classConductedGroups = useMemo(() => {
-    const ictList = [];
-    const smartList = [];
-    const misList = [];
-
-    // Pre-index manpower for fast instructor name lookups
-    const manpowerMap = {};
-    manpower.forEach(m => {
-      const udise = String(m.udise_code || m.udise || '').trim();
-      if (udise) {
-        manpowerMap[udise] = m;
-      }
-    });
+    let ictSum = 0;
+    let smartSum = 0;
+    let misSum = 0;
 
     jhpmsLab.forEach(j => {
       const labType = String(j.labType || j.lab_type || j.lab || '').toUpperCase();
       const subject = String(j.subject || '').toUpperCase();
+      const cls = Number(j.no_of_classes || j.classes || 1) || 1;
 
       if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-        ictList.push(j);
+        ictSum += cls;
       } else if (labType.includes('SMART') && !subject.includes('COMPUTER') && !subject.includes('MIS')) {
-        smartList.push(j);
+        smartSum += cls;
       } else if (subject.includes('MIS')) {
-        misList.push(j);
+        misSum += cls;
       }
     });
 
-    // Helper to map raw JHPMS records to beautiful, flat-mapped detail objects for DrillDownModal
-    const mapJhpmsToDrill = (list) => {
-      return list.map(j => {
+    // Helper to map JHPMS logs lazily on user click
+    const getLazyDrillData = (filterFn) => {
+      // Pre-index manpower and schools for ultra-fast lookup (only executes on-demand!)
+      const manpowerMap = {};
+      manpower.forEach(m => {
+        const udise = String(m.udise_code || m.udise || '').trim();
+        if (udise) manpowerMap[udise] = m;
+      });
+      
+      const schoolsMap = {};
+      schools.forEach(s => {
+        const udise = String(s.udise_code || '').trim();
+        if (udise) schoolsMap[udise] = s;
+      });
+
+      const filtered = jhpmsLab.filter(filterFn);
+      return filtered.map(j => {
         const udise = String(j.udise || j.udise_code || '').trim();
         const mRecord = manpowerMap[udise];
-        const sRecord = schools.find(s => String(s.udise_code || '').trim() === udise);
+        const sRecord = schoolsMap[udise];
         return {
           udise_code: udise,
           school_name: j.school_name || j.school || (sRecord ? sRecord.school_name : 'N/A'),
@@ -631,21 +637,29 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
       });
     };
 
-    // Calculate sum of classes
-    const sumClasses = (list) => list.reduce((sum, item) => sum + (Number(item.no_of_classes || item.classes || 1) || 1), 0);
-
     return {
       ict: {
-        value: sumClasses(ictList),
-        drillData: mapJhpmsToDrill(ictList)
+        value: ictSum,
+        drillData: () => getLazyDrillData(j => {
+          const labType = String(j.labType || j.lab_type || j.lab || '').toUpperCase();
+          const subject = String(j.subject || '').toUpperCase();
+          return labType.includes('ICT') && subject.includes('COMPUTER');
+        })
       },
       smart: {
-        value: sumClasses(smartList),
-        drillData: mapJhpmsToDrill(smartList)
+        value: smartSum,
+        drillData: () => getLazyDrillData(j => {
+          const labType = String(j.labType || j.lab_type || j.lab || '').toUpperCase();
+          const subject = String(j.subject || '').toUpperCase();
+          return labType.includes('SMART') && !subject.includes('COMPUTER') && !subject.includes('MIS');
+        })
       },
       mis: {
-        value: sumClasses(misList),
-        drillData: mapJhpmsToDrill(misList)
+        value: misSum,
+        drillData: () => getLazyDrillData(j => {
+          const subject = String(j.subject || '').toUpperCase();
+          return subject.includes('MIS');
+        })
       }
     };
   }, [jhpmsLab, schools, manpower]);
