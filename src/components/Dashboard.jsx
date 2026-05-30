@@ -177,9 +177,50 @@ const TargetCard = ({ target, achieved, gap, onDrillDown, schools }) => {
   );
 };
 
-const AIInsightsCard = ({ schools, visits, onDrillDown }) => {
+const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower = [], onDrillDown }) => {
   const insights = useMemo(() => {
     const list = [];
+
+    // Helper to normalize manpower status
+    const normalizeManpowerStatus = (statusStr) => {
+      if (!statusStr) return 'Vacant';
+      const s = String(statusStr).trim().toUpperCase();
+      if (s === 'WORKING' || s === 'ACTIVE') return 'Active';
+      if (s === 'PENDING') return 'Pending';
+      if (s === 'RESIGN' || s === 'TERMINATE' || s === 'VACANT') return 'Vacant';
+      return 'Vacant';
+    };
+
+    // Helper to calculate EduStat hours for a school
+    const getSchoolHours = (udise) => {
+      const matching = edustat.filter(e => String(e.udise_code || e.udise || '') === String(udise));
+      return matching.reduce((total, e) => {
+        const hVal = e.total_used_hours || e.used_hours || e.hours || e.used || 0;
+        const s = String(hVal);
+        if (s.includes(':')) {
+          const [h, m] = s.split(':');
+          return total + (parseInt(h) || 0) + (parseInt(m) || 0) / 60;
+        }
+        return total + (parseFloat(s) || 0);
+      }, 0);
+    };
+
+    // Helper to calculate JHPMS classes conducted
+    const getSchoolClasses = (udise) => {
+      const matching = jhpmsLab.filter(j => String(j.udise_code || j.udise || '') === String(udise));
+      return matching.reduce((sum, j) => sum + (Number(j.no_of_classes || j.classes || 1) || 1), 0);
+    };
+
+    // Determine the maximum date in the dataset to act as the current baseline (for historic log compatibility)
+    let maxLogDate = new Date();
+    if (visits && visits.length > 0) {
+      const dates = visits.map(v => new Date(v.visit_date)).filter(d => !isNaN(d.getTime()));
+      if (dates.length > 0) {
+        maxLogDate = new Date(Math.max(...dates));
+      }
+    }
+
+    // --- 1. Top Performer Insight ---
     const visitorStats = {};
     schools.forEach(s => {
       if (s.uniqueVisits > 0) {
@@ -197,6 +238,92 @@ const AIInsightsCard = ({ schools, visits, onDrillDown }) => {
       });
     }
 
+    // --- 2. Tech-Sync Discrepancy Alert ---
+    const techSyncAnomalies = schools.filter(s => {
+      const hours = getSchoolHours(s.udise_code);
+      const classes = getSchoolClasses(s.udise_code);
+      return (hours > 15 && classes === 0) || (classes > 15 && hours === 0);
+    });
+    if (techSyncAnomalies.length > 0) {
+      const sample = techSyncAnomalies[0];
+      const hours = getSchoolHours(sample.udise_code).toFixed(1);
+      const classes = getSchoolClasses(sample.udise_code);
+      list.push({
+        type: 'warning',
+        text: `🔌 Tech-Sync: ${sample.school_name} has discrepancy (${hours} hrs EduStat, ${classes} JHPMS classes).`,
+        title: 'Tech-Sync Discrepancy Schools',
+        data: techSyncAnomalies
+      });
+    }
+
+    // --- 3. High-Cost Vacancy Leakage ---
+    const vacancyLeakSchools = schools.filter(s => {
+      const mRecord = manpower.find(m => String(m.udise_code || m.udise || '') === String(s.udise_code));
+      const isActive = mRecord && normalizeManpowerStatus(mRecord.status || mRecord.working_status) === 'Active';
+      const classes = getSchoolClasses(s.udise_code);
+      const daysSince = s.lastVisit ? Math.floor((maxLogDate - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
+      return isActive && classes === 0 && daysSince >= 15;
+    });
+    if (vacancyLeakSchools.length > 0) {
+      const sample = vacancyLeakSchools[0];
+      list.push({
+        type: 'danger',
+        text: `🚨 Vacancy Leak: ${sample.school_name} has active instructor but 0 classes & visits for 15+ days.`,
+        title: 'High-Cost Vacancy Leakage Schools',
+        data: vacancyLeakSchools
+      });
+    }
+
+    // --- 4. Self-Sustaining Star Schools ---
+    const selfSustainingSchools = schools.filter(s => {
+      const daysSince = s.lastVisit ? Math.floor((maxLogDate - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
+      const classes = getSchoolClasses(s.udise_code);
+      const hours = getSchoolHours(s.udise_code);
+      return (s.uniqueVisits === 0 || daysSince >= 60) && classes > 30 && hours > 20;
+    });
+    if (selfSustainingSchools.length > 0) {
+      const sample = selfSustainingSchools[0];
+      list.push({
+        type: 'success',
+        text: `🏆 Self-Sustaining: ${sample.school_name} is thriving with 0 visits but >30 classes & >20 hrs usage.`,
+        title: 'Self-Sustaining Star Schools',
+        data: selfSustainingSchools
+      });
+    }
+
+    // --- 5. Low-Yield Field Visits ---
+    const lowYieldSchools = schools.filter(s => {
+      const classes = getSchoolClasses(s.udise_code);
+      return s.uniqueVisits >= 2 && classes > 15;
+    });
+    if (lowYieldSchools.length > 0) {
+      const sample = lowYieldSchools[0];
+      list.push({
+        type: 'warning',
+        text: `📉 Low-Yield: ${sample.school_name} visited 2+ times in 60 days with high class count (>15).`,
+        title: 'Low-Yield Field Visits',
+        data: lowYieldSchools
+      });
+    }
+
+    // --- 6. Locked Lab Hardware Alert ---
+    const lockedLabSchools = schools.filter(s => {
+      const mRecord = manpower.find(m => String(m.udise_code || m.udise || '') === String(s.udise_code));
+      const isActive = mRecord && normalizeManpowerStatus(mRecord.status || mRecord.working_status) === 'Active';
+      const hours = getSchoolHours(s.udise_code);
+      return isActive && hours === 0;
+    });
+    if (lockedLabSchools.length > 0) {
+      const sample = lockedLabSchools[0];
+      list.push({
+        type: 'danger',
+        text: `⚠️ Locked Lab: ${sample.school_name} has active instructor but 0 EduStat device hours.`,
+        title: 'Locked Lab Hardware Alerts',
+        data: lockedLabSchools
+      });
+    }
+
+    // --- 7. Workforce Load Re-balancer ---
     const distStats = schools.reduce((acc, s) => {
       if (!acc[s.district]) acc[s.district] = { total: 0, zero: 0 };
       acc[s.district].total++;
@@ -214,36 +341,38 @@ const AIInsightsCard = ({ schools, visits, onDrillDown }) => {
       });
     }
 
-    const overVisited = schools.filter(s => s.uniqueVisits > s.targetVisits + 2);
-    if (overVisited.length > 0) {
-      list.push({
-        type: 'warning',
-        text: `🔄 Efficiency Check: ${overVisited.length} schools visited more than required.`,
-        title: 'Over-visited Schools',
-        data: overVisited
-      });
-    }
-
-    // Determine the maximum date in the dataset to act as the current baseline (for historic log compatibility)
-    let maxLogDate = new Date();
-    if (visits && visits.length > 0) {
-      const dates = visits.map(v => new Date(v.visit_date)).filter(d => !isNaN(d.getTime()));
-      if (dates.length > 0) {
-        maxLogDate = new Date(Math.max(...dates));
+    // --- 8. Manpower Vacant ---
+    const vacantOver30DaysSchools = schools.filter(s => {
+      const mRecord = manpower.find(m => String(m.udise_code || m.udise || '') === String(s.udise_code));
+      if (!mRecord) return false;
+      const status = normalizeManpowerStatus(mRecord.status || mRecord.working_status);
+      if (status !== 'Vacant') return false;
+      
+      const dateKey = Object.keys(mRecord).find(k => 
+        k.toLowerCase().includes('resign') || 
+        k.toLowerCase().includes('vacant') || 
+        k.toLowerCase().includes('date') || 
+        k.toLowerCase().includes('left')
+      );
+      const dateVal = dateKey ? mRecord[dateKey] : null;
+      const parsedDate = dateVal ? new Date(dateVal) : null;
+      if (parsedDate && !isNaN(parsedDate.getTime())) {
+        const days = (maxLogDate - parsedDate) / (1000 * 60 * 60 * 24);
+        return days > 30;
       }
-    }
-    const dormant = schools.filter(s => s.uniqueVisits > 0 && s.lastVisit && (maxLogDate - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24) > 60);
-    if (dormant.length > 0) {
+      return getSchoolClasses(s.udise_code) === 0;
+    });
+    if (vacantOver30DaysSchools.length > 0) {
       list.push({
-        type: 'info',
-        text: `💤 Idle Lab: ${dormant.length} schools not visited in 60+ days.`,
-        title: 'Dormant Schools',
-        data: dormant
+        type: 'danger',
+        text: `👤 Manpower Vacant: ${vacantOver30DaysSchools.length} schools are vacant for more than 30 days.`,
+        title: 'Prolonged Manpower Vacancies (30+ Days)',
+        data: vacantOver30DaysSchools
       });
     }
 
     return list;
-  }, [schools, visits]);
+  }, [schools, visits, jhpmsLab, edustat, manpower]);
 
   return (
     <div className="portal-card flex flex-col border border-[#7bbcb8] rounded-xl overflow-hidden bg-white shadow-md font-sans h-full">
@@ -277,7 +406,7 @@ const AIInsightsCard = ({ schools, visits, onDrillDown }) => {
   );
 };
 
-const Dashboard = ({ data, onDrillDown, startDate, endDate, darkMode = false }) => {
+const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDown, startDate, endDate, darkMode = false }) => {
   const { totalTarget, totalUnique, totalRecords, schools, visits } = data;
 
   const statusBuckets = { Critical: [], Risk: [], Track: [], Excellent: [] };
@@ -453,7 +582,14 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate, darkMode = false }) 
           onDrillDown={onDrillDown}
           schools={schools}
         />
-        <AIInsightsCard schools={schools} visits={visits} onDrillDown={onDrillDown} />
+        <AIInsightsCard 
+          schools={schools} 
+          visits={visits} 
+          jhpmsLab={jhpmsLab} 
+          edustat={edustat} 
+          manpower={manpower} 
+          onDrillDown={onDrillDown} 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

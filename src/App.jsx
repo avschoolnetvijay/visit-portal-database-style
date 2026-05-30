@@ -1275,6 +1275,9 @@ const App = () => {
             return (
                 <Dashboard
                     data={processedData}
+                    jhpmsLab={jhpmsLab}
+                    edustat={edustat}
+                    manpower={manpower}
                     onDrillDown={(t, d) => setDrillDownData({ title: t, data: d })}
                     startDate={startDate}
                     endDate={endDate}
