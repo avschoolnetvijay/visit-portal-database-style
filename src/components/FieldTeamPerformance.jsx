@@ -391,6 +391,8 @@ const FieldTeamPerformance = ({
             viewType = 'usage_logs';
         } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
             viewType = 'classes';
+        } else if (['ict_visits', 'smart_visits', 'all_visits'].includes(drilldownFilter)) {
+            viewType = 'visits';
         }
 
         // Generate data based on viewType
@@ -577,6 +579,43 @@ const FieldTeamPerformance = ({
             }));
         }
 
+        if (viewType === 'visits') {
+            const ccVisits = visits.filter(v => {
+                const dateStr = formatDateStr(v.visit_date || getVal(v, 'date'));
+                return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(String(v.udise_code || '').trim());
+            });
+
+            let visitRows = ccVisits.map(v => {
+                const udise = String(v.udise_code || '').trim();
+                const schoolRec = schools.find(s => String(s.udise_code || '').trim() === udise);
+
+                return {
+                    date: formatDateClean(v.visit_date || getVal(v, 'date')),
+                    dateRaw: formatDateStr(v.visit_date || getVal(v, 'date')),
+                    udise,
+                    schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
+                    block: schoolRec ? (schoolRec.block || '-') : '-',
+                    visitorName: v.visitor_name || 'N/A',
+                    visitType: v.visit_type || 'Visit',
+                    remarks: v.remarks || getVal(v, 'remarks') || getVal(v, 'remark') || '-'
+                };
+            });
+
+            if (drilldownFilter === 'ict_visits') {
+                visitRows = visitRows.filter(v => v.visitType.toLowerCase().includes('ict'));
+            } else if (drilldownFilter === 'smart_visits') {
+                visitRows = visitRows.filter(v => v.visitType.toLowerCase().includes('smart'));
+            }
+
+            // Sort by date descending
+            visitRows.sort((a, b) => (b.dateRaw || '').localeCompare(a.dateRaw || ''));
+
+            return visitRows.map((v, idx) => ({
+                ...v,
+                slno: idx + 1
+            }));
+        }
+
         // Default viewType === 'schools'
         const ccSchoolsList = schools.filter(s => ccUdises.has(String(s.udise_code || '').trim()));
 
@@ -736,6 +775,8 @@ const FieldTeamPerformance = ({
             return 'usage_logs';
         } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
             return 'classes';
+        } else if (['ict_visits', 'smart_visits', 'all_visits'].includes(drilldownFilter)) {
+            return 'visits';
         }
         return 'schools';
     }, [drilldownFilter]);
@@ -785,6 +826,17 @@ const FieldTeamPerformance = ({
                 'Subject': d.subject,
                 'Subject Teacher': d.teacher,
                 'Remarks/Topic': d.remarks
+            }));
+        } else if (drilldownViewType === 'visits') {
+            exportFormat = activeCCDetailSchools.map(d => ({
+                'Slno': d.slno,
+                'Date': d.date,
+                'UDISE Code': d.udise,
+                'School Name': d.schoolName,
+                'Block': d.block,
+                'Visit Type': d.visitType,
+                'Visitor Name': d.visitorName,
+                'Remarks/Findings': d.remarks
             }));
         } else {
             exportFormat = activeCCDetailSchools.map(d => ({
@@ -1245,9 +1297,9 @@ const FieldTeamPerformance = ({
                                     {row.totalSmartVisits}
                                 </td>
                                 <td 
-                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('all'); }}
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('all_visits'); }}
                                     className="p-3 border-r border-gray-100 text-center font-extrabold text-teal-800 bg-teal-50/50 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-955 transition-all"
-                                    title={`Click to view all JHPMS/Edustat details (Total: ${row.grandTotal})`}
+                                    title={`Click to view JHPMS visits list (Total: ${row.grandTotal})`}
                                 >
                                     {row.grandTotal}
                                 </td>
@@ -1290,8 +1342,9 @@ const FieldTeamPerformance = ({
                                     {drilldownFilter === 'mini_hours_logs' && "Mini PC / Thin Client Daily Run Hours Detail (Active Logs)"}
                                     {drilldownFilter === 'ict_classes' && "JHPMS Computer Classes Logging Details"}
                                     {drilldownFilter === 'smart_classes' && "JHPMS Smart Board Classes Logging Details"}
-                                    {drilldownFilter === 'ict_visits' && "Schools with JHPMS Computer Class Visits"}
-                                    {drilldownFilter === 'smart_visits' && "Schools with Smart Class Visits"}
+                                    {drilldownFilter === 'ict_visits' && "Field ICT Visits Logging Details"}
+                                    {drilldownFilter === 'smart_visits' && "Field Smart Board Visits Logging Details"}
+                                    {drilldownFilter === 'all_visits' && "Field Team All Visits Logging Details"}
                                 </h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
                                     Coordinator: <span className="font-bold text-gray-800 dark:text-gray-200">{activeCCDetail.ccName}</span> ({activeCCDetail.district})
@@ -1371,6 +1424,18 @@ const FieldTeamPerformance = ({
                                                 <th className="p-3 min-w-[200px]">Topic/Remarks</th>
                                             </tr>
                                         )}
+                                        {drilldownViewType === 'visits' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 text-center">Date</th>
+                                                <th className="p-3 text-center">UDISE Code</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Visit Type</th>
+                                                <th className="p-3 text-left pl-4">Visitor / CC Name</th>
+                                                <th className="p-3 min-w-[240px]">Remarks / Findings</th>
+                                            </tr>
+                                        )}
                                         {drilldownViewType === 'schools' && (
                                             <tr className="divide-x divide-teal-700/30">
                                                 <th className="p-3 text-center w-[50px]">S.No</th>
@@ -1443,6 +1508,24 @@ const FieldTeamPerformance = ({
                                                 <td className="p-2.5 text-center font-medium text-teal-700 dark:text-teal-400">{rowClass.subject}</td>
                                                 <td className="p-2.5 text-left pl-3 text-slate-700 dark:text-slate-350">{rowClass.teacher}</td>
                                                 <td className="p-2.5 text-left pl-3 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap text-gray-500 dark:text-gray-400" title={rowClass.remarks}>{rowClass.remarks}</td>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'visits' && activeCCDetailSchools.map((v, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{v.slno}</td>
+                                                <td className="p-2.5 text-center font-semibold text-slate-800 dark:text-slate-200">{v.date}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{v.udise}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">{v.schoolName}</td>
+                                                <td className="p-2.5 text-center">{v.block}</td>
+                                                <td className="p-2.5 text-center font-semibold">
+                                                    {v.visitType.toLowerCase().includes('ict') ? (
+                                                        <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-sm leading-none">{v.visitType}</span>
+                                                    ) : (
+                                                        <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 shadow-sm leading-none">{v.visitType}</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-2.5 text-left pl-4 font-semibold text-slate-700 dark:text-slate-350">{v.visitorName}</td>
+                                                <td className="p-2.5 text-left pl-4 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap text-gray-500 dark:text-gray-400" title={v.remarks}>{v.remarks}</td>
                                             </tr>
                                         ))}
                                         {drilldownViewType === 'schools' && activeCCDetailSchools.map((sch, sIdx) => (
