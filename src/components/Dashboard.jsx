@@ -457,10 +457,10 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
             </h3>
             <div className="flex gap-4 text-xs text-white">
               <span className="flex items-center gap-1.5 font-medium text-white">
-                <span className="w-6 h-0.5 border-t border-dashed border-white/60"></span> Target
+                <span className="w-6 h-0.5 border-t border-dashed border-[#ffbb28] inline-block"></span> Target
               </span>
               <span className="flex items-center gap-1.5 font-bold text-white">
-                <span className="w-2.5 h-2.5 rounded-full bg-white"></span> Actual
+                <span className="w-2.5 h-2.5 rounded-full bg-[#00c49f] inline-block"></span> Actual
               </span>
             </div>
           </div>
@@ -478,8 +478,8 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
                   />
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
                   <Tooltip content={<PremiumChartTooltip />} />
-                  <Line name="Target Goal" type="monotone" dataKey="Target" stroke="#cbd5e1" strokeDasharray="4 4" dot={false} strokeWidth={2} activeDot={false} />
-                  <Line name="Actual Visits" type="monotone" dataKey="Actual" stroke="#0d9488" strokeWidth={3} dot={{ r: 3, fill: '#0d9488', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={false} />
+                  <Line name="Target Goal" type="monotone" dataKey="Target" stroke="#ffbb28" strokeDasharray="4 4" dot={false} strokeWidth={2} activeDot={false} />
+                  <Line name="Actual Visits" type="monotone" dataKey="Actual" stroke="#00c49f" strokeWidth={3} dot={{ r: 3, fill: '#00c49f', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
