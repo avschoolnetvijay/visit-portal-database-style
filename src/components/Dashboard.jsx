@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar 
 } from 'recharts';
 import { Icons } from './Icons';
-import { formatDate, calculateEngagement, calculateStatus } from '../utils';
+import { formatDate, calculateEngagement, calculateStatus, parseDateRobust } from '../utils';
 
 const PremiumChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
@@ -594,35 +594,15 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
     // Inline robust date and UDISE filtering logic
     const checkJhpmsDate = (j) => {
       const rawDate = j.visit_date || j.date || '';
-      if (!rawDate) return false;
-      
-      let dateStr = '';
-      if (rawDate instanceof Date) {
-        const yyyy = rawDate.getFullYear();
-        const mm = String(rawDate.getMonth() + 1).padStart(2, '0');
-        const dd = String(rawDate.getDate()).padStart(2, '0');
-        dateStr = `${yyyy}-${mm}-${dd}`;
-      } else {
-        const s = String(rawDate).trim();
-        if (s.includes('T')) {
-          dateStr = s.split('T')[0];
-        } else if (s.includes('-')) {
-          const parts = s.split('-');
-          if (parts[0].length === 4) {
-            dateStr = s;
-          } else if (parts[2] && parts[2].length === 4) {
-            dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
-          }
-        } else if (s.includes('/')) {
-          const parts = s.split('/');
-          if (parts[2] && parts[2].length === 4) {
-            dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
-          } else if (parts[0].length === 4) {
-            dateStr = `${parts[0]}-${parts[1]}-${parts[2]}`;
-          }
-        }
-      }
-      if (!dateStr) return false;
+      const d = parseDateRobust(rawDate);
+      if (!d) return false;
+
+      // Extract YYYY-MM-DD cleanly
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+
       return dateStr >= startDate && dateStr <= endDate;
     };
 
