@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { exportToExcel, parseDateRobust } from '../utils';
 import { Icons } from './Icons';
 
@@ -17,6 +17,8 @@ const FieldTeamPerformance = ({
     workingDays,
     onRegisterExport
 }) => {
+    
+    const [activeCCDetail, setActiveCCDetail] = useState(null);
     
     const performanceData = useMemo(() => {
         // 1. Filter schools based on global filters (optional, but requested by standard usage)
@@ -340,6 +342,196 @@ const FieldTeamPerformance = ({
 
     }, [schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate, selProjects, selDistricts, selBlocks, workingDays]);
 
+    const activeCCDetailSchools = useMemo(() => {
+        if (!activeCCDetail) return [];
+
+        const ccName = activeCCDetail.ccName;
+        const ccUdises = activeCCDetail.udises; // Set of UDISE strings
+
+        // Filter schools allotted to this CC
+        const ccSchoolsList = schools.filter(s => {
+            const udise = String(s.udise_code || '').trim();
+            return ccUdises.has(udise);
+        });
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        // Helper to get normalized keys from row
+        const getVal = (row, keyMatch) => {
+            const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
+            return key ? row[key] : null;
+        };
+
+        const formatDateStr = (dateInput) => {
+            if (!dateInput) return null;
+            const d = parseDateRobust(dateInput);
+            if (!d || isNaN(d.getTime())) return null;
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        };
+
+        // Filtered datasets for the active date range
+        const rangeVisits = visits.filter(v => {
+            const dateStr = formatDateStr(v.visit_date);
+            return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(String(v.udise_code || '').trim());
+        });
+
+        const rangeJhpms = jhpmsLab.filter(l => {
+            const udise = String(l.udise || getVal(l, 'udise') || '').trim();
+            const dateStr = formatDateStr(l.date || getVal(l, 'date'));
+            return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(udise);
+        });
+
+        const rangeEdustat = edustat.filter(e => {
+            const dateStr = formatDateStr(e.date || getVal(e, 'date'));
+            return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(String(e.udise || '').trim());
+        });
+
+        // Map UDISE to schools details
+        return ccSchoolsList.map((s, idx) => {
+            const udise = String(s.udise_code || '').trim();
+
+            // 1. Instructor Status
+            const instructorRec = manpower.find(m => String(m.udise || getVal(m, 'udise') || '').trim() === udise);
+            const rawStatus = instructorRec ? (instructorRec.status || getVal(instructorRec, 'status') || 'Active') : 'N/A';
+            let instructorStatus = 'N/A';
+            if (rawStatus) {
+                const sUpper = String(rawStatus).toUpperCase();
+                if (sUpper.includes('WORKING') || sUpper.includes('ACTIVE')) instructorStatus = 'Active';
+                else if (sUpper.includes('PENDING')) instructorStatus = 'Pending';
+                else if (sUpper.includes('RESIGN') || sUpper.includes('TERMINATE') || sUpper.includes('VACANT')) instructorStatus = 'Vacant';
+            }
+
+            // 2. Edustat master device info
+            let cpuInstalled = 0;
+            let miniInstalled = 0;
+            let edustatNotInstalled = 0;
+
+            (edustatMaster || []).forEach(m => {
+                if (String(m.udise || '').trim() === udise) {
+                    const device = String(m.device || '').toUpperCase();
+                    const installed = String(m.installed || '').toUpperCase();
+                    if (installed === 'YES') {
+                        if (device === 'CPU') cpuInstalled++;
+                        else if (device === 'MINI PC' || device === 'THIN CLIENT') miniInstalled++;
+                    } else if (installed === 'NO') {
+                        edustatNotInstalled++;
+                    }
+                }
+            });
+
+            // 3. JHPMS Classes count
+            let ictClasses = 0;
+            let smartClasses = 0;
+            rangeJhpms.forEach(l => {
+                const rowUdise = String(l.udise || getVal(l, 'udise') || '').trim();
+                if (rowUdise !== udise) return;
+
+                const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+                const teacherKey = Object.keys(l).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('subjectteacher'));
+                const teacher = teacherKey ? String(l[teacherKey] || '').trim() : (getVal(l, 'teacher') || '');
+                const subjectKey = Object.keys(l).find(k => k !== teacherKey && k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('sub'));
+                const subject = subjectKey ? String(l[subjectKey] || '').trim().toUpperCase() : '';
+
+                if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                    ictClasses++;
+                } else if (labType.includes('SMART') && !subject.includes('COMPUTER')) {
+                    smartClasses++;
+                }
+            });
+
+            // 4. Edustat Hours count
+            let totalCpuHours = 0;
+            let totalMiniPcHours = 0;
+            
+            // Map serial to device type
+            const serialMap = {};
+            (edustatMaster || []).forEach(m => {
+                if (m.serial) {
+                    serialMap[String(m.serial).trim()] = String(m.device || '').toUpperCase();
+                }
+            });
+
+            rangeEdustat.forEach(e => {
+                const rowUdise = String(e.udise || '').trim();
+                if (rowUdise !== udise) return;
+
+                const serial = String(e.serial || '').trim();
+                const hours = Number(e.hours) || 0;
+                const devType = serialMap[serial] || 'CPU';
+
+                if (devType === 'CPU') {
+                    totalCpuHours += hours;
+                } else {
+                    totalMiniPcHours += hours;
+                }
+            });
+
+            // 5. Visits count & Last Visit date
+            let visitsCount = 0;
+            let lastVisitDate = '-';
+            rangeVisits.forEach(v => {
+                if (String(v.udise_code || '').trim() !== udise) return;
+                visitsCount++;
+                const vDateStr = formatDateStr(v.visit_date);
+                if (vDateStr) {
+                    if (lastVisitDate === '-' || vDateStr > lastVisitDate) {
+                        lastVisitDate = vDateStr;
+                    }
+                }
+            });
+
+            // Format last visit date cleanly (DD-MM-YYYY)
+            let lastVisitClean = '-';
+            if (lastVisitDate !== '-') {
+                const parts = lastVisitDate.split('-');
+                lastVisitClean = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+
+            return {
+                slno: idx + 1,
+                udise,
+                schoolName: s.school_name || s.school || '-',
+                block: s.block || '-',
+                instructorStatus,
+                cpuInstalled,
+                totalCpuHours: parseFloat(totalCpuHours.toFixed(2)),
+                miniInstalled,
+                totalMiniPcHours: parseFloat(totalMiniPcHours.toFixed(2)),
+                edustatNotInstalled,
+                ictClasses,
+                smartClasses,
+                visitsCount,
+                lastVisitDate: lastVisitClean
+            };
+        });
+    }, [activeCCDetail, schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate]);
+
+    const handleExportDetails = () => {
+        if (!activeCCDetail || !activeCCDetailSchools.length) return;
+        const exportFormat = activeCCDetailSchools.map(d => ({
+            'Slno': d.slno,
+            'UDISE Code': d.udise,
+            'School Name': d.schoolName,
+            'Block': d.block,
+            'Instructor Status': d.instructorStatus,
+            'CPU Installed': d.cpuInstalled,
+            'CPU Hours Used': d.totalCpuHours,
+            'Mini PC/Thin Client Installed': d.miniInstalled,
+            'Mini PC/Thin Client Hours Used': d.totalMiniPcHours,
+            'Devices Not Installed': d.edustatNotInstalled,
+            'JHPMS ICT Classes': d.ictClasses,
+            'JHPMS Smart Classes': d.smartClasses,
+            'Visits Done': d.visitsCount,
+            'Last Visit Date': d.lastVisitDate
+        }));
+        exportToExcel(exportFormat, `${activeCCDetail.ccName.replace(/\s+/g, '_')}_Detailed_Performance_Report`);
+    };
+
     const handleExport = () => {
         const exportFormat = performanceData.map(d => ({
             'Slno': d.slno,
@@ -605,7 +797,12 @@ const FieldTeamPerformance = ({
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-gray-700 whitespace-nowrap">
                         {performanceData.map((row, i) => (
-                            <tr key={i} className="hover:bg-teal-50/50 transition-colors group">
+                             <tr 
+                                 key={i} 
+                                 onClick={() => setActiveCCDetail(row)}
+                                 className="hover:bg-teal-50/80 transition-all group cursor-pointer active:bg-teal-100/50 duration-150"
+                                 title={`Click to view detailed school performance breakdown for ${row.ccName}`}
+                             >
                                 <td className="p-3 border-r border-gray-100 text-center font-medium sticky left-0 z-20 bg-white group-hover:bg-teal-50/80 w-[60px] min-w-[60px] max-w-[60px] overflow-hidden text-ellipsis">{row.slno}</td>
                                 <td className="p-3 border-r border-gray-100 sticky left-[60px] z-20 bg-white group-hover:bg-teal-50/80 w-[120px] min-w-[120px] max-w-[120px] overflow-hidden text-ellipsis">{row.district}</td>
                                 <td className="p-0 border-r border-gray-100 font-bold text-teal-800 sticky left-[180px] z-20 bg-white group-hover:bg-teal-50/80 w-[200px] min-w-[200px] max-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
@@ -660,6 +857,108 @@ const FieldTeamPerformance = ({
                     </tbody>
                 </table>
             </div>
+
+            {/* Detailed School Breakdown Modal Overlay */}
+            {activeCCDetail && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in no-print">
+                    <div className="bg-white dark:bg-slate-900 border border-teal-100 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+                        {/* Modal Header */}
+                        <div className="p-4 border-b border-gray-150 dark:border-white/5 flex items-center justify-between bg-gradient-to-r from-teal-50 to-teal-50/20 dark:from-teal-950/20 dark:to-transparent">
+                            <div className="text-left">
+                                <h3 className="font-extrabold text-teal-800 dark:text-teal-400 text-base leading-tight">
+                                    Allotted Schools Performance Breakdown
+                                </h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
+                                    Coordinator: <span className="font-bold text-gray-800 dark:text-gray-200">{activeCCDetail.ccName}</span> ({activeCCDetail.district})
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                {/* Export to Excel Button */}
+                                <button
+                                    onClick={handleExportDetails}
+                                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
+                                    title="Export school breakdown to Excel"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    <span>Export Schools</span>
+                                </button>
+                                {/* Close Button */}
+                                <button
+                                    onClick={() => setActiveCCDetail(null)}
+                                    className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                                    title="Close dialog"
+                                >
+                                    <Icons.Close className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Modal Body / Scrollable Table */}
+                        <div className="overflow-auto flex-1 p-4 bg-slate-50/50 dark:bg-slate-900/30">
+                            <div className="border border-gray-200 dark:border-white/5 rounded-xl shadow-inner overflow-hidden bg-white dark:bg-slate-950">
+                                <table className="w-full text-left text-xs whitespace-nowrap">
+                                    <thead className="bg-teal-800 dark:bg-teal-905 text-white sticky top-0 z-30 font-bold">
+                                        <tr className="divide-x divide-teal-700/30">
+                                            <th className="p-3 text-center w-[50px]">S.No</th>
+                                            <th className="p-3 min-w-[220px]">School Name</th>
+                                            <th className="p-3 text-center">UDISE</th>
+                                            <th className="p-3 text-center">Block</th>
+                                            <th className="p-3 text-center">Instructor Status</th>
+                                            <th className="p-3 text-center bg-blue-900/10">CPU Installed</th>
+                                            <th className="p-3 text-center bg-blue-900/10">CPU Run Hours</th>
+                                            <th className="p-3 text-center bg-purple-900/10">Mini PC Installed</th>
+                                            <th className="p-3 text-center bg-purple-900/10">Mini PC Run Hours</th>
+                                            <th className="p-3 text-center bg-red-950/10 text-red-600 dark:text-red-300">Device Not Installed</th>
+                                            <th className="p-3 text-center bg-pink-900/10">JHPMS ICT Classes</th>
+                                            <th className="p-3 text-center bg-yellow-900/10 font-medium">JHPMS Smart Classes</th>
+                                            <th className="p-3 text-center">Monitoring Visits</th>
+                                            <th className="p-3 text-center">Last Visit Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-150 dark:divide-white/5 text-gray-700 dark:text-gray-300">
+                                        {activeCCDetailSchools.map((sch, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{sch.slno}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">{sch.schoolName}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{sch.udise}</td>
+                                                <td className="p-2.5 text-center">{sch.block}</td>
+                                                <td className="p-2.5 text-center">
+                                                    {sch.instructorStatus === 'Active' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm leading-none">Active</span>}
+                                                    {sch.instructorStatus === 'Pending' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm leading-none">Pending</span>}
+                                                    {sch.instructorStatus === 'Vacant' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-sm leading-none">Vacant</span>}
+                                                    {sch.instructorStatus === 'N/A' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500 border border-gray-200 leading-none">N/A</span>}
+                                                </td>
+                                                <td className="p-2.5 text-center bg-blue-50/20 dark:bg-blue-950/10">{sch.cpuInstalled}</td>
+                                                <td className="p-2.5 text-center font-bold bg-blue-50/20 dark:bg-blue-950/10 text-blue-700 dark:text-blue-400">{sch.totalCpuHours}</td>
+                                                <td className="p-2.5 text-center bg-purple-50/20 dark:bg-purple-950/10">{sch.miniInstalled}</td>
+                                                <td className="p-2.5 text-center font-bold bg-purple-50/20 dark:bg-purple-950/10 text-purple-700 dark:text-purple-400">{sch.totalMiniPcHours}</td>
+                                                <td className={`p-2.5 text-center bg-red-50/10 dark:bg-red-950/5 font-bold ${sch.edustatNotInstalled > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-600'}`}>{sch.edustatNotInstalled}</td>
+                                                <td className="p-2.5 text-center font-bold bg-pink-50/20 dark:bg-pink-950/10 text-pink-700 dark:text-pink-400">{sch.ictClasses}</td>
+                                                <td className="p-2.5 text-center font-bold bg-yellow-50/20 dark:bg-yellow-950/10 text-yellow-700 dark:text-yellow-400">{sch.smartClasses}</td>
+                                                <td className="p-2.5 text-center font-semibold text-gray-800 dark:text-gray-200">{sch.visitsCount}</td>
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{sch.lastVisitDate}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-3.5 border-t border-gray-150 dark:border-white/5 bg-gray-50 dark:bg-slate-900/60 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                            <span>Showing {activeCCDetailSchools.length} allotted schools for {activeCCDetail.ccName}</span>
+                            <button
+                                onClick={() => setActiveCCDetail(null)}
+                                className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-white/10 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 rounded-lg font-bold transition-colors cursor-pointer"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
