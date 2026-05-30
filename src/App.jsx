@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { get, set, clearIDB, hashPassword, supabase } from './supabaseClient';
 import ExcelWorker from './excelWorker.js?worker';
@@ -322,19 +322,13 @@ const App = () => {
         localStorage.setItem('snet_dark_mode', String(darkMode));
     }, [darkMode]);
 
-    // Deferred values for lag-free filter changes
-    const defStartDate = useDeferredValue(startDate);
-    const defEndDate = useDeferredValue(endDate);
-    const defSelProjects = useDeferredValue(selProjects);
-    const defSelDistricts = useDeferredValue(selDistricts);
-    const defSelBlocks = useDeferredValue(selBlocks);
-    const defSelSchools = useDeferredValue(selSchools);
+    // We use the direct states to ensure immediate updates across all sections upon Apply Filters
 
     // Dynamic Working Days auto-calculation based on maximum unique JHPMS dates per active school matching active filters
     const autoWorkingDays = useMemo(() => {
         if (!jhpmsLab.length) return 0;
-        const start = new Date(defStartDate);
-        const end = new Date(defEndDate);
+        const start = new Date(startDate);
+        const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
 
         const getVal = (row, keyMatch) => {
@@ -344,10 +338,10 @@ const App = () => {
 
         // 1. Gather UDISE codes for schools matching the currently selected active filters
         let fSchools = schools;
-        if (defSelProjects && defSelProjects.length) fSchools = fSchools.filter(s => defSelProjects.includes(s.project_name));
-        if (defSelDistricts && defSelDistricts.length) fSchools = fSchools.filter(s => defSelDistricts.includes(s.district));
-        if (defSelBlocks && defSelBlocks.length) fSchools = fSchools.filter(s => defSelBlocks.includes(s.block));
-        if (defSelSchools && defSelSchools.length) fSchools = fSchools.filter(s => defSelSchools.includes(s.school_name || s.school));
+        if (selProjects && selProjects.length) fSchools = fSchools.filter(s => selProjects.includes(s.project_name));
+        if (selDistricts && selDistricts.length) fSchools = fSchools.filter(s => selDistricts.includes(s.district));
+        if (selBlocks && selBlocks.length) fSchools = fSchools.filter(s => selBlocks.includes(s.block));
+        if (selSchools && selSchools.length) fSchools = fSchools.filter(s => selSchools.includes(s.school_name || s.school));
 
         const allowedUdises = new Set(fSchools.map(s => String(s.udise_code || '').trim()));
 
@@ -366,22 +360,22 @@ const App = () => {
                 const mm = String(d.getMonth() + 1).padStart(2, '0');
                 const dd = String(d.getDate()).padStart(2, '0');
                 const dateStr = `${yyyy}-${mm}-${dd}`;
-                if (dateStr >= defStartDate && dateStr <= defEndDate) {
+                if (dateStr >= startDate && dateStr <= endDate) {
                     uniqueDates.add(dateStr);
                 }
             }
         });
 
         return uniqueDates.size;
-    }, [jhpmsLab, defStartDate, defEndDate, schools, defSelProjects, defSelDistricts, defSelBlocks, defSelSchools]);
+    }, [jhpmsLab, startDate, endDate, schools, selProjects, selDistricts, selBlocks, selSchools]);
 
     // Synchronize workingDays state with auto-calculated value if not overridden
     useEffect(() => {
         if (!isWorkingDaysManual) {
-            const calculated = autoWorkingDays || Math.max(1, Math.ceil((new Date(defEndDate) - new Date(defStartDate)) / (1000 * 60 * 60 * 24)));
+            const calculated = autoWorkingDays || Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)));
             setWorkingDays(calculated);
         }
-    }, [autoWorkingDays, isWorkingDaysManual, defStartDate, defEndDate]);
+    }, [autoWorkingDays, isWorkingDaysManual, startDate, endDate]);
 
     // Reset manual override state when date range parameters change
     useEffect(() => {
@@ -420,16 +414,16 @@ const App = () => {
 
     // Primary Data Processing Engine
     const processedData = useMemo(() => {
-        const start = new Date(defStartDate);
-        const end = new Date(defEndDate);
+        const start = new Date(startDate);
+        const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
         const months = getMonthsInRange(start, end);
 
         let fSchools = schools;
-        if (defSelProjects.length) fSchools = fSchools.filter(s => defSelProjects.includes(s.project_name));
-        if (defSelDistricts.length) fSchools = fSchools.filter(s => defSelDistricts.includes(s.district));
-        if (defSelBlocks.length) fSchools = fSchools.filter(s => defSelBlocks.includes(s.block));
-        if (defSelSchools.length) fSchools = fSchools.filter(s => defSelSchools.includes(s.school_name));
+        if (selProjects.length) fSchools = fSchools.filter(s => selProjects.includes(s.project_name));
+        if (selDistricts.length) fSchools = fSchools.filter(s => selDistricts.includes(s.district));
+        if (selBlocks.length) fSchools = fSchools.filter(s => selBlocks.includes(s.block));
+        if (selSchools.length) fSchools = fSchools.filter(s => selSchools.includes(s.school_name));
 
         const validUdise = new Set(fSchools.map(s => String(s.udise_code)));
         const fVisits = visits.filter(v => {
@@ -439,7 +433,7 @@ const App = () => {
             const mm = String(d.getMonth() + 1).padStart(2, '0');
             const dd = String(d.getDate()).padStart(2, '0');
             const dateStr = `${yyyy}-${mm}-${dd}`;
-            return dateStr >= defStartDate && dateStr <= defEndDate && validUdise.has(String(v.udise_code));
+            return dateStr >= startDate && dateStr <= endDate && validUdise.has(String(v.udise_code));
         });
 
         const metrics = {};
@@ -510,7 +504,7 @@ const App = () => {
             totalUnique: finalSchools.reduce((a, b) => a + b.uniqueVisits, 0),
             totalRecords: fVisits.length
         };
-    }, [schools, visits, defStartDate, defEndDate, defSelProjects, defSelDistricts, defSelBlocks, defSelSchools]);
+    }, [schools, visits, startDate, endDate, selProjects, selDistricts, selBlocks, selSchools]);
 
     // Secure Auto-Fetch from Google Sheets (via Netlify proxy)
     const fetchFromGoogleSheet = async () => {
@@ -942,8 +936,8 @@ const App = () => {
         }
 
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
-        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
-        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
+        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
+        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
         if (activeTab === 'plan') return <PlanView data={processedData} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
@@ -955,11 +949,11 @@ const App = () => {
                 edustat={edustat} 
                 edustatMaster={edustatMaster} 
                 manpower={manpower} 
-                startDate={defStartDate} 
-                endDate={defEndDate} 
-                selProjects={defSelProjects} 
-                selDistricts={defSelDistricts} 
-                selBlocks={defSelBlocks} 
+                startDate={startDate} 
+                endDate={endDate} 
+                selProjects={selProjects} 
+                selDistricts={selDistricts} 
+                selBlocks={selBlocks} 
                 selCCs={selCCs}
                 workingDays={workingDays} 
                 activeSources={activeSources}
