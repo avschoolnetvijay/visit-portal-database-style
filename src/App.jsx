@@ -1009,6 +1009,7 @@ const App = () => {
                     onDrillDown={(t, d) => setDrillDownData({ title: t, data: d })}
                     startDate={startDate}
                     endDate={endDate}
+                    darkMode={darkMode}
                 />
             );
         }
@@ -1021,6 +1022,7 @@ const App = () => {
                     startDate={startDate}
                     endDate={endDate}
                     onDrillDown={(t, d) => setDrillDownData({ title: t, data: d })}
+                    darkMode={darkMode}
                 />
             );
         }
@@ -1053,6 +1055,7 @@ const App = () => {
                 setLocalCompareMode={setLocalCompareMode}
                 handleApplyFilters={handleApplyFilters}
                 ccNameMapping={ccNameMapping}
+                darkMode={darkMode}
             />
         );
 

@@ -55,7 +55,7 @@ const renderLegendText = (value) => {
   return <span style={{ color, fontWeight: '700', fontSize: 12, marginRight: 16, fontFamily: 'Inter, sans-serif' }}>{value}</span>;
 };
 
-const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
+const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode = false }) => {
   const [searchType, setSearchType] = useState('school'); // 'school' or 'visitor'
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
@@ -769,9 +769,9 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
                       <stop offset="95%" stopColor="#00c49f" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9'} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} />
                   <Tooltip content={<PremiumChartTooltip />} />
                   <Legend formatter={renderLegendText} verticalAlign="top" height={36} iconType="circle" />
                   <Area

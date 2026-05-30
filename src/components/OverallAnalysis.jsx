@@ -229,7 +229,8 @@ const OverallAnalysis = ({
   compareMode = false,
   setLocalCompareMode,
   handleApplyFilters,
-  ccNameMapping = {}
+  ccNameMapping = {},
+  darkMode = false
 }) => {
   const [sortKey, setSortKey] = useState('compositeScore');
   const [sortDir, setSortDir] = useState('desc');
@@ -238,6 +239,10 @@ const OverallAnalysis = ({
   const [displayMode, setDisplayMode] = useState('corporate'); // 'corporate', '16-9', 'print'
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [deckPMName, setDeckPMName] = useState('Suvendu Shekhar Jana');
+
+  const gridStroke = darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9';
+  const axisStroke = darkMode ? 'rgba(255,255,255,0.1)' : '#e2e8f0';
+  const textStroke = darkMode ? '#94a3b8' : '#64748b';
   const [selectedSlides, setSelectedSlides] = useState({
     cover: true,
     kpis: true,
@@ -1868,9 +1873,9 @@ const OverallAnalysis = ({
                     ]}
                     margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
+                    <YAxis tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
                     <Tooltip cursor={{ fill: 'transparent' }} content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 10 }} />
                     <Bar dataKey="Current" fill="#0d9488" radius={[4, 4, 0, 0]} />
@@ -1921,9 +1926,9 @@ const OverallAnalysis = ({
               <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={bandMigrationData} margin={{ top: 10, right: 10, left: -25, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="band" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                    <XAxis dataKey="band" tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
+                    <YAxis tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
                     <Tooltip cursor={{ fill: 'transparent' }} content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 10 }} />
                     <Bar dataKey="Current" fill="#0d9488" stackId="a" />
@@ -1955,9 +1960,9 @@ const OverallAnalysis = ({
                         <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Area type="monotone" dataKey="score" stroke="#0d9488" strokeWidth={2.5} fillOpacity={1} fill="url(#colorScore)" />
                   </AreaChart>

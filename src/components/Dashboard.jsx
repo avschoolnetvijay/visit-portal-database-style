@@ -277,7 +277,7 @@ const AIInsightsCard = ({ schools, visits, onDrillDown }) => {
   );
 };
 
-const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
+const Dashboard = ({ data, onDrillDown, startDate, endDate, darkMode = false }) => {
   const { totalTarget, totalUnique, totalRecords, schools, visits } = data;
 
   const statusBuckets = { Critical: [], Risk: [], Track: [], Excellent: [] };
@@ -475,15 +475,15 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={velocityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9'} />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 10, fill: '#64748b' }}
-                    axisLine={{ stroke: '#e2e8f0' }}
+                    tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }}
+                    axisLine={{ stroke: darkMode ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }}
                     tickLine={false}
                     minTickGap={30}
                   />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} />
                   <Tooltip content={<PremiumChartTooltip />} />
                   <Line name="Target Goal" type="monotone" dataKey="Target" stroke="#ffbb28" strokeDasharray="4 4" dot={false} strokeWidth={2} activeDot={false} />
                   <Line name="Actual Visits" type="monotone" dataKey="Actual" stroke="#00c49f" strokeWidth={3} dot={{ r: 3, fill: '#00c49f', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={false} />
@@ -544,8 +544,9 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
                       <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8} /><stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} minTickGap={30} />
-                  <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9'} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} minTickGap={30} />
+                  <YAxis tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} />
                   <Tooltip content={<PremiumChartTooltip />} />
                   <Area type="monotone" dataKey="Smart" stroke="#0d9488" fillOpacity={1} fill="url(#colorSmart)" strokeWidth={2} />
                   <Area type="monotone" dataKey="ICT" stroke="#0891b2" fillOpacity={1} fill="url(#colorICT)" strokeWidth={2} />
