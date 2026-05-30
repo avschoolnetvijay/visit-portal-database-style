@@ -589,7 +589,50 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
     let smartSum = 0;
     let misSum = 0;
 
-    jhpmsLab.forEach(j => {
+    const validUdises = new Set(schools.map(s => String(s.udise_code || '').trim()));
+
+    // Inline robust date and UDISE filtering logic
+    const checkJhpmsDate = (j) => {
+      const rawDate = j.visit_date || j.date || '';
+      if (!rawDate) return false;
+      
+      let dateStr = '';
+      if (rawDate instanceof Date) {
+        const yyyy = rawDate.getFullYear();
+        const mm = String(rawDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(rawDate.getDate()).padStart(2, '0');
+        dateStr = `${yyyy}-${mm}-${dd}`;
+      } else {
+        const s = String(rawDate).trim();
+        if (s.includes('T')) {
+          dateStr = s.split('T')[0];
+        } else if (s.includes('-')) {
+          const parts = s.split('-');
+          if (parts[0].length === 4) {
+            dateStr = s;
+          } else if (parts[2] && parts[2].length === 4) {
+            dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          }
+        } else if (s.includes('/')) {
+          const parts = s.split('/');
+          if (parts[2] && parts[2].length === 4) {
+            dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          } else if (parts[0].length === 4) {
+            dateStr = `${parts[0]}-${parts[1]}-${parts[2]}`;
+          }
+        }
+      }
+      if (!dateStr) return false;
+      return dateStr >= startDate && dateStr <= endDate;
+    };
+
+    // Filter JHPMS records dynamically based on active filter scopes
+    const filteredJhpms = jhpmsLab.filter(j => {
+      const udise = String(j.udise_code || j.udise || '').trim();
+      return validUdises.has(udise) && checkJhpmsDate(j);
+    });
+
+    filteredJhpms.forEach(j => {
       const labType = String(j.labType || j.lab_type || j.lab || '').toUpperCase();
       const subject = String(j.subject || '').toUpperCase();
       const cls = Number(j.no_of_classes || j.classes || 1) || 1;
@@ -618,7 +661,7 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
         if (udise) schoolsMap[udise] = s;
       });
 
-      const filtered = jhpmsLab.filter(filterFn);
+      const filtered = filteredJhpms.filter(filterFn);
       return filtered.map(j => {
         const udise = String(j.udise || j.udise_code || '').trim();
         const mRecord = manpowerMap[udise];
@@ -662,7 +705,7 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
         })
       }
     };
-  }, [jhpmsLab, schools, manpower]);
+  }, [jhpmsLab, schools, manpower, startDate, endDate]);
 
   const dailyTrends = {};
   const uniqueVisitTracker = new Set();
