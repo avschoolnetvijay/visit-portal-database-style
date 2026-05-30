@@ -139,6 +139,8 @@ const App = () => {
     });
     const [userFullName, setUserFullName] = useState(() => localStorage.getItem('snet_full_name') || '');
     const [userDesignation, setUserDesignation] = useState(() => localStorage.getItem('snet_designation') || '');
+    const [userPermissions, setUserPermissions] = useState(null);
+    const [userAllowedDistricts, setUserAllowedDistricts] = useState([]);
 
     const handleLogout = () => {
         sessionStorage.removeItem('snet_authenticated');
@@ -242,55 +244,79 @@ const App = () => {
         'Profile Creation': false
     });
 
-    const menuGroups = useMemo(() => [
-        {
-            title: 'Home',
-            icon: Icons.Home,
-            items: [
-                { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard }
-            ]
-        },
-        {
-            title: 'Lab Visit',
-            icon: Icons.Visit,
-            items: [
-                { id: 'performance', label: 'Performance Matrix', icon: Icons.Performance },
-                { id: 'search', label: 'Search & Insights', icon: Icons.GlobalSearch },
-                { id: 'compliance', label: 'Compliance Check', icon: Icons.Compliance },
-                { id: 'plan', label: 'Visit Planning', icon: Icons.Plan }
-            ]
-        },
-        {
-            title: 'Performance Analysis',
-            icon: Icons.Performance,
-            items: [
-                { id: 'team-performance', label: 'Field Team Performance', icon: Icons.Performance },
-                { id: 'school-performance', label: 'School Performance', icon: Icons.Trophy }
-            ]
-        },
-        {
-            title: 'Reports',
-            icon: Icons.Reports,
-            items: [
-                { id: 'reports', label: 'Reports & Export', icon: Icons.Reports },
-                { id: 'overall-analysis', label: 'Overall Analysis', icon: Icons.ExecutiveClipboard }
-            ]
-        },
-        {
-            title: 'System Setup',
-            icon: Icons.Setup,
-            items: [
-                { id: 'setup', label: 'Data Upload', icon: Icons.Setup }
-            ]
-        },
-        {
-            title: 'Profile Creation',
-            icon: Icons.Profile,
-            items: [
-                ...(userRole === 'admin' ? [{ id: 'profile-creation', label: 'Profile Creation', icon: Icons.Profile }] : [])
-            ]
+    const menuGroups = useMemo(() => {
+        const rawGroups = [
+            {
+                title: 'Home',
+                icon: Icons.Home,
+                items: [
+                    { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard }
+                ]
+            },
+            {
+                title: 'Lab Visit',
+                icon: Icons.Visit,
+                items: [
+                    { id: 'performance', label: 'Performance Matrix', icon: Icons.Performance },
+                    { id: 'search', label: 'Search & Insights', icon: Icons.GlobalSearch },
+                    { id: 'compliance', label: 'Compliance Check', icon: Icons.Compliance },
+                    { id: 'plan', label: 'Visit Planning', icon: Icons.Plan }
+                ]
+            },
+            {
+                title: 'Performance Analysis',
+                icon: Icons.Performance,
+                items: [
+                    { id: 'team-performance', label: 'Field Team Performance', icon: Icons.Performance },
+                    { id: 'school-performance', label: 'School Performance', icon: Icons.Trophy }
+                ]
+            },
+            {
+                title: 'Reports',
+                icon: Icons.Reports,
+                items: [
+                    { id: 'reports', label: 'Reports & Export', icon: Icons.Reports },
+                    { id: 'overall-analysis', label: 'Overall Analysis', icon: Icons.ExecutiveClipboard }
+                ]
+            },
+            {
+                title: 'System Setup',
+                icon: Icons.Setup,
+                items: [
+                    { id: 'setup', label: 'Data Upload', icon: Icons.Setup }
+                ]
+            },
+            {
+                title: 'Profile Creation',
+                icon: Icons.Profile,
+                items: [
+                    { id: 'profile-creation', label: 'Profile Creation', icon: Icons.Profile }
+                ]
+            }
+        ];
+
+        if (userRole === 'admin') {
+            return rawGroups;
         }
-    ], [userRole]);
+
+        // Standard user filtering based on database permissions
+        return rawGroups.map(group => {
+            const filteredItems = group.items.filter(item => {
+                // Profile creation is strictly admin-only
+                if (item.id === 'profile-creation') return false;
+
+                // Check custom permissions mapping
+                if (userPermissions && userPermissions.menu) {
+                    const perm = userPermissions.menu[item.id];
+                    return perm && (perm.show || perm.view);
+                }
+                
+                // Baseline fallback options before permissions sync
+                return ['dashboard', 'performance', 'search', 'compliance', 'plan'].includes(item.id);
+            });
+            return { ...group, items: filteredItems };
+        }).filter(group => group.items.length > 0);
+    }, [userRole, userPermissions]);
 
     // Sync local selections with global filters when global values are updated (e.g. initial load)
     useEffect(() => {
@@ -524,6 +550,72 @@ const App = () => {
     useEffect(() => {
         const loadData = async () => {
             try {
+                // 1. Fetch user profile, role, custom permissions, and allowed districts scope first
+                const u = localStorage.getItem('snet_username');
+                let userPerms = null;
+                let userDists = [];
+                let resolvedRole = userRole;
+
+                if (u) {
+                    const { data, error } = await supabase
+                        .from('users')
+                        .select('*')
+                        .eq('username', u)
+                        .single();
+
+                    if (!error && data) {
+                        resolvedRole = data.role;
+                        let fullNameVal = data.full_name || '';
+                        let designationVal = data.designation || '';
+                        let permsData = data.permissions;
+                        let distsData = data.assigned_district ? [data.assigned_district] : [];
+
+                        if (data.role && data.role.startsWith('{')) {
+                            try {
+                                const parsed = JSON.parse(data.role);
+                                resolvedRole = parsed.privilege || 'user';
+                                fullNameVal = parsed.full_name || '';
+                                designationVal = parsed.designation || '';
+                                if (parsed.permissions) permsData = parsed.permissions;
+                                if (parsed.allowed_districts) distsData = parsed.allowed_districts;
+                            } catch (e) {
+                                console.error("Error parsing role metadata during load", e);
+                            }
+                        }
+
+                        // Parse permissions
+                        if (permsData) {
+                            try {
+                                userPerms = typeof permsData === 'string' ? JSON.parse(permsData) : permsData;
+                            } catch (e) {
+                                console.error("Error parsing permissions", e);
+                            }
+                        }
+
+                        // Parse allowed districts
+                        if (distsData) {
+                            try {
+                                userDists = typeof distsData === 'string' ? JSON.parse(distsData) : distsData;
+                                if (!Array.isArray(userDists)) {
+                                    userDists = [distsData];
+                                }
+                            } catch (e) {
+                                userDists = [distsData];
+                            }
+                        }
+
+                        localStorage.setItem('snet_full_name', fullNameVal || data.username);
+                        localStorage.setItem('snet_designation', designationVal || (resolvedRole === 'admin' ? 'Administrator' : 'Standard User'));
+                        
+                        setUserFullName(fullNameVal || data.username);
+                        setUserDesignation(designationVal || (resolvedRole === 'admin' ? 'Administrator' : 'Standard User'));
+                        setUserRole(resolvedRole);
+                        setUserPermissions(userPerms);
+                        setUserAllowedDistricts(userDists);
+                    }
+                }
+
+                // 2. Load baseline datasets from storage
                 const s = await get('schools');
                 const v = await get('visits');
                 const jl = await get('jhpms_lab');
@@ -540,24 +632,62 @@ const App = () => {
                     setProfilePhoto(null);
                 }
                 
-                if (s) setSchools(s);
-                if (v) {
-                    const clean = deduplicateVisits(v);
+                // 3. Enforce global district-level data gating (jurisdiction isolation)
+                let filteredSchools = s || [];
+                let filteredVisits = v || [];
+                let filteredJhpms = jl || [];
+                let filteredEdustat = e || [];
+                let filteredManpower = m || [];
+
+                if (resolvedRole !== 'admin' && userDists && userDists.length > 0) {
+                    const allowedSet = new Set(userDists.map(d => d.toUpperCase().trim()));
+
+                    // Filter schools
+                    filteredSchools = (s || []).filter(sch => sch.district && allowedSet.has(sch.district.toUpperCase().trim()));
+                    const filteredUdise = new Set(filteredSchools.map(sch => String(sch.udise_code)));
+
+                    // Filter visits
+                    filteredVisits = (v || []).filter(vis => vis.udise_code && filteredUdise.has(String(vis.udise_code)));
+
+                    // Filter JHPMS Lab
+                    filteredJhpms = (jl || []).filter(j => {
+                        const dist = j.district || '';
+                        if (dist) return allowedSet.has(dist.toUpperCase().trim());
+                        const udise = j.udise || j.udise_code || '';
+                        return udise && filteredUdise.has(String(udise));
+                    });
+
+                    // Filter Edustat
+                    filteredEdustat = (e || []).filter(ed => {
+                        const udise = ed.udise || ed.udise_code || '';
+                        return udise && filteredUdise.has(String(udise));
+                    });
+
+                    // Filter Manpower
+                    filteredManpower = (m || []).filter(mp => {
+                        const udise = mp.udise || mp.udise_code || '';
+                        return udise && filteredUdise.has(String(udise));
+                    });
+                }
+
+                if (filteredSchools.length > 0) setSchools(filteredSchools);
+                if (filteredVisits.length > 0) {
+                    const clean = deduplicateVisits(filteredVisits);
                     setVisits(clean);
-                    if (clean.length < v.length) {
+                    if (clean.length < filteredVisits.length && resolvedRole === 'admin') {
                         await set('visits', clean);
-                        console.log(`Self-healed visits IndexedDB: removed ${v.length - clean.length} duplicate entries.`);
+                        console.log(`Self-healed visits: removed duplicate entries.`);
                     }
                 }
-                if (jl) setJhpmsLab(jl);
-                if (e) setEdustat(e);
+                if (filteredJhpms.length > 0) setJhpmsLab(filteredJhpms);
+                if (filteredEdustat.length > 0) setEdustat(filteredEdustat);
                 if (em) setEdustatMaster(em);
-                if (m) setManpower(m);
+                if (filteredManpower.length > 0) setManpower(filteredManpower);
                 
-                if (s && v) setActiveTab('dashboard');
+                if (filteredSchools.length > 0 && filteredVisits.length > 0) setActiveTab('dashboard');
                 else setActiveTab('setup');
             } catch (err) {
-                console.error("Error loading from IndexedDB:", err);
+                console.error("Error loading and gating datasets:", err);
             } finally {
                 setIsLoadingData(false);
             }
