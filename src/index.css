@@ -148,7 +148,7 @@ body {
     border-radius: 12px;
     box-shadow: var(--card-shadow);
     overflow: hidden;
-    border: 1px solid rgba(226, 232, 240, 0.8);
+    border: 1.5px solid #7bbcb8 !important;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -236,28 +236,44 @@ body {
     font-family: var(--font-sans) !important;
 }
 
-/* Glassmorphism Table Styling */
+/* Glassmorphism Table Styling with 1.5px Teal-Grey Borders and Alternating Tints */
 .portal-table th {
-    background-color: #f8fafc;
-    color: #475569;
-    font-weight: 600;
+    background-color: #e8f5f4 !important;
+    color: #333333 !important;
+    font-weight: 700 !important;
     text-transform: uppercase;
     font-size: 11px;
-    padding: 12px;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 10px 12px;
+    border: 1.5px solid #7bbcb8 !important;
     font-family: var(--font-sans) !important;
+    text-align: center !important;
+    vertical-align: middle !important;
 }
 
 .portal-table td {
-    padding: 10px 12px;
-    border-bottom: 1px solid #f1f5f9;
-    color: #334155;
-    font-size: 12px;
+    padding: 8px 10px;
+    color: #1e293b !important;
+    font-size: 11.5px;
     font-family: var(--font-sans) !important;
+    border: 1.5px solid #7bbcb8 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
 }
 
-.portal-table tr:hover {
-    background-color: #f0fdfa;
+.portal-table tr {
+    border: 1.5px solid #7bbcb8 !important;
+}
+
+.portal-table tr:nth-child(odd) td {
+    background-color: #e8f5f4 !important;
+}
+
+.portal-table tr:nth-child(even) td {
+    background-color: #d4ecea !important;
+}
+
+.portal-table tr:hover td {
+    background-color: #c5e6e4 !important;
 }
 
 /* MultiSelect styling */

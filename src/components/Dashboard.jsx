@@ -43,61 +43,105 @@ const StatusCards = ({ buckets, onDrillDown }) => {
 
 const PortalCard = ({ title, icon: IconComponent, items, onDrillDown }) => {
   return (
-    <div className="portal-card">
-      <div className="portal-card-header flex items-center gap-2">
-        {IconComponent && <IconComponent className="w-6 h-6 shrink-0" />}
-        {title}
-      </div>
-      <div className="portal-card-body p-0">
-        <div className="card-grid p-2 w-full">
-          {items.map((item, idx) => (
-            <div
-              key={idx}
-              className="card-metric group"
-              onClick={() => item.drillData && onDrillDown(item.label + " - " + title, item.drillData)}
-            >
-              <span className="metric-label">{item.label}</span>
-              <span className={`metric-value ${item.color || 'text-gray-800'} group-hover:scale-110 transition-transform block`}>
-                {item.value}
-              </span>
-            </div>
-          ))}
+    <div className="portal-card flex flex-col border border-[#7bbcb8] rounded-xl overflow-hidden bg-white shadow-md font-sans">
+      {/* Upper Area: Icon on left, Table/Grid on right */}
+      <div className="flex-1 flex items-center p-3 gap-3 bg-white">
+        {/* Left Icon Area */}
+        {IconComponent && (
+          <div className="w-12 h-12 flex items-center justify-center bg-slate-50 border border-slate-100 rounded-lg shrink-0">
+            <IconComponent className="w-8 h-8 text-[#2d8b7e]" />
+          </div>
+        )}
+        {/* Right Table/Grid Area */}
+        <div className="flex-1 overflow-hidden rounded border border-[#7bbcb8]">
+          <table className="w-full text-center border-collapse">
+            <thead>
+              <tr className="border-b border-[#7bbcb8] bg-slate-50/50">
+                {items.map((item, idx) => (
+                  <th 
+                    key={idx} 
+                    className="py-1 px-1 text-[10px] font-extrabold text-[#555] uppercase tracking-wide border-r border-[#7bbcb8] last:border-r-0 text-center"
+                    style={{ width: `${100 / items.length}%` }}
+                  >
+                    {item.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {items.map((item, idx) => (
+                  <td 
+                    key={idx} 
+                    onClick={() => item.drillData && onDrillDown(item.label + " - " + title, item.drillData)}
+                    className="py-1.5 px-1 font-black text-sm text-teal-950 bg-[#e8f5f4] cursor-pointer hover:bg-[#c5e6e4] transition-colors border-r border-[#7bbcb8] last:border-r-0 text-center"
+                  >
+                    {item.value}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
         </div>
+      </div>
+      {/* Bottom solid teal footer label */}
+      <div className="bg-[#2d8b7e] text-white font-bold text-xs py-1.5 text-center tracking-wider uppercase">
+        {title}
       </div>
     </div>
   );
 };
 
 const TargetCard = ({ target, achieved, gap, onDrillDown, schools }) => {
+  const items = [
+    { label: 'Target', value: target, drillData: schools },
+    { label: 'Achieved', value: achieved, drillData: schools.filter(s => s.uniqueVisits > 0) },
+    { label: 'Gap', value: gap, drillData: schools.filter(s => s.uniqueVisits < s.targetVisits) }
+  ];
+  
   return (
-    <div className="portal-card">
-      <div className="portal-card-header flex items-center gap-2">
-        <Icons.Target className="w-6 h-6 shrink-0" /> TARGET ANALYSIS
-      </div>
-      <div className="p-3 flex items-center h-full">
-        <div className="flex-1 flex divide-x divide-gray-100">
-          <div
-            className="flex-1 text-center px-1 cursor-pointer group"
-            onClick={() => onDrillDown('Total Target (All Allocated Schools)', schools)}
-          >
-            <div className="metric-label">Target</div>
-            <div className="text-xl font-bold text-gray-800 group-hover:scale-110 transition-transform">{target}</div>
-          </div>
-          <div
-            className="flex-1 text-center px-1 cursor-pointer group"
-            onClick={() => onDrillDown('Achieved Visits', schools.filter(s => s.uniqueVisits > 0))}
-          >
-            <div className="metric-label">Achieved</div>
-            <div className="text-xl font-bold text-green-600 group-hover:scale-110 transition-transform">{achieved}</div>
-          </div>
-          <div
-            className="flex-1 text-center px-1 cursor-pointer group"
-            onClick={() => onDrillDown('Target Gap (Pending Schools)', schools.filter(s => s.uniqueVisits < s.targetVisits))}
-          >
-            <div className="metric-label">Gap</div>
-            <div className="text-xl font-bold text-red-600 group-hover:scale-110 transition-transform">{gap}</div>
-          </div>
+    <div className="portal-card flex flex-col border border-[#7bbcb8] rounded-xl overflow-hidden bg-white shadow-md font-sans">
+      {/* Upper Area: Icon on left, Table/Grid on right */}
+      <div className="flex-1 flex items-center p-3 gap-3 bg-white">
+        {/* Left Icon Area */}
+        <div className="w-12 h-12 flex items-center justify-center bg-slate-50 border border-slate-100 rounded-lg shrink-0">
+          <Icons.Target className="w-8 h-8 text-[#2d8b7e]" />
         </div>
+        {/* Right Table/Grid Area */}
+        <div className="flex-1 overflow-hidden rounded border border-[#7bbcb8]">
+          <table className="w-full text-center border-collapse">
+            <thead>
+              <tr className="border-b border-[#7bbcb8] bg-slate-50/50">
+                {items.map((item, idx) => (
+                  <th 
+                    key={idx} 
+                    className="py-1 px-1 text-[10px] font-extrabold text-[#555] uppercase tracking-wide border-r border-[#7bbcb8] last:border-r-0 text-center"
+                    style={{ width: '33.33%' }}
+                  >
+                    {item.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {items.map((item, idx) => (
+                  <td 
+                    key={idx} 
+                    onClick={() => item.drillData && onDrillDown(item.label + " - Target Analysis", item.drillData)}
+                    className="py-1.5 px-1 font-black text-sm text-teal-950 bg-[#e8f5f4] cursor-pointer hover:bg-[#c5e6e4] transition-colors border-r border-[#7bbcb8] last:border-r-0 text-center"
+                  >
+                    {item.value}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {/* Bottom solid teal footer label */}
+      <div className="bg-[#2d8b7e] text-white font-bold text-xs py-1.5 text-center tracking-wider uppercase">
+        Target Analysis
       </div>
     </div>
   );
@@ -165,23 +209,31 @@ const AIInsightsCard = ({ schools, visits, onDrillDown }) => {
   }, [schools, visits]);
 
   return (
-    <div className="portal-card h-auto ring-1 ring-indigo-50 border-indigo-100">
-      <div className="portal-card-header bg-gradient-to-r from-indigo-600 to-indigo-700 !text-white !p-3 flex items-center gap-2">
-        <Icons.Robot className="w-6 h-6 shrink-0" /> AI STRATEGIC INSIGHTS
+    <div className="portal-card flex flex-col border border-[#7bbcb8] rounded-xl overflow-hidden bg-white shadow-md font-sans h-full">
+      <div className="flex-1 flex items-center p-3 gap-3 bg-white">
+        {/* Left Icon Area */}
+        <div className="w-12 h-12 flex items-center justify-center bg-slate-50 border border-slate-100 rounded-lg shrink-0">
+          <Icons.Robot className="w-8 h-8 text-[#2d8b7e]" />
+        </div>
+        {/* Right List Area */}
+        <div className="flex-1 overflow-y-auto max-h-[96px] rounded border border-[#7bbcb8] p-1.5 bg-[#e8f5f4]">
+          <ul className="space-y-1">
+            {insights.map((ins, i) => (
+              <li
+                key={i}
+                onClick={() => onDrillDown(ins.title, ins.data)}
+                className="flex items-start gap-1 text-[11px] font-semibold text-teal-950 hover:bg-[#c5e6e4] p-1 rounded cursor-pointer transition-colors"
+              >
+                <span className="leading-tight">{ins.text}</span>
+              </li>
+            ))}
+            {insights.length === 0 && <li className="text-xs text-gray-500 italic p-2 text-center">No critical insights generated yet.</li>}
+          </ul>
+        </div>
       </div>
-      <div className="p-3 bg-indigo-50/50 flex-1">
-        <ul className="space-y-2">
-          {insights.map((ins, i) => (
-            <li
-              key={i}
-              onClick={() => onDrillDown(ins.title, ins.data)}
-              className="flex items-start gap-2 text-xs bg-white border border-indigo-100 p-2 rounded-lg shadow-sm cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all"
-            >
-              <span className="mt-0.5 leading-relaxed text-indigo-900">{ins.text}</span>
-            </li>
-          ))}
-          {insights.length === 0 && <li className="text-xs text-gray-500 italic p-2 text-center">No critical insights generated yet.</li>}
-        </ul>
+      {/* Bottom solid teal footer label */}
+      <div className="bg-[#2d8b7e] text-white font-bold text-xs py-1.5 text-center tracking-wider uppercase shrink-0">
+        AI Strategic Insights
       </div>
     </div>
   );
