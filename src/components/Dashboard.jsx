@@ -529,7 +529,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           <Icons.Robot className="w-8 h-8 text-[#2d8b7e] dark:text-[#38bdf8]" />
         </div>
         {/* Right List Area - Clean rounded list inside solid light-teal background */}
-        <div className="flex-1 overflow-y-auto max-h-[96px] p-1.5">
+        <div className="flex-1 overflow-y-auto max-h-[160px] p-1.5">
           <ul className="space-y-1">
             {insights.map((ins, i) => (
               <li
@@ -582,6 +582,73 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
 
   const bestDist = topDistricts.length ? topDistricts[0][0] : "N/A";
   const worstDist = topDistricts.length ? topDistricts[topDistricts.length - 1][0] : "N/A";
+
+  // --- Class Conducted Calculations ---
+  const classConductedGroups = useMemo(() => {
+    const ictList = [];
+    const smartList = [];
+    const misList = [];
+
+    // Pre-index manpower for fast instructor name lookups
+    const manpowerMap = {};
+    manpower.forEach(m => {
+      const udise = String(m.udise_code || m.udise || '').trim();
+      if (udise) {
+        manpowerMap[udise] = m;
+      }
+    });
+
+    jhpmsLab.forEach(j => {
+      const labType = String(j.labType || j.lab_type || j.lab || '').toUpperCase();
+      const subject = String(j.subject || '').toUpperCase();
+
+      if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+        ictList.push(j);
+      } else if (labType.includes('SMART') && !subject.includes('COMPUTER') && !subject.includes('MIS')) {
+        smartList.push(j);
+      } else if (subject.includes('MIS')) {
+        misList.push(j);
+      }
+    });
+
+    // Helper to map raw JHPMS records to beautiful, flat-mapped detail objects for DrillDownModal
+    const mapJhpmsToDrill = (list) => {
+      return list.map(j => {
+        const udise = String(j.udise || j.udise_code || '').trim();
+        const mRecord = manpowerMap[udise];
+        const sRecord = schools.find(s => String(s.udise_code || '').trim() === udise);
+        return {
+          udise_code: udise,
+          school_name: j.school_name || j.school || (sRecord ? sRecord.school_name : 'N/A'),
+          block: j.block || (sRecord ? sRecord.block : 'N/A'),
+          district: j.district || (sRecord ? sRecord.district : 'N/A'),
+          visitor_name: sRecord ? sRecord.visitor_name : 'N/A',
+          subject: j.subject || 'N/A',
+          instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          visit_date: j.visit_date || j.date || 'N/A',
+          jhpmsclasses: Number(j.no_of_classes || j.classes || 1) || 1
+        };
+      });
+    };
+
+    // Calculate sum of classes
+    const sumClasses = (list) => list.reduce((sum, item) => sum + (Number(item.no_of_classes || item.classes || 1) || 1), 0);
+
+    return {
+      ict: {
+        value: sumClasses(ictList),
+        drillData: mapJhpmsToDrill(ictList)
+      },
+      smart: {
+        value: sumClasses(smartList),
+        drillData: mapJhpmsToDrill(smartList)
+      },
+      mis: {
+        value: sumClasses(misList),
+        drillData: mapJhpmsToDrill(misList)
+      }
+    };
+  }, [jhpmsLab, schools, manpower]);
 
   const dailyTrends = {};
   const uniqueVisitTracker = new Set();
@@ -728,13 +795,15 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
           onDrillDown={onDrillDown}
           schools={schools}
         />
-        <AIInsightsCard 
-          schools={schools} 
-          visits={visits} 
-          jhpmsLab={jhpmsLab} 
-          edustat={edustat} 
-          manpower={manpower} 
-          onDrillDown={onDrillDown} 
+        <PortalCard
+          title="Class Conducted"
+          icon={Icons.Teachers}
+          onDrillDown={onDrillDown}
+          items={[
+            { label: "ICT", value: classConductedGroups.ict.value, color: "text-teal-600", drillData: classConductedGroups.ict.drillData },
+            { label: "Smart", value: classConductedGroups.smart.value, color: "text-blue-600", drillData: classConductedGroups.smart.drillData },
+            { label: "MIS", value: classConductedGroups.mis.value, color: "text-amber-600", drillData: classConductedGroups.mis.drillData }
+          ]}
         />
       </div>
 
@@ -857,6 +926,18 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
             })}
           </div>
         </div>
+      </div>
+
+      {/* Strategic AI Insights card shifted to the bottom of the page */}
+      <div className="mt-4">
+        <AIInsightsCard 
+          schools={schools} 
+          visits={visits} 
+          jhpmsLab={jhpmsLab} 
+          edustat={edustat} 
+          manpower={manpower} 
+          onDrillDown={onDrillDown} 
+        />
       </div>
     </div>
   );
