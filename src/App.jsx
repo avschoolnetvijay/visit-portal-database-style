@@ -16,6 +16,7 @@ import SchoolPerformance from './components/SchoolPerformance';
 import ProfileCreation from './components/ProfileCreation';
 import OverallAnalysis from './components/OverallAnalysis';
 import MultiSelect from './components/MultiSelect';
+import signatureLogo from './vijay_ray_signature.png';
 import {
     parseDateRobust,
     formatDate,
@@ -1751,13 +1752,15 @@ const App = () => {
                         )}
                     </button>
                     
-                    {/* Official JHPMS Schoolnet Branding */}
-                    <div className="mt-2 text-white font-sans">
-                        <div className="text-[10px] uppercase tracking-[0.2em] font-black text-white/70">Powered By</div>
-                        <div className="text-xl font-black tracking-wider flex items-center justify-center gap-0.5 mt-1 font-sans">
-                            <span>SCH</span>
-                            <span className="w-4 h-4 rounded-full bg-gradient-to-tr from-orange-600 to-amber-400 inline-block shadow-sm shadow-orange-500/50"></span>
-                            <span>OLNET</span>
+                    {/* Official Vijay Ray Custom Signature Branding */}
+                    <div className="mt-2 flex flex-col items-center justify-center select-none group">
+                        <div className="text-[9px] uppercase tracking-[0.25em] font-black text-teal-200/50 group-hover:text-teal-200/70 transition-colors duration-200">Signature</div>
+                        <div className="relative mt-1 max-w-[140px] overflow-hidden rounded-lg flex items-center justify-center">
+                            <img 
+                                src={signatureLogo} 
+                                alt="Vijay Ray" 
+                                className="h-10 w-auto object-contain mix-blend-screen opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300"
+                            />
                         </div>
                     </div>
                 </div>
