@@ -109,40 +109,45 @@ const App = () => {
     useEffect(() => {
         const img = new Image();
         img.src = signatureLogo;
-        img.crossOrigin = "anonymous";
         img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-            const threshold = 55;
-            
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i+1];
-                const b = data[i+2];
-                const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
                 
-                if (luminance < threshold) {
-                    data[i+3] = 0;
-                } else {
-                    const factor = (luminance - threshold) / (255 - threshold);
-                    data[i+3] = Math.round(factor * 255);
-                    data[i] = 255;
-                    data[i+1] = 255;
-                    data[i+2] = 255;
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                const threshold = 55;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i+1];
+                    const b = data[i+2];
+                    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+                    
+                    if (luminance < threshold) {
+                        data[i+3] = 0;
+                    } else {
+                        const factor = (luminance - threshold) / (255 - threshold);
+                        data[i+3] = Math.round(factor * 255);
+                        data[i] = 255;
+                        data[i+1] = 255;
+                        data[i+2] = 255;
+                    }
                 }
+                
+                ctx.putImageData(imageData, 0, 0);
+                setTransparentSignature(canvas.toDataURL("image/png"));
+            } catch (err) {
+                console.warn("Canvas transparency processing failed, falling back to static asset:", err);
+                setTransparentSignature(signatureLogo);
             }
-            
-            ctx.putImageData(imageData, 0, 0);
-            setTransparentSignature(canvas.toDataURL("image/png"));
         };
         img.onerror = (e) => {
-            console.error("Error loading signature logo for transparent conversion:", e);
+            console.warn("Error loading signature logo image, falling back to static asset:", e);
+            setTransparentSignature(signatureLogo);
         };
     }, []);
 
