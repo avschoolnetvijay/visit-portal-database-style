@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { get, set, clearIDB, hashPassword, supabase } from './supabaseClient';
 import ExcelWorker from './excelWorker.js?worker';
@@ -63,10 +63,40 @@ const normalizeRowHeaders = (row, isSheetValueArray = false, headersList = null)
     return newRow;
 };
 
+const deduplicateVisits = (visitList) => {
+    if (!Array.isArray(visitList)) return [];
+    const seen = new Set();
+    const unique = [];
+    visitList.forEach(v => {
+        const idKey = Object.keys(v).find(k => k === 'id' || k.toLowerCase() === 'id');
+        const idVal = idKey ? String(v[idKey] || '').trim() : null;
+
+        if (idVal) {
+            if (!seen.has(idVal)) {
+                seen.add(idVal);
+                unique.push(v);
+            }
+        } else {
+            const signature = `${v.udise_code || ''}_${v.visit_date || ''}_${v.visit_type || ''}_${v.visitor_name || ''}`;
+            if (!seen.has(signature)) {
+                seen.add(signature);
+                unique.push(v);
+            }
+        }
+    });
+    return unique;
+};
+
 const App = () => {
     const [activeTab, setActiveTab] = useState('setup');
     const [schools, setSchools] = useState([]);
-    const [visits, setVisits] = useState([]);
+    const [visits, setVisitsRaw] = useState([]);
+    const setVisits = useCallback((val) => {
+        setVisitsRaw(prev => {
+            const list = typeof val === 'function' ? val(prev) : val;
+            return deduplicateVisits(list);
+        });
+    }, []);
     const [jhpmsLab, setJhpmsLab] = useState([]);
     const [edustat, setEdustat] = useState([]);
     const [edustatMaster, setEdustatMaster] = useState([]);
@@ -431,7 +461,14 @@ const App = () => {
                 }
                 
                 if (s) setSchools(s);
-                if (v) setVisits(v);
+                if (v) {
+                    const clean = deduplicateVisits(v);
+                    setVisits(clean);
+                    if (clean.length < v.length) {
+                        await set('visits', clean);
+                        console.log(`Self-healed visits IndexedDB: removed ${v.length - clean.length} duplicate entries.`);
+                    }
+                }
                 if (jl) setJhpmsLab(jl);
                 if (e) setEdustat(e);
                 if (em) setEdustatMaster(em);
@@ -617,12 +654,13 @@ const App = () => {
                 })
                 .filter(r => r.visit_date);
 
-            setVisits(normalized);
-            await set('visits', normalized);
+            const cleanVisits = deduplicateVisits(normalized);
+            setVisits(cleanVisits);
+            await set('visits', cleanVisits);
 
             // Auto-fill Dates Logic
-            if (normalized.length > 0) {
-                const dates = normalized
+            if (cleanVisits.length > 0) {
+                const dates = cleanVisits
                     .map(v => new Date(v.visit_date))
                     .filter(d => !isNaN(d.getTime()))
                     .sort((a, b) => a - b);
@@ -831,13 +869,14 @@ const App = () => {
                         await set('schools', normalized);
                         alert(`Successfully uploaded ${normalized.length} schools master records!`);
                     } else if (type === 'visits') {
-                        setVisits(normalized);
-                        await set('visits', normalized);
-                        alert(`Successfully uploaded ${normalized.length} visit reports!`);
+                        const cleanVisits = deduplicateVisits(normalized);
+                        setVisits(cleanVisits);
+                        await set('visits', cleanVisits);
+                        alert(`Successfully uploaded ${cleanVisits.length} unique visit reports!`);
 
                         // Auto-fill Dates Logic
-                        if (normalized.length > 0) {
-                            const dates = normalized
+                        if (cleanVisits.length > 0) {
+                            const dates = cleanVisits
                                 .map(v => new Date(v.visit_date))
                                 .filter(d => !isNaN(d.getTime()))
                                 .sort((a, b) => a - b);
