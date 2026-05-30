@@ -293,6 +293,7 @@ const FieldTeamPerformance = ({
                 totalIctVisits: c.totalIctVisits,
                 totalSmartVisits: c.totalSmartVisits,
                 grandTotal: c.totalIctVisits + c.totalSmartVisits,
+                udises: c.udises,
                 
                 academicRaw: academic,
                 smartRaw: smart,
