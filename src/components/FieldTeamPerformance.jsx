@@ -351,22 +351,7 @@ const FieldTeamPerformance = ({
         const ccName = activeCCDetail.ccName;
         const ccUdises = activeCCDetail.udises; // Set of UDISE strings
 
-        // Filter schools allotted to this CC
-        const ccSchoolsList = schools.filter(s => {
-            const udise = String(s.udise_code || '').trim();
-            return ccUdises.has(udise);
-        });
-
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-
-        // Helper to get normalized keys from row
-        const getVal = (row, keyMatch) => {
-            const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
-            return key ? row[key] : null;
-        };
-
+        // Helper to parse and format dates
         const formatDateStr = (dateInput) => {
             if (!dateInput) return null;
             const d = parseDateRobust(dateInput);
@@ -376,6 +361,224 @@ const FieldTeamPerformance = ({
             const dd = String(d.getDate()).padStart(2, '0');
             return `${yyyy}-${mm}-${dd}`;
         };
+
+        const formatDateClean = (dateInput) => {
+            if (!dateInput) return '-';
+            const d = parseDateRobust(dateInput);
+            if (!d || isNaN(d.getTime())) return '-';
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = d.getFullYear();
+            return `${dd}-${mm}-${yyyy}`;
+        };
+
+        // Helper to get normalized keys from row
+        const getVal = (row, keyMatch) => {
+            const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
+            return key ? row[key] : null;
+        };
+
+        // Resolve viewType based on drilldownFilter
+        let viewType = 'schools';
+        if ([
+            'cpu_installed', 'mini_installed', 'edustat_not_installed',
+            'cpu_used', 'mini_used', 'cpu_not_used', 'mini_not_used'
+        ].includes(drilldownFilter)) {
+            viewType = 'devices';
+        } else if (drilldownFilter === 'working_instructors') {
+            viewType = 'instructors';
+        } else if (['cpu_hours_logs', 'mini_hours_logs'].includes(drilldownFilter)) {
+            viewType = 'usage_logs';
+        } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
+            viewType = 'classes';
+        }
+
+        // Generate data based on viewType
+        if (viewType === 'devices') {
+            // Find all master devices for this CC's UDISE codes
+            const masterDevices = (edustatMaster || []).filter(m => ccUdises.has(String(m.udise || '').trim()));
+
+            // Find active serial numbers in date range
+            const filteredEdustat = edustat.filter(row => {
+                const dateStr = formatDateStr(row.date || getVal(row, 'date'));
+                return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(String(row.udise || '').trim());
+            });
+
+            const activeSerials = new Set();
+            filteredEdustat.forEach(e => {
+                if (Number(e.hours) > 0 && e.serial) {
+                    activeSerials.add(String(e.serial).trim());
+                }
+            });
+
+            let filteredDevices = masterDevices;
+            if (drilldownFilter === 'cpu_installed') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'CPU' && String(m.installed || '').toUpperCase() === 'YES');
+            } else if (drilldownFilter === 'mini_installed') {
+                filteredDevices = filteredDevices.filter(m => (String(m.device || '').toUpperCase() === 'MINI PC' || String(m.device || '').toUpperCase() === 'THIN CLIENT') && String(m.installed || '').toUpperCase() === 'YES');
+            } else if (drilldownFilter === 'edustat_not_installed') {
+                filteredDevices = filteredDevices.filter(m => String(m.installed || '').toUpperCase() === 'NO');
+            } else if (drilldownFilter === 'cpu_used') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'CPU' && String(m.installed || '').toUpperCase() === 'YES' && activeSerials.has(String(m.serial || '').trim()));
+            } else if (drilldownFilter === 'mini_used') {
+                filteredDevices = filteredDevices.filter(m => (String(m.device || '').toUpperCase() === 'MINI PC' || String(m.device || '').toUpperCase() === 'THIN CLIENT') && String(m.installed || '').toUpperCase() === 'YES' && activeSerials.has(String(m.serial || '').trim()));
+            } else if (drilldownFilter === 'cpu_not_used') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'CPU' && String(m.installed || '').toUpperCase() === 'YES' && !activeSerials.has(String(m.serial || '').trim()));
+            } else if (drilldownFilter === 'mini_not_used') {
+                filteredDevices = filteredDevices.filter(m => (String(m.device || '').toUpperCase() === 'MINI PC' || String(m.device || '').toUpperCase() === 'THIN CLIENT') && String(m.installed || '').toUpperCase() === 'YES' && !activeSerials.has(String(m.serial || '').trim()));
+            }
+
+            return filteredDevices.map((m, idx) => {
+                const udise = String(m.udise || '').trim();
+                const schoolRec = schools.find(s => String(s.udise_code || '').trim() === udise);
+                
+                let status = 'Idle / Not Used';
+                if (String(m.installed || '').toUpperCase() === 'NO') status = 'Not Installed';
+                else if (activeSerials.has(String(m.serial || '').trim())) status = 'Active / Syncing';
+
+                return {
+                    slno: idx + 1,
+                    udise,
+                    schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
+                    block: schoolRec ? (schoolRec.block || '-') : '-',
+                    serial: m.serial || 'N/A',
+                    deviceType: m.device || 'CPU',
+                    status
+                };
+            });
+        }
+
+        if (viewType === 'instructors') {
+            const ccManpower = manpower.filter(m => ccUdises.has(String(m.udise || getVal(m, 'udise') || '').trim()));
+            
+            const listData = ccManpower.map((m, idx) => {
+                const udise = String(m.udise || getVal(m, 'udise') || '').trim();
+                const schoolRec = schools.find(s => String(s.udise_code || '').trim() === udise);
+                const rawStatus = m.status || getVal(m, 'status') || 'Active';
+                
+                let instructorStatus = 'N/A';
+                if (rawStatus) {
+                    const sUpper = String(rawStatus).toUpperCase();
+                    if (sUpper.includes('WORKING') || sUpper.includes('ACTIVE')) instructorStatus = 'Active';
+                    else if (sUpper.includes('PENDING')) instructorStatus = 'Pending';
+                    else if (sUpper.includes('RESIGN') || sUpper.includes('TERMINATE') || sUpper.includes('VACANT')) instructorStatus = 'Vacant';
+                }
+
+                return {
+                    udise,
+                    schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
+                    block: schoolRec ? (schoolRec.block || '-') : '-',
+                    instructorName: m.instructorName || getVal(m, 'name') || 'N/A',
+                    instructorStatus
+                };
+            });
+
+            // Filter to show active working instructors
+            const filteredList = listData.filter(ins => ins.instructorStatus === 'Active');
+
+            return filteredList.map((ins, idx) => ({
+                ...ins,
+                slno: idx + 1
+            }));
+        }
+
+        if (viewType === 'usage_logs') {
+            const filteredEdustat = edustat.filter(row => {
+                const dateStr = formatDateStr(row.date || getVal(row, 'date'));
+                return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(String(row.udise || '').trim());
+            });
+
+            // Map serial to device type from Master
+            const serialMap = {};
+            (edustatMaster || []).forEach(m => {
+                if (m.serial) {
+                    serialMap[String(m.serial).trim()] = String(m.device || '').toUpperCase();
+                }
+            });
+
+            let logRows = filteredEdustat.map(e => {
+                const udise = String(e.udise || '').trim();
+                const serial = String(e.serial || '').trim();
+                const devType = serialMap[serial] || 'CPU';
+                const schoolRec = schools.find(s => String(s.udise_code || '').trim() === udise);
+
+                return {
+                    date: formatDateClean(e.date || getVal(e, 'date')),
+                    dateRaw: formatDateStr(e.date || getVal(e, 'date')),
+                    udise,
+                    schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
+                    block: schoolRec ? (schoolRec.block || '-') : '-',
+                    serial,
+                    deviceType: devType,
+                    hours: Number(e.hours) || 0
+                };
+            });
+
+            if (drilldownFilter === 'cpu_hours_logs') {
+                logRows = logRows.filter(l => l.deviceType === 'CPU');
+            } else if (drilldownFilter === 'mini_hours_logs') {
+                logRows = logRows.filter(l => l.deviceType === 'MINI PC' || l.deviceType === 'THIN CLIENT');
+            }
+
+            // Sort by raw date descending
+            logRows.sort((a, b) => (b.dateRaw || '').localeCompare(a.dateRaw || ''));
+
+            return logRows.map((l, idx) => ({
+                ...l,
+                slno: idx + 1
+            }));
+        }
+
+        if (viewType === 'classes') {
+            const filteredJhpms = jhpmsLab.filter(l => {
+                const udise = String(l.udise || getVal(l, 'udise') || '').trim();
+                const dateStr = formatDateStr(l.date || getVal(l, 'date'));
+                return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(udise);
+            });
+
+            let classRows = [];
+            filteredJhpms.forEach(l => {
+                const udise = String(l.udise || getVal(l, 'udise') || '').trim();
+                const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+                
+                const teacherKey = Object.keys(l).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('subjectteacher'));
+                const teacher = teacherKey ? String(l[teacherKey] || '').trim() : (getVal(l, 'teacher') || 'N/A');
+                
+                const subjectKey = Object.keys(l).find(k => k !== teacherKey && k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('sub'));
+                const subject = subjectKey ? String(l[subjectKey] || '').trim().toUpperCase() : '';
+                
+                const remarks = l.remarks || getVal(l, 'remarks') || getVal(l, 'topic') || '-';
+                const schoolRec = schools.find(s => String(s.udise_code || '').trim() === udise);
+
+                const isIct = labType.includes('ICT') && subject.includes('COMPUTER');
+                const isSmart = labType.includes('SMART') && !subject.includes('COMPUTER');
+
+                if ((drilldownFilter === 'ict_classes' && isIct) || (drilldownFilter === 'smart_classes' && isSmart)) {
+                    classRows.push({
+                        date: formatDateClean(l.date || getVal(l, 'date')),
+                        dateRaw: formatDateStr(l.date || getVal(l, 'date')),
+                        udise,
+                        schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
+                        block: schoolRec ? (schoolRec.block || '-') : '-',
+                        labType: labType,
+                        subject: subject || 'N/A',
+                        teacher: teacher,
+                        remarks
+                    });
+                }
+            });
+
+            // Sort descending by date
+            classRows.sort((a, b) => (b.dateRaw || '').localeCompare(a.dateRaw || ''));
+
+            return classRows.map((r, idx) => ({
+                ...r,
+                slno: idx + 1
+            }));
+        }
+
+        // Default viewType === 'schools'
+        const ccSchoolsList = schools.filter(s => ccUdises.has(String(s.udise_code || '').trim()));
 
         // Filtered datasets for the active date range
         const rangeVisits = visits.filter(v => {
@@ -394,7 +597,6 @@ const FieldTeamPerformance = ({
             return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(String(e.udise || '').trim());
         });
 
-        // Map UDISE to schools details
         const schDetailsList = ccSchoolsList.map((s, idx) => {
             const udise = String(s.udise_code || '').trim();
 
@@ -451,7 +653,6 @@ const FieldTeamPerformance = ({
             let totalCpuHours = 0;
             let totalMiniPcHours = 0;
             
-            // Map serial to device type
             const serialMap = {};
             (edustatMaster || []).forEach(m => {
                 if (m.serial) {
@@ -474,7 +675,7 @@ const FieldTeamPerformance = ({
                 }
             });
 
-            // 5. Visits count & Last Visit date
+            // 5. Visits count
             let visitsCount = 0;
             let lastVisitDate = '-';
             rangeVisits.forEach(v => {
@@ -488,7 +689,6 @@ const FieldTeamPerformance = ({
                 }
             });
 
-            // Format last visit date cleanly (DD-MM-YYYY)
             let lastVisitClean = '-';
             if (lastVisitDate !== '-') {
                 const parts = lastVisitDate.split('-');
@@ -512,60 +712,101 @@ const FieldTeamPerformance = ({
             };
         });
 
-        // Apply targeted drilldown filtering
         let filteredSchools = schDetailsList;
-        if (drilldownFilter === 'working_instructors') {
-            filteredSchools = filteredSchools.filter(sch => sch.instructorStatus === 'Active');
-        } else if (drilldownFilter === 'cpu_installed') {
-            filteredSchools = filteredSchools.filter(sch => sch.cpuInstalled > 0);
-        } else if (drilldownFilter === 'edustat_not_installed') {
-            filteredSchools = filteredSchools.filter(sch => sch.edustatNotInstalled > 0);
-        } else if (drilldownFilter === 'cpu_used') {
-            filteredSchools = filteredSchools.filter(sch => sch.totalCpuHours > 0);
-        } else if (drilldownFilter === 'cpu_not_used') {
-            filteredSchools = filteredSchools.filter(sch => sch.cpuInstalled > 0 && sch.totalCpuHours === 0);
-        } else if (drilldownFilter === 'mini_installed') {
-            filteredSchools = filteredSchools.filter(sch => sch.miniInstalled > 0);
-        } else if (drilldownFilter === 'mini_used') {
-            filteredSchools = filteredSchools.filter(sch => sch.totalMiniPcHours > 0);
-        } else if (drilldownFilter === 'mini_not_used') {
-            filteredSchools = filteredSchools.filter(sch => sch.miniInstalled > 0 && sch.totalMiniPcHours === 0);
-        } else if (drilldownFilter === 'ict_classes') {
-            filteredSchools = filteredSchools.filter(sch => sch.ictClasses > 0);
-        } else if (drilldownFilter === 'smart_classes') {
-            filteredSchools = filteredSchools.filter(sch => sch.smartClasses > 0);
-        } else if (drilldownFilter === 'ict_visits') {
-            filteredSchools = filteredSchools.filter(sch => sch.visitsCount > 0);
-        } else if (drilldownFilter === 'smart_visits') {
+        if (drilldownFilter === 'ict_visits' || drilldownFilter === 'smart_visits') {
             filteredSchools = filteredSchools.filter(sch => sch.visitsCount > 0);
         }
 
-        // Re-assign serial numbers after filter
         return filteredSchools.map((sch, i) => ({
             ...sch,
             slno: i + 1
         }));
+
     }, [activeCCDetail, schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate, drilldownFilter]);
+
+    const drilldownViewType = useMemo(() => {
+        if ([
+            'cpu_installed', 'mini_installed', 'edustat_not_installed',
+            'cpu_used', 'mini_used', 'cpu_not_used', 'mini_not_used'
+        ].includes(drilldownFilter)) {
+            return 'devices';
+        } else if (drilldownFilter === 'working_instructors') {
+            return 'instructors';
+        } else if (['cpu_hours_logs', 'mini_hours_logs'].includes(drilldownFilter)) {
+            return 'usage_logs';
+        } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
+            return 'classes';
+        }
+        return 'schools';
+    }, [drilldownFilter]);
 
     const handleExportDetails = () => {
         if (!activeCCDetail || !activeCCDetailSchools.length) return;
-        const exportFormat = activeCCDetailSchools.map(d => ({
-            'Slno': d.slno,
-            'UDISE Code': d.udise,
-            'School Name': d.schoolName,
-            'Block': d.block,
-            'Instructor Status': d.instructorStatus,
-            'CPU Installed': d.cpuInstalled,
-            'CPU Hours Used': d.totalCpuHours,
-            'Mini PC/Thin Client Installed': d.miniInstalled,
-            'Mini PC/Thin Client Hours Used': d.totalMiniPcHours,
-            'Devices Not Installed': d.edustatNotInstalled,
-            'JHPMS ICT Classes': d.ictClasses,
-            'JHPMS Smart Classes': d.smartClasses,
-            'Visits Done': d.visitsCount,
-            'Last Visit Date': d.lastVisitDate
-        }));
-        exportToExcel(exportFormat, `${activeCCDetail.ccName.replace(/\s+/g, '_')}_Detailed_Performance_Report`);
+        
+        let exportFormat = [];
+        if (drilldownViewType === 'devices') {
+            exportFormat = activeCCDetailSchools.map(d => ({
+                'Slno': d.slno,
+                'UDISE Code': d.udise,
+                'School Name': d.schoolName,
+                'Block': d.block,
+                'Serial No of Device': d.serial,
+                'Device (CPU, Mini PC, Thin Client)': d.deviceType,
+                'Status': d.status
+            }));
+        } else if (drilldownViewType === 'instructors') {
+            exportFormat = activeCCDetailSchools.map(d => ({
+                'Slno': d.slno,
+                'UDISE Code': d.udise,
+                'School Name': d.schoolName,
+                'Block': d.block,
+                'Instructor Name': d.instructorName,
+                'Instructor Status': d.instructorStatus
+            }));
+        } else if (drilldownViewType === 'usage_logs') {
+            exportFormat = activeCCDetailSchools.map(d => ({
+                'Slno': d.slno,
+                'Date': d.date,
+                'UDISE Code': d.udise,
+                'School Name': d.schoolName,
+                'Block': d.block,
+                'Serial No of Device': d.serial,
+                'Device (CPU, Mini PC, Thin Client)': d.deviceType,
+                'Hours Used': d.hours
+            }));
+        } else if (drilldownViewType === 'classes') {
+            exportFormat = activeCCDetailSchools.map(d => ({
+                'Slno': d.slno,
+                'Date': d.date,
+                'UDISE Code': d.udise,
+                'School Name': d.schoolName,
+                'Block': d.block,
+                'Lab Type': d.labType,
+                'Subject': d.subject,
+                'Subject Teacher': d.teacher,
+                'Remarks/Topic': d.remarks
+            }));
+        } else {
+            exportFormat = activeCCDetailSchools.map(d => ({
+                'Slno': d.slno,
+                'School Name': d.schoolName,
+                'UDISE Code': d.udise,
+                'Block': d.block,
+                'Instructor Status': d.instructorStatus,
+                'CPU Installed': d.cpuInstalled,
+                'CPU Run Hours': d.totalCpuHours,
+                'Mini PC Installed': d.miniInstalled,
+                'Mini PC Run Hours': d.totalMiniPcHours,
+                'Devices Not Installed': d.edustatNotInstalled,
+                'JHPMS ICT Classes': d.ictClasses,
+                'JHPMS Smart Classes': d.smartClasses,
+                'Visits Done': d.visitsCount,
+                'Last Visit Date': d.lastVisitDate
+            }));
+        }
+        
+        const fileLabel = `${activeCCDetail.ccName.replace(/\s+/g, '_')}_${drilldownFilter.toUpperCase()}_Detailed_Report`;
+        exportToExcel(exportFormat, fileLabel);
     };
 
     const handleExport = () => {
@@ -930,31 +1171,31 @@ const FieldTeamPerformance = ({
                                 </td>
                                 
                                 <td 
-                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('cpu_used'); }}
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('cpu_hours_logs'); }}
                                     className="p-3 border-r border-gray-100 text-center bg-orange-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
-                                    title={`Click to view CPU run hours details (Total: ${row.totalCpuHours} hrs)`}
+                                    title={`Click to view CPU daily logs list (Total: ${row.totalCpuHours} hrs)`}
                                 >
                                     {row.totalCpuHours}
                                 </td>
                                 <td 
-                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('mini_used'); }}
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('mini_hours_logs'); }}
                                     className="p-3 border-r border-gray-100 text-center bg-orange-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
-                                    title={`Click to view Mini PC / Thin Client run hours details (Total: ${row.totalMiniPcHours} hrs)`}
+                                    title={`Click to view Mini PC / Thin Client daily logs list (Total: ${row.totalMiniPcHours} hrs)`}
                                 >
                                     {row.totalMiniPcHours}
                                 </td>
                                 
                                 <td 
-                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('cpu_used'); }}
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('cpu_hours_logs'); }}
                                     className="p-3 border-r border-gray-100 text-center bg-emerald-50/30 text-emerald-700 font-bold hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
-                                    title={`Click to view CPU efficiency details (Avg: ${row.avgCpu})`}
+                                    title={`Click to view CPU daily logs details (Avg: ${row.avgCpu})`}
                                 >
                                     {row.avgCpu}
                                 </td>
                                 <td 
-                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('mini_used'); }}
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('mini_hours_logs'); }}
                                     className="p-3 border-r border-gray-100 text-center bg-emerald-50/30 text-emerald-700 font-bold hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
-                                    title={`Click to view Mini PC efficiency details (Avg: ${row.avgMini})`}
+                                    title={`Click to view Mini PC daily logs details (Avg: ${row.avgMini})`}
                                 >
                                     {row.avgMini}
                                 </td>
@@ -1040,13 +1281,15 @@ const FieldTeamPerformance = ({
                                     {drilldownFilter === 'working_instructors' && "Allotted Schools with Active Instructors"}
                                     {drilldownFilter === 'cpu_installed' && "Schools with CPU Devices Installed"}
                                     {drilldownFilter === 'edustat_not_installed' && "Schools with Devices Not Installed (EduStat Master)"}
-                                    {drilldownFilter === 'cpu_used' && "Schools with Active CPU Usage"}
-                                    {drilldownFilter === 'cpu_not_used' && "Schools where CPU was Not Used"}
+                                    {drilldownFilter === 'cpu_used' && "Schools with Active CPU Devices"}
+                                    {drilldownFilter === 'cpu_not_used' && "Schools with CPU Devices Installed but Not Used"}
                                     {drilldownFilter === 'mini_installed' && "Schools with Mini PC / Thin Client Installed"}
-                                    {drilldownFilter === 'mini_used' && "Schools with Active Mini PC / Thin Client Usage"}
-                                    {drilldownFilter === 'mini_not_used' && "Schools where Mini PC / Thin Client was Not Used"}
-                                    {drilldownFilter === 'ict_classes' && "Schools with JHPMS Computer Classes"}
-                                    {drilldownFilter === 'smart_classes' && "Schools with JHPMS Smart Classes"}
+                                    {drilldownFilter === 'mini_used' && "Schools with Active Mini PC / Thin Client Devices"}
+                                    {drilldownFilter === 'mini_not_used' && "Schools with Mini PC / Thin Client Installed but Not Used"}
+                                    {drilldownFilter === 'cpu_hours_logs' && "CPU Daily Run Hours Detail (Active Logs)"}
+                                    {drilldownFilter === 'mini_hours_logs' && "Mini PC / Thin Client Daily Run Hours Detail (Active Logs)"}
+                                    {drilldownFilter === 'ict_classes' && "JHPMS Computer Classes Logging Details"}
+                                    {drilldownFilter === 'smart_classes' && "JHPMS Smart Board Classes Logging Details"}
                                     {drilldownFilter === 'ict_visits' && "Schools with JHPMS Computer Class Visits"}
                                     {drilldownFilter === 'smart_visits' && "Schools with Smart Class Visits"}
                                 </h3>
@@ -1059,7 +1302,7 @@ const FieldTeamPerformance = ({
                                 <button
                                     onClick={handleExportDetails}
                                     className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
-                                    title="Export school breakdown to Excel"
+                                    title="Export detailed breakdown to Excel"
                                 >
                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1082,25 +1325,127 @@ const FieldTeamPerformance = ({
                             <div className="border border-gray-200 dark:border-white/5 rounded-xl shadow-inner overflow-hidden bg-white dark:bg-slate-950">
                                 <table className="w-full text-left text-xs whitespace-nowrap">
                                     <thead className="bg-teal-800 dark:bg-teal-905 text-white sticky top-0 z-30 font-bold">
-                                        <tr className="divide-x divide-teal-700/30">
-                                            <th className="p-3 text-center w-[50px]">S.No</th>
-                                            <th className="p-3 min-w-[220px]">School Name</th>
-                                            <th className="p-3 text-center">UDISE</th>
-                                            <th className="p-3 text-center">Block</th>
-                                            <th className="p-3 text-center">Instructor Status</th>
-                                            <th className="p-3 text-center bg-blue-900/10">CPU Installed</th>
-                                            <th className="p-3 text-center bg-blue-900/10">CPU Run Hours</th>
-                                            <th className="p-3 text-center bg-purple-900/10">Mini PC Installed</th>
-                                            <th className="p-3 text-center bg-purple-900/10">Mini PC Run Hours</th>
-                                            <th className="p-3 text-center bg-red-950/10 text-red-600 dark:text-red-300">Device Not Installed</th>
-                                            <th className="p-3 text-center bg-pink-900/10">JHPMS ICT Classes</th>
-                                            <th className="p-3 text-center bg-yellow-900/10 font-medium">JHPMS Smart Classes</th>
-                                            <th className="p-3 text-center">Monitoring Visits</th>
-                                            <th className="p-3 text-center">Last Visit Date</th>
-                                        </tr>
+                                        {drilldownViewType === 'devices' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 text-center">UDISE Code</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Serial No of Device</th>
+                                                <th className="p-3 text-center">Device Type</th>
+                                                <th className="p-3 text-center">Device Status</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'instructors' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 text-center">UDISE Code</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Instructor Name</th>
+                                                <th className="p-3 text-center">Instructor Status</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'usage_logs' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 text-center">Date</th>
+                                                <th className="p-3 text-center">UDISE Code</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Serial No of Device</th>
+                                                <th className="p-3 text-center">Device Type</th>
+                                                <th className="p-3 text-center bg-teal-950/30">Hours Used</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'classes' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 text-center">Date</th>
+                                                <th className="p-3 text-center">UDISE Code</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Lab Type</th>
+                                                <th className="p-3 text-center">Subject</th>
+                                                <th className="p-3 text-center">Subject Teacher</th>
+                                                <th className="p-3 min-w-[200px]">Topic/Remarks</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'schools' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">UDISE</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Instructor Status</th>
+                                                <th className="p-3 text-center bg-blue-900/10">CPU Installed</th>
+                                                <th className="p-3 text-center bg-blue-900/10">CPU Run Hours</th>
+                                                <th className="p-3 text-center bg-purple-900/10">Mini PC Installed</th>
+                                                <th className="p-3 text-center bg-purple-900/10">Mini PC Run Hours</th>
+                                                <th className="p-3 text-center bg-red-950/10 text-red-600 dark:text-red-300">Device Not Installed</th>
+                                                <th className="p-3 text-center bg-pink-900/10">JHPMS ICT Classes</th>
+                                                <th className="p-3 text-center bg-yellow-900/10 font-medium">JHPMS Smart Classes</th>
+                                                <th className="p-3 text-center">Monitoring Visits</th>
+                                                <th className="p-3 text-center">Last Visit Date</th>
+                                            </tr>
+                                        )}
                                     </thead>
                                     <tbody className="divide-y divide-gray-150 dark:divide-white/5 text-gray-700 dark:text-gray-300">
-                                        {activeCCDetailSchools.map((sch, sIdx) => (
+                                        {drilldownViewType === 'devices' && activeCCDetailSchools.map((m, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{m.slno}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{m.udise}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">{m.schoolName}</td>
+                                                <td className="p-2.5 text-center">{m.block}</td>
+                                                <td className="p-2.5 text-center font-semibold text-teal-700 dark:text-teal-400">{m.serial}</td>
+                                                <td className="p-2.5 text-center font-medium">{m.deviceType}</td>
+                                                <td className="p-2.5 text-center">
+                                                    {m.status === 'Active / Syncing' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm leading-none">Active / Syncing</span>}
+                                                    {m.status === 'Idle / Not Used' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm leading-none">Idle / Not Used</span>}
+                                                    {m.status === 'Not Installed' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-sm leading-none">Not Installed</span>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'instructors' && activeCCDetailSchools.map((ins, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{ins.slno}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{ins.udise}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">{ins.schoolName}</td>
+                                                <td className="p-2.5 text-center">{ins.block}</td>
+                                                <td className="p-2.5 text-left pl-4 font-semibold text-slate-800 dark:text-slate-200">{ins.instructorName}</td>
+                                                <td className="p-2.5 text-center">
+                                                    {ins.instructorStatus === 'Active' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm leading-none">Active / Working</span>}
+                                                    {ins.instructorStatus === 'Pending' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm leading-none">Pending</span>}
+                                                    {ins.instructorStatus === 'Vacant' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-sm leading-none">Vacant</span>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'usage_logs' && activeCCDetailSchools.map((log, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{log.slno}</td>
+                                                <td className="p-2.5 text-center font-semibold text-slate-800 dark:text-slate-200">{log.date}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{log.udise}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[220px] overflow-hidden text-ellipsis whitespace-nowrap">{log.schoolName}</td>
+                                                <td className="p-2.5 text-center">{log.block}</td>
+                                                <td className="p-2.5 text-center font-mono text-teal-700 dark:text-teal-400">{log.serial}</td>
+                                                <td className="p-2.5 text-center font-medium">{log.deviceType}</td>
+                                                <td className="p-2.5 text-center font-bold bg-teal-50/20 text-teal-800 dark:text-teal-400">{log.hours} hrs</td>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'classes' && activeCCDetailSchools.map((rowClass, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{rowClass.slno}</td>
+                                                <td className="p-2.5 text-center font-semibold text-slate-800 dark:text-slate-200">{rowClass.date}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{rowClass.udise}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">{rowClass.schoolName}</td>
+                                                <td className="p-2.5 text-center">{rowClass.block}</td>
+                                                <td className="p-2.5 text-center font-semibold">{rowClass.labType}</td>
+                                                <td className="p-2.5 text-center font-medium text-teal-700 dark:text-teal-400">{rowClass.subject}</td>
+                                                <td className="p-2.5 text-left pl-3 text-slate-700 dark:text-slate-350">{rowClass.teacher}</td>
+                                                <td className="p-2.5 text-left pl-3 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap text-gray-500 dark:text-gray-400" title={rowClass.remarks}>{rowClass.remarks}</td>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'schools' && activeCCDetailSchools.map((sch, sIdx) => (
                                             <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
                                                 <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{sch.slno}</td>
                                                 <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">{sch.schoolName}</td>
@@ -1130,7 +1475,7 @@ const FieldTeamPerformance = ({
 
                         {/* Modal Footer */}
                         <div className="p-3.5 border-t border-gray-150 dark:border-white/5 bg-gray-50 dark:bg-slate-900/60 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 font-medium">
-                            <span>Showing {activeCCDetailSchools.length} allotted schools for {activeCCDetail.ccName}</span>
+                            <span>Showing {activeCCDetailSchools.length} {drilldownViewType === 'usage_logs' ? 'daily active log records' : drilldownViewType === 'classes' ? 'JHPMS class records' : drilldownViewType === 'devices' ? 'individual master device units' : 'allotted schools'} for {activeCCDetail.ccName}</span>
                             <button
                                 onClick={() => setActiveCCDetail(null)}
                                 className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-white/10 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 rounded-lg font-bold transition-colors cursor-pointer"
