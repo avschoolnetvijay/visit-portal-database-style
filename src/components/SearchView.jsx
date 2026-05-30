@@ -62,6 +62,17 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [listFilter, setListFilter] = useState('All'); // 'All', 'Completed', 'Pending'
 
+  const maxLogDate = useMemo(() => {
+    let maxD = new Date();
+    if (visits && visits.length > 0) {
+      const dates = visits.map(v => new Date(v.visit_date)).filter(d => !isNaN(d.getTime()));
+      if (dates.length > 0) {
+        maxD = new Date(Math.max(...dates));
+      }
+    }
+    return maxD;
+  }, [visits]);
+
   const startMonthStr = useMemo(() => {
     const s = new Date(startDate);
     return isNaN(s.getTime()) ? "Start" : s.toLocaleString('en-US', { month: 'short', year: '2-digit' }).replace(' ', '-');
@@ -142,7 +153,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
     }).sort((a, b) => new Date(b.visit_date) - new Date(a.visit_date));
 
     const lastVisitDate = sVisits.length > 0 ? new Date(sVisits[0].visit_date) : null;
-    const daysSinceLast = lastVisitDate ? Math.floor((new Date() - lastVisitDate) / (1000 * 60 * 60 * 24)) : 999;
+    const daysSinceLast = lastVisitDate ? Math.floor((maxLogDate - lastVisitDate) / (1000 * 60 * 60 * 24)) : 999;
 
     const insights = [];
     if (uniqueCount === 0) insights.push({ t: 'Critical', m: 'No visits recorded in this period.' });
@@ -314,12 +325,11 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
       }
     } else if (sortedDates.length === 1) {
       const last = new Date(sortedDates[0]);
-      const today = new Date();
-      const diff = Math.ceil(Math.abs(today - last) / (1000 * 60 * 60 * 24));
+      const diff = Math.ceil(Math.abs(maxLogDate - last) / (1000 * 60 * 60 * 24));
       if (diff > maxGapDays) {
         maxGapDays = diff;
         gapStartStr = sortedDates[0];
-        gapEndStr = today.toISOString().split('T')[0];
+        gapEndStr = maxLogDate.toISOString().split('T')[0];
       }
     }
 
@@ -452,25 +462,25 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
         </div>
 
         {suggestions.length > 0 && (
-          <ul className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+          <ul className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-850 shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm border border-gray-100 dark:border-slate-700">
             {suggestions.map((s, i) => (
               <li
                 key={i}
                 onClick={() => handleSelect(s)}
-                className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-teal-50 border-b border-gray-100 last:border-0"
+                className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-teal-50 dark:hover:bg-slate-700/50 border-b border-gray-100 dark:border-slate-700/50 last:border-0"
               >
                 {searchType === 'school' ? (
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="block truncate font-medium text-gray-900">{s.school_name}</span>
-                      <span className="block truncate text-xs text-gray-500">UDISE: {s.udise_code}</span>
+                      <span className="block truncate font-medium text-gray-900 dark:text-slate-200">{s.school_name}</span>
+                      <span className="block truncate text-xs text-gray-500 dark:text-slate-400">UDISE: {s.udise_code}</span>
                     </div>
-                    <span className="text-xs font-bold text-teal-600 bg-teal-100 px-2 py-1 rounded">Select</span>
+                    <span className="text-xs font-bold text-teal-600 bg-teal-100 dark:bg-teal-950/50 px-2 py-1 rounded">Select</span>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
-                    <span className="block truncate font-medium text-indigo-900">{s.name}</span>
-                    <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-1 rounded">View Profile</span>
+                    <span className="block truncate font-medium text-indigo-900 dark:text-indigo-350">{s.name}</span>
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-100 dark:bg-indigo-950/50 px-2 py-1 rounded">View Profile</span>
                   </div>
                 )}
               </li>

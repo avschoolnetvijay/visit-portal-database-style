@@ -54,11 +54,13 @@ const normalizeRowHeaders = (row, isSheetValueArray = false, headersList = null)
         });
     }
 
+    let rawTarget = 1;
     if (!newRow.monthly_target) {
-        newRow.monthly_target = newRow.monthly_visit_target || 1;
+        rawTarget = Number(newRow.monthly_visit_target) || 1;
     } else {
-        newRow.monthly_target = Number(newRow.monthly_target) || 1;
+        rawTarget = Number(newRow.monthly_target) || 1;
     }
+    newRow.monthly_target = Math.max(1, rawTarget);
 
     return newRow;
 };
@@ -77,7 +79,20 @@ const deduplicateVisits = (visitList) => {
                 unique.push(v);
             }
         } else {
-            const signature = `${v.udise_code || ''}_${v.visit_date || ''}_${v.visit_type || ''}_${v.visitor_name || ''}`;
+            // Parse date robustly to standard string YYYY-MM-DD for deduplication
+            let normDate = '';
+            if (v.visit_date) {
+                const pd = parseDateRobust(v.visit_date);
+                if (pd && !isNaN(pd.getTime())) {
+                    const y = pd.getFullYear();
+                    const m = String(pd.getMonth() + 1).padStart(2, '0');
+                    const d = String(pd.getDate()).padStart(2, '0');
+                    normDate = `${y}-${m}-${d}`;
+                } else {
+                    normDate = String(v.visit_date).trim();
+                }
+            }
+            const signature = `${v.udise_code || ''}_${normDate}_${v.visit_type || ''}_${v.visitor_name || ''}`;
             if (!seen.has(signature)) {
                 seen.add(signature);
                 unique.push(v);

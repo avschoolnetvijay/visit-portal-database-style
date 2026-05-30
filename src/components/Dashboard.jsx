@@ -224,8 +224,15 @@ const AIInsightsCard = ({ schools, visits, onDrillDown }) => {
       });
     }
 
-    const today = new Date();
-    const dormant = schools.filter(s => s.uniqueVisits > 0 && s.lastVisit && (today - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24) > 60);
+    // Determine the maximum date in the dataset to act as the current baseline (for historic log compatibility)
+    let maxLogDate = new Date();
+    if (visits && visits.length > 0) {
+      const dates = visits.map(v => new Date(v.visit_date)).filter(d => !isNaN(d.getTime()));
+      if (dates.length > 0) {
+        maxLogDate = new Date(Math.max(...dates));
+      }
+    }
+    const dormant = schools.filter(s => s.uniqueVisits > 0 && s.lastVisit && (maxLogDate - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24) > 60);
     if (dormant.length > 0) {
       list.push({
         type: 'info',

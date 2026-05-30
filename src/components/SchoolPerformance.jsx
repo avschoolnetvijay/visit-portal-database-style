@@ -931,7 +931,7 @@ const SchoolPerformance = ({
             <div className="flex flex-col bg-white/80 backdrop-blur-md rounded-2xl border border-teal-100 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto text-xs">
 
-                    <table className="w-full text-left">
+                    <table className="w-full text-left min-w-max">
                         <thead className="bg-gradient-to-r from-teal-800 to-teal-700 text-white sticky top-0 z-30 shadow-md">
                             {performanceData.type === 'ict_instructor' && (
                                 <tr>

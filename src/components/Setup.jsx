@@ -168,7 +168,11 @@ const Setup = ({
                         <span className="text-gray-300">|</span>
                         <span className={status.manpower ? "text-green-600" : "text-gray-400"}>● Manpower: {status.manpower || 0}</span>
                     </div>
-                    <button onClick={onReset} className="text-red-600 text-xs font-bold hover:bg-red-50 px-3 py-1 rounded border border-red-200 transition">CLEAR CLOUD DATA</button>
+                    {userRole === 'admin' ? (
+                        <button onClick={onReset} className="text-red-600 text-xs font-bold hover:bg-red-50 px-3 py-1 rounded border border-red-200 transition">CLEAR CLOUD DATA</button>
+                    ) : (
+                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cloud Secured</div>
+                    )}
                 </div>
             </div>
 

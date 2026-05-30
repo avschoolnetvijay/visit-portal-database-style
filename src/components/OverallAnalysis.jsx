@@ -508,6 +508,14 @@ const OverallAnalysis = ({
     const maxJhpms = Math.max(1, ...Object.values(jhpmsMap));
     const maxEdustat = Math.max(1, ...Object.values(edustatMap));
 
+    let maxLogDate = new Date();
+    if (visits && visits.length > 0) {
+      const dates = visits.map(v => new Date(v.visit_date)).filter(d => !isNaN(d.getTime()));
+      if (dates.length > 0) {
+        maxLogDate = new Date(Math.max(...dates));
+      }
+    }
+
     return fSchools.map((s) => {
       const udise = cleanUdise(s.udise_code);
       const schoolName = s.school_name || s.school || udise;
@@ -577,8 +585,7 @@ const OverallAnalysis = ({
         recommendation = 'Schedule field visit urgently';
       }
 
-      const today = new Date();
-      const daysSinceVisit = lastVisitDate ? Math.floor((today - new Date(lastVisitDate)) / (1000 * 60 * 60 * 24)) : 999;
+      const daysSinceVisit = lastVisitDate ? Math.floor((maxLogDate - new Date(lastVisitDate)) / (1000 * 60 * 60 * 24)) : 999;
       if (isVisitActive && daysSinceVisit > 45 && fieldVisits > 0 && rootCause === 'Normal') {
         rootCause = 'Idle Lab';
         recommendation = `Not visited in ${daysSinceVisit} days — schedule CC follow-up`;
