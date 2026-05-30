@@ -14,6 +14,8 @@ const FieldTeamPerformance = ({
     selProjects,
     selDistricts,
     selBlocks,
+    selCCs = [],
+    ccNameMapping = {},
     workingDays,
     onRegisterExport
 }) => {
@@ -28,6 +30,13 @@ const FieldTeamPerformance = ({
         if (selProjects && selProjects.length) fSchools = fSchools.filter(s => selProjects.includes(s.project_name));
         if (selDistricts && selDistricts.length) fSchools = fSchools.filter(s => selDistricts.includes(s.district));
         if (selBlocks && selBlocks.length) fSchools = fSchools.filter(s => selBlocks.includes(s.block));
+        if (selCCs && selCCs.length) {
+            fSchools = fSchools.filter(s => {
+                const name = s.visitor_name || '';
+                const resolved = ccNameMapping[name] || name;
+                return selCCs.includes(resolved) || selCCs.includes(name);
+            });
+        }
 
         const start = new Date(startDate);
         const end = new Date(endDate);
@@ -343,7 +352,7 @@ const FieldTeamPerformance = ({
 
         return finalData;
 
-    }, [schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate, selProjects, selDistricts, selBlocks, workingDays]);
+    }, [schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, workingDays]);
 
     const activeCCDetailSchools = useMemo(() => {
         if (!activeCCDetail) return [];
@@ -865,7 +874,7 @@ const FieldTeamPerformance = ({
         const exportFormat = performanceData.map(d => ({
             'Slno': d.slno,
             'School_DISTRICT': d.district,
-            'Cluster Coordinator/ DEF Name': d.ccName,
+            'CC/DEF Name': d.ccName,
             'No.of Schools': d.totalSchools,
             'No. of Instructor Working': d.instructorWorking,
             'No.Of CPU Installed': d.cpuInstalled,
@@ -1009,7 +1018,7 @@ const FieldTeamPerformance = ({
                         <tr>
                             <th className="p-3 border-r border-teal-600/30 align-top sticky top-0 left-0 z-40 bg-teal-800 w-[60px] min-w-[60px] max-w-[60px]">Slno</th>
                             <th className="p-3 border-r border-teal-600/30 align-top sticky top-0 left-[60px] z-40 bg-teal-800 w-[120px] min-w-[120px] max-w-[120px]">School_DISTRICT</th>
-                            <th className="p-3 border-r border-teal-600/30 align-top sticky top-0 left-[180px] z-40 bg-teal-800 w-[200px] min-w-[200px] max-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">Cluster Coordinator/ DEF Name</th>
+                            <th className="p-3 border-r border-teal-600/30 align-top sticky top-0 left-[180px] z-40 bg-teal-800 w-[200px] min-w-[200px] max-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">CC/DEF Name</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">No.of Schools</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[90px]">No. of Instructor Working</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 min-w-[90px]">No.Of CPU Installed</th>

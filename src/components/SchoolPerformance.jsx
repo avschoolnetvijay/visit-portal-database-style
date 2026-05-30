@@ -53,6 +53,8 @@ const SchoolPerformance = ({
     selProjects = [],
     selDistricts = [],
     selBlocks = [],
+    selCCs = [],
+    ccNameMapping = {},
     workingDays = 1,
     onRegisterExport
 }) => {
@@ -81,8 +83,15 @@ const SchoolPerformance = ({
         if (selProjects?.length) list = list.filter(s => selProjects.includes(s.project_name));
         if (selDistricts?.length) list = list.filter(s => selDistricts.includes(s.district));
         if (selBlocks?.length) list = list.filter(s => selBlocks.includes(s.block));
+        if (selCCs?.length) {
+            list = list.filter(s => {
+                const name = s.visitor_name || '';
+                const resolved = ccNameMapping[name] || name;
+                return selCCs.includes(resolved) || selCCs.includes(name);
+            });
+        }
         return list;
-    }, [schools, selProjects, selDistricts, selBlocks]);
+    }, [schools, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping]);
 
     const schoolLookup = useMemo(() => {
         const map = {};

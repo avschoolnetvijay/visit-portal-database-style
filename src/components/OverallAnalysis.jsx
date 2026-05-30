@@ -681,7 +681,7 @@ const OverallAnalysis = ({
           id: `act-nv-${blockName}`,
           priority: f.notVisited > 2 ? 'High' : 'Medium',
           task: `Schedule visits for ${f.notVisited} not-visited schools in ${blockName} block.`,
-          owner: 'Cluster Coordinator (CC)',
+          owner: 'CC/DEF',
           dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           status: 'Pending'
         });
@@ -716,7 +716,7 @@ const OverallAnalysis = ({
             id: `act-crit-${s.udise}`,
             priority: 'Critical',
             task: `Deploy immediate corrective support at ${s.schoolName} (Score: ${Math.round(s.compositeScore)}%, Primary: ${s.rootCause}).`,
-            owner: 'Cluster Coordinator (CC)',
+            owner: 'CC/DEF',
             dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             status: 'Pending'
           });
@@ -2566,7 +2566,7 @@ const OverallAnalysis = ({
                   id: `act-custom-${Date.now()}`,
                   priority: 'Medium',
                   task: 'Custom PM Action Step — Click to edit description',
-                  owner: 'Cluster Coordinator (CC)',
+                  owner: 'CC/DEF',
                   dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                   status: 'Pending'
                 };

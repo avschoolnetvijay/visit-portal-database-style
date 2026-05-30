@@ -498,6 +498,13 @@ const App = () => {
         if (localSelProjects && localSelProjects.length) fSchools = fSchools.filter(s => localSelProjects.includes(s.project_name));
         if (localSelDistricts && localSelDistricts.length) fSchools = fSchools.filter(s => localSelDistricts.includes(s.district));
         if (localSelBlocks && localSelBlocks.length) fSchools = fSchools.filter(s => localSelBlocks.includes(s.block));
+        if (localSelCCs && localSelCCs.length) {
+            fSchools = fSchools.filter(s => {
+                const name = s.visitor_name || '';
+                const resolved = ccNameMapping[name] || name;
+                return localSelCCs.includes(resolved) || localSelCCs.includes(name);
+            });
+        }
         if (localSelSchools && localSelSchools.length) fSchools = fSchools.filter(s => localSelSchools.includes(s.school_name || s.school));
 
         const allowedUdises = new Set(fSchools.map(s => String(s.udise_code || '').trim()));
@@ -511,7 +518,7 @@ const App = () => {
         });
 
         return uniqueDates.size;
-    }, [parsedJhpmsDates, localStartDate, localEndDate, schools, localSelProjects, localSelDistricts, localSelBlocks, localSelSchools]);
+    }, [parsedJhpmsDates, localStartDate, localEndDate, schools, localSelProjects, localSelDistricts, localSelBlocks, localSelCCs, ccNameMapping, localSelSchools]);
 
     // Keep localWorkingDays state in sync with localAutoWorkingDays if not overridden
     useEffect(() => {
@@ -554,6 +561,13 @@ const App = () => {
         if (selProjects && selProjects.length) fSchools = fSchools.filter(s => selProjects.includes(s.project_name));
         if (selDistricts && selDistricts.length) fSchools = fSchools.filter(s => selDistricts.includes(s.district));
         if (selBlocks && selBlocks.length) fSchools = fSchools.filter(s => selBlocks.includes(s.block));
+        if (selCCs && selCCs.length) {
+            fSchools = fSchools.filter(s => {
+                const name = s.visitor_name || '';
+                const resolved = ccNameMapping[name] || name;
+                return selCCs.includes(resolved) || selCCs.includes(name);
+            });
+        }
         if (selSchools && selSchools.length) fSchools = fSchools.filter(s => selSchools.includes(s.school_name || s.school));
 
         const allowedUdises = new Set(fSchools.map(s => String(s.udise_code || '').trim()));
@@ -580,7 +594,7 @@ const App = () => {
         });
 
         return uniqueDates.size;
-    }, [jhpmsLab, startDate, endDate, schools, selProjects, selDistricts, selBlocks, selSchools]);
+    }, [jhpmsLab, startDate, endDate, schools, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, selSchools]);
 
     // Synchronize workingDays state with auto-calculated value if not overridden
     useEffect(() => {
@@ -767,6 +781,13 @@ const App = () => {
         if (selProjects.length) fSchools = fSchools.filter(s => selProjects.includes(s.project_name));
         if (selDistricts.length) fSchools = fSchools.filter(s => selDistricts.includes(s.district));
         if (selBlocks.length) fSchools = fSchools.filter(s => selBlocks.includes(s.block));
+        if (selCCs.length) {
+            fSchools = fSchools.filter(s => {
+                const name = s.visitor_name || '';
+                const resolved = ccNameMapping[name] || name;
+                return selCCs.includes(resolved) || selCCs.includes(name);
+            });
+        }
         if (selSchools.length) fSchools = fSchools.filter(s => selSchools.includes(s.school_name));
 
         const validUdise = new Set(fSchools.map(s => String(s.udise_code)));
@@ -848,7 +869,7 @@ const App = () => {
             totalUnique: finalSchools.reduce((a, b) => a + b.uniqueVisits, 0),
             totalRecords: fVisits.length
         };
-    }, [schools, visits, startDate, endDate, selProjects, selDistricts, selBlocks, selSchools]);
+    }, [schools, visits, startDate, endDate, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, selSchools]);
 
     // Secure Auto-Fetch from Google Sheets (via Netlify proxy)
     const fetchFromGoogleSheet = async () => {
@@ -1305,8 +1326,8 @@ const App = () => {
         }
 
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
-        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
-        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
+        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
+        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
         if (activeTab === 'plan') return <PlanView data={processedData} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
@@ -1895,7 +1916,7 @@ const App = () => {
                                 </div>
                                 <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
                                     <MultiSelect
-                                        label="Cluster Coordinator (CC)"
+                                        label="CC/DEF"
                                         options={opts.ccs}
                                         value={localSelCCs}
                                         onChange={setLocalSelCCs}

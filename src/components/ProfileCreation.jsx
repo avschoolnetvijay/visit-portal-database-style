@@ -851,7 +851,7 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                                         required
                                         className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl px-4 py-2.5 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 dark:focus:border-teal-500 transition"
                                     >
-                                        <option value="CC">CC (Cluster Coordinator)</option>
+                                        <option value="CC">CC/DEF</option>
                                         <option value="DEF">DEF (District Executive Field)</option>
                                         <option value="ZC">ZC (Zone Coordinator)</option>
                                         <option value="CR">CR (Coordinator Representative)</option>
@@ -1497,7 +1497,7 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                                         required
                                         className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-lg px-3 py-2 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
                                     >
-                                        <option value="CC">CC (Cluster Coordinator)</option>
+                                        <option value="CC">CC/DEF</option>
                                         <option value="DEF">DEF (District Executive Field)</option>
                                         <option value="ZC">ZC (Zone Coordinator)</option>
                                         <option value="CR">CR (Coordinator Representative)</option>
