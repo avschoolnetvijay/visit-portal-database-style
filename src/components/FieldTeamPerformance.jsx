@@ -83,20 +83,20 @@ const FieldTeamPerformance = ({
         });
 
         // 3. Process Edustat (Dual-Layer Logic with Master Baseline & Daily utilisation logs)
-        // Filter daily logs to the selected date range using parseDateRobust
-        const parsedStart = parseDateRobust(startDate);
-        const parsedEnd = parseDateRobust(endDate);
-        if (parsedStart) parsedStart.setHours(0, 0, 0, 0);
-        if (parsedEnd) parsedEnd.setHours(23, 59, 59, 999);
+        // Helper to format date cleanly as YYYY-MM-DD using local timezone parts to avoid timezone shifting
+        const formatDateStr = (dateInput) => {
+            if (!dateInput) return null;
+            const d = parseDateRobust(dateInput);
+            if (!d || isNaN(d.getTime())) return null;
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        };
 
         const filteredEdustat = edustat.filter(row => {
-            const rawDate = row.date || getVal(row, 'date');
-            if (!rawDate) return false;
-            const rDate = parseDateRobust(rawDate);
-            if (rDate && !isNaN(rDate.getTime())) {
-                return (!parsedStart || rDate >= parsedStart) && (!parsedEnd || rDate <= parsedEnd);
-            }
-            return false;
+            const dateStr = formatDateStr(row.date || getVal(row, 'date'));
+            return dateStr && dateStr >= startDate && dateStr <= endDate;
         });
 
         // Create serial-to-device mapping from Master List
@@ -190,11 +190,10 @@ const FieldTeamPerformance = ({
             const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
             
             // Parse date and filter by range to ensure dynamically updated ICT / Smart Class counts
-            const rawDate = l.date || getVal(l, 'date');
-            const d = parseDateRobust(rawDate);
+            const dateStr = formatDateStr(l.date || getVal(l, 'date'));
             
-            if (d && !isNaN(d.getTime())) {
-                if ((!parsedStart || d >= parsedStart) && (!parsedEnd || d <= parsedEnd)) {
+            if (dateStr) {
+                if (dateStr >= startDate && dateStr <= endDate) {
                     Object.values(ccMap).forEach(ccData => {
                         if (ccData.udises.has(udise)) {
                             if (labType.includes('ICT') && subject.includes('COMPUTER')) {
@@ -222,12 +221,11 @@ const FieldTeamPerformance = ({
         // 5. Process Visits (Total ICT Visit / Total Smart Visit)
         visits.forEach(v => {
             const udise = String(v.udise_code || '').trim();
-            const rawDate = v.visit_date || getVal(v, 'date');
-            const d = parseDateRobust(rawDate);
+            const dateStr = formatDateStr(v.visit_date || getVal(v, 'date'));
             const type = (v.visit_type || '').toLowerCase();
             
-            if (d && !isNaN(d.getTime())) {
-                if ((!parsedStart || d >= parsedStart) && (!parsedEnd || d <= parsedEnd)) {
+            if (dateStr) {
+                if (dateStr >= startDate && dateStr <= endDate) {
                     Object.values(ccMap).forEach(ccData => {
                         if (ccData.udises.has(udise)) {
                             if (type.includes('ict')) ccData.totalIctVisits++;

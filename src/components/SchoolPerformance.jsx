@@ -334,19 +334,19 @@ const SchoolPerformance = ({
 
 
             // Group Edustat data
-            const parsedStart = parseDateRobust(startDate);
-            const parsedEnd = parseDateRobust(endDate);
-            if (parsedStart) parsedStart.setHours(0, 0, 0, 0);
-            if (parsedEnd) parsedEnd.setHours(23, 59, 59, 999);
+            const formatDateStr = (dateInput) => {
+                if (!dateInput) return null;
+                const d = parseDateRobust(dateInput);
+                if (!d || isNaN(d.getTime())) return null;
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            };
 
             const filteredEdustat = (edustat || []).filter(e => {
-                const rawDate = e.date || getVal(e, 'date');
-                if (!rawDate) return false;
-                const d = parseDateRobust(rawDate);
-                if (d && !isNaN(d.getTime())) {
-                    return (!parsedStart || d >= parsedStart) && (!parsedEnd || d <= parsedEnd);
-                }
-                return false;
+                const dateStr = formatDateStr(e.date || getVal(e, 'date'));
+                return dateStr && dateStr >= startDate && dateStr <= endDate;
             });
 
             const edustatGroups = {};
