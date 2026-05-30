@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { get, set, clearIDB, hashPassword, supabase } from './supabaseClient';
 import ExcelWorker from './excelWorker.js?worker';
@@ -111,6 +111,8 @@ const App = () => {
     const [selSchools, setSelSchools] = useState([]);
 
     const [profilePhoto, setProfilePhoto] = useState(() => localStorage.getItem('snet_profile_photo') || null);
+    const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const fileInputRef = useRef(null);
 
     const handlePhotoChange = (e) => {
         const file = e.target.files[0];
@@ -1203,83 +1205,121 @@ const App = () => {
                         <Icons.Close className="w-5 h-5" />
                     </button>
 
-                    {/* Circular JEPC Emblem Logo */}
-                    <div className="w-16 h-16 flex items-center justify-center overflow-hidden mb-2 transition-transform hover:scale-105 duration-200">
-                        <svg viewBox="0 0 100 100" className="w-14 h-14 text-white">
-                            <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="2.5" />
-                            <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2,2" />
-                            <path d="M35 40 L45 35 L55 38 L65 35 L70 42 L65 52 L58 50 L52 58 L42 62 L38 52 Z" fill="rgba(255,255,255,0.15)" stroke="currentColor" strokeWidth="2.5" />
-                            <circle cx="50" cy="48" r="4" fill="#ffca28" />
-                        </svg>
-                    </div>
-
-                    {/* Coordinator Profile Photo (Exact reference square avatar in pink shirt) with Upload Option */}
-                    <div className="relative group w-14 h-14 rounded-md border border-white/20 shadow-md shrink-0 mb-2 transition-all hover:border-teal-400 duration-200">
-                        {profilePhoto ? (
-                            <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover rounded-md" />
-                        ) : (
-                            <svg viewBox="0 0 100 100" className="w-full h-full object-cover rounded-md">
-                                {/* Background */}
-                                <rect width="100" height="100" fill="#2a8b87" />
-                                {/* Hair back */}
-                                <circle cx="50" cy="35" r="22" fill="#111111" />
-                                {/* Face */}
-                                <circle cx="50" cy="40" r="18" fill="#e5a07d" />
-                                {/* Hair front */}
-                                <path d="M32 30 Q50 15 68 30 Q50 24 32 30 Z" fill="#111111" />
-                                <rect x="32" y="28" width="36" height="8" fill="#111111" />
-                                {/* Eyes */}
-                                <circle cx="43" cy="38" r="2" fill="#111111" />
-                                <circle cx="57" cy="38" r="2" fill="#111111" />
-                                {/* Mouth */}
-                                <path d="M46 48 Q50 51 54 48" stroke="#8b4a36" strokeWidth="2" fill="none" strokeLinecap="round" />
-                                {/* Neck */}
-                                <rect x="46" y="55" width="8" height="12" fill="#e5a07d" />
-                                {/* Pink Shirt */}
-                                <path d="M20 80 Q50 62 80 80 L80 100 L20 100 Z" fill="#e05a8b" />
-                                {/* Collar */}
-                                <path d="M44 65 L50 78 L56 65 Z" fill="#b03a6b" />
-                                <path d="M35 68 L44 65 L46 72 Z" fill="#f0709b" />
-                                <path d="M65 68 L56 65 L54 72 Z" fill="#f0709b" />
-                            </svg>
-                        )}
-                        
-                        {/* Hover Overlay with Camera Icon */}
-                        <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity duration-200 rounded-md text-white select-none">
-                            <svg className="w-5 h-5 mb-0.5 text-teal-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <span className="text-[9px] font-semibold tracking-wider uppercase text-teal-100">Upload</span>
-                            <input 
-                                type="file" 
-                                accept="image/*" 
-                                className="hidden" 
-                                onChange={handlePhotoChange} 
-                            />
-                        </label>
-
-                        {/* Reset / Delete Photo Option */}
-                        {profilePhoto && (
-                            <button
-                                onClick={async (e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    localStorage.removeItem('snet_profile_photo');
-                                    setProfilePhoto(null);
-                                    try {
-                                        await set('profile_photo', null);
-                                    } catch (err) {
-                                        console.error("Error clearing profile photo from Supabase:", err);
-                                    }
-                                }}
-                                className="absolute -top-1.5 -right-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full p-0.5 shadow-md transition-colors duration-150 border border-white/20 cursor-pointer"
-                                title="Remove Profile Photo"
-                            >
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    {/* Coordinator Profile Photo with Upload/Delete Option Dropdown */}
+                    <div className="relative w-14 h-14 mb-4 select-none shrink-0">
+                        {/* Interactive Avatar Container */}
+                        <div 
+                            onClick={() => setShowProfileMenu(prev => !prev)}
+                            className="relative group w-14 h-14 rounded-md border border-white/20 shadow-md cursor-pointer transition-all hover:border-teal-400 duration-200 overflow-hidden"
+                            title="Click to change or delete photo"
+                        >
+                            {profilePhoto ? (
+                                <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover rounded-md" />
+                            ) : (
+                                <svg viewBox="0 0 100 100" className="w-full h-full object-cover rounded-md">
+                                    {/* Background */}
+                                    <rect width="100" height="100" fill="#2a8b87" />
+                                    {/* Hair back */}
+                                    <circle cx="50" cy="35" r="22" fill="#111111" />
+                                    {/* Face */}
+                                    <circle cx="50" cy="40" r="18" fill="#e5a07d" />
+                                    {/* Hair front */}
+                                    <path d="M32 30 Q50 15 68 30 Q50 24 32 30 Z" fill="#111111" />
+                                    <rect x="32" y="28" width="36" height="8" fill="#111111" />
+                                    {/* Eyes */}
+                                    <circle cx="43" cy="38" r="2" fill="#111111" />
+                                    <circle cx="57" cy="38" r="2" fill="#111111" />
+                                    {/* Mouth */}
+                                    <path d="M46 48 Q50 51 54 48" stroke="#8b4a36" strokeWidth="2" fill="none" strokeLinecap="round" />
+                                    {/* Neck */}
+                                    <rect x="46" y="55" width="8" height="12" fill="#e5a07d" />
+                                    {/* Pink Shirt */}
+                                    <path d="M20 80 Q50 62 80 80 L80 100 L20 100 Z" fill="#e05a8b" />
+                                    {/* Collar */}
+                                    <path d="M44 65 L50 78 L56 65 Z" fill="#b03a6b" />
+                                    <path d="M35 68 L44 65 L46 72 Z" fill="#f0709b" />
+                                    <path d="M65 68 L56 65 L54 72 Z" fill="#f0709b" />
                                 </svg>
-                            </button>
+                            )}
+                            
+                            {/* Hover Overlay with Camera Icon */}
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity duration-200 rounded-md text-white">
+                                <svg className="w-5 h-5 mb-0.5 text-teal-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                                <span className="text-[9px] font-semibold tracking-wider uppercase text-teal-100">Edit</span>
+                            </div>
+                        </div>
+
+                        {/* Hidden File Input */}
+                        <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            ref={fileInputRef}
+                            onChange={handlePhotoChange} 
+                        />
+
+                        {/* Transparent Backdrop to close menu when clicking outside */}
+                        {showProfileMenu && (
+                            <div 
+                                className="fixed inset-0 z-40 cursor-default" 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowProfileMenu(false);
+                                }}
+                            />
+                        )}
+
+                        {/* Premium Dropdown Option Menu */}
+                        {showProfileMenu && (
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-36 bg-slate-900/95 backdrop-blur-md border border-white/10 rounded-lg p-1.5 shadow-2xl z-50 text-left animate-in fade-in slide-in-from-top-2 duration-150">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        fileInputRef.current.click();
+                                        setShowProfileMenu(false);
+                                    }}
+                                    className="w-full text-left px-2 py-1.5 rounded text-xs font-medium text-slate-200 hover:bg-teal-600/35 hover:text-white transition-colors flex items-center space-x-2 cursor-pointer"
+                                >
+                                    <svg className="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span>Change Photo</span>
+                                </button>
+                                
+                                {profilePhoto && (
+                                    <button
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            setShowProfileMenu(false);
+                                            localStorage.removeItem('snet_profile_photo');
+                                            setProfilePhoto(null);
+                                            try {
+                                                await set('profile_photo', null);
+                                            } catch (err) {
+                                                console.error("Error clearing profile photo from Supabase:", err);
+                                            }
+                                        }}
+                                        className="w-full text-left px-2 py-1.5 rounded text-xs font-medium text-rose-300 hover:bg-rose-600/25 hover:text-rose-100 transition-colors flex items-center space-x-2 cursor-pointer mt-0.5"
+                                    >
+                                        <svg className="w-3.5 h-3.5 text-rose-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                        <span>Delete Photo</span>
+                                    </button>
+                                )}
+
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowProfileMenu(false);
+                                    }}
+                                    className="w-full text-left px-2 py-1 rounded text-xs font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200 transition-colors flex items-center space-x-2 cursor-pointer mt-1 border-t border-white/5 pt-1.5"
+                                >
+                                    <span>Cancel</span>
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
