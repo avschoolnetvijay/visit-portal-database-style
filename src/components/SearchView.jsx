@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, Legend } from 'recharts';
 import { Icons } from './Icons';
 import { formatDate } from '../utils';
 
@@ -34,12 +34,43 @@ const PremiumChartTooltip = ({ active, payload, label }) => {
   );
 };
 
+const CustomizedLabel = (props) => {
+  const { x, y, value, fill } = props;
+  if (value === undefined || value === null || value === 0) return null;
+  const str = String(value);
+  const width = Math.max(24, str.length * 6 + 8);
+  const bg = fill || '#0f172a';
+  return (
+    <g className="pointer-events-none select-none">
+      <rect x={x - width / 2} y={y - 20} width={width} height={16} rx={3} fill={bg} stroke="#ffffff" strokeWidth={1.5} />
+      <text x={x} y={y - 12} fill="#ffffff" fontSize={8} fontWeight="black" textAnchor="middle" dominantBaseline="middle">
+        {value}
+      </text>
+    </g>
+  );
+};
+
+const renderLegendText = (value) => {
+  const color = value === 'Smart Visit' ? '#0088fe' : '#00c49f';
+  return <span style={{ color, fontWeight: '700', fontSize: 12, marginRight: 16, fontFamily: 'Inter, sans-serif' }}>{value}</span>;
+};
+
 const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
   const [searchType, setSearchType] = useState('school'); // 'school' or 'visitor'
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [listFilter, setListFilter] = useState('All'); // 'All', 'Completed', 'Pending'
+
+  const startMonthStr = useMemo(() => {
+    const s = new Date(startDate);
+    return isNaN(s.getTime()) ? "Start" : s.toLocaleString('en-US', { month: 'short', year: '2-digit' }).replace(' ', '-');
+  }, [startDate]);
+
+  const endMonthStr = useMemo(() => {
+    const e = new Date(endDate);
+    return isNaN(e.getTime()) ? "End" : e.toLocaleString('en-US', { month: 'short', year: '2-digit' }).replace(' ', '-');
+  }, [endDate]);
 
   // Filter Suggestions
   useEffect(() => {
@@ -325,6 +356,36 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
     if (listFilter === 'Completed') displayList = assignedSchools.filter(s => s.uniqueVisits >= s.targetVisits);
     else if (listFilter === 'Pending') displayList = assignedSchools.filter(s => s.uniqueVisits < s.targetVisits);
 
+    // Group visits by Month
+    const monthMap = {};
+    let currMonth = new Date(start);
+    const endMonth = new Date(end);
+    
+    while (currMonth <= endMonth) {
+      const mLabel = currMonth.toLocaleString('en-US', { month: 'short', year: '2-digit' }).replace(' ', '-');
+      monthMap[mLabel] = { name: mLabel, 'Smart Visit': 0, 'ICT Visit': 0, sortKey: currMonth.getFullYear() * 12 + currMonth.getMonth() };
+      currMonth.setMonth(currMonth.getMonth() + 1);
+    }
+    
+    visits.forEach(v => {
+      const vDate = new Date(v.visit_date);
+      if (v.visitor_name === visitorName && vDate >= start && vDate <= end) {
+        const mLabel = vDate.toLocaleString('en-US', { month: 'short', year: '2-digit' }).replace(' ', '-');
+        if (!monthMap[mLabel]) {
+          monthMap[mLabel] = { name: mLabel, 'Smart Visit': 0, 'ICT Visit': 0, sortKey: vDate.getFullYear() * 12 + vDate.getMonth() };
+        }
+        const type = (v.visit_type || "").toLowerCase();
+        if (type.includes('smart')) {
+          monthMap[mLabel]['Smart Visit']++;
+        }
+        if (type.includes('ict')) {
+          monthMap[mLabel]['ICT Visit']++;
+        }
+      }
+    });
+    
+    const monthlyStatusData = Object.values(monthMap).sort((a, b) => a.sortKey - b.sortKey);
+
     return {
       name: visitorName,
       assigned: assignedSchools,
@@ -338,7 +399,8 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
       rank,
       totalVisitors,
       complianceGaps,
-      complianceList
+      complianceList,
+      monthlyStatusData
     };
   }, [selectedItem, schools, visits, searchType, listFilter, startDate, endDate]);
 
@@ -676,6 +738,56 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+
+          {/* Month Wise Visit Status Chart */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
+            <div className="text-sm font-bold text-gray-800 uppercase mb-4 flex justify-between items-center">
+              <span>Month wise visit status from {startMonthStr} to {endMonthStr}</span>
+            </div>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={visitorData.monthlyStatusData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="colorSmartVisit" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0088fe" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#0088fe" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorIctVisit" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00c49f" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#00c49f" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<PremiumChartTooltip />} />
+                  <Legend formatter={renderLegendText} verticalAlign="top" height={36} iconType="circle" />
+                  <Area
+                    type="monotone"
+                    dataKey="Smart Visit"
+                    stroke="#0088fe"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorSmartVisit)"
+                    label={<CustomizedLabel fill="#0088fe" />}
+                    dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#0088fe' }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="ICT Visit"
+                    stroke="#00c49f"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorIctVisit)"
+                    label={<CustomizedLabel fill="#00c49f" />}
+                    dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#00c49f' }}
+                    activeDot={{ r: 6 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>
