@@ -54,6 +54,7 @@ const FieldTeamPerformance = ({
                     cpuUsed: 0,
                     miniPcInstalled: 0,
                     miniPcUsed: 0,
+                    edustatNotInstalled: 0,
                     totalCpuHours: 0,
                     totalMiniPcHours: 0,
                     ictClasses: 0,
@@ -107,11 +108,17 @@ const FieldTeamPerformance = ({
             if (installed === 'YES') {
                 Object.values(ccMap).forEach(ccData => {
                     if (ccData.udises.has(udise)) {
-                        if (device.includes('CPU') || device.includes('DESKTOP') || device.includes('PC')) {
+                        if (device === 'CPU') {
                             ccData.cpuInstalled++;
-                        } else {
+                        } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
                             ccData.miniPcInstalled++;
                         }
+                    }
+                });
+            } else if (installed === 'NO') {
+                Object.values(ccMap).forEach(ccData => {
+                    if (ccData.udises.has(udise)) {
+                        ccData.edustatNotInstalled++;
                     }
                 });
             }
@@ -136,9 +143,9 @@ const FieldTeamPerformance = ({
             
             Object.values(ccMap).forEach(ccData => {
                 if (ccData.udises.has(udise)) {
-                    if (deviceType.includes('CPU') || deviceType.includes('DESKTOP') || deviceType.includes('PC')) {
+                    if (deviceType === 'CPU') {
                         ccData.totalCpuHours += hours;
-                    } else {
+                    } else if (deviceType === 'MINI PC' || deviceType === 'THIN CLIENT') {
                         ccData.totalMiniPcHours += hours;
                     }
                 }
@@ -155,9 +162,9 @@ const FieldTeamPerformance = ({
             if (installed === 'YES' && activeSerials.has(serial)) {
                 Object.values(ccMap).forEach(ccData => {
                     if (ccData.udises.has(udise)) {
-                        if (device.includes('CPU') || device.includes('DESKTOP') || device.includes('PC')) {
+                        if (device === 'CPU') {
                             ccData.cpuUsed++;
-                        } else {
+                        } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
                             ccData.miniPcUsed++;
                         }
                     }
@@ -263,6 +270,7 @@ const FieldTeamPerformance = ({
                 totalSchools: c.totalSchools,
                 instructorWorking: c.instructorWorking,
                 cpuInstalled: c.cpuInstalled,
+                edustatNotInstalled: c.edustatNotInstalled,
                 cpuUsed: c.cpuUsed,
                 cpuNotUsed,
                 miniPcInstalled: c.miniPcInstalled,
@@ -338,15 +346,16 @@ const FieldTeamPerformance = ({
             'No.of Schools': d.totalSchools,
             'No. of Instructor Working': d.instructorWorking,
             'No.Of CPU Installed': d.cpuInstalled,
+            'EduStat Not Installed': d.edustatNotInstalled,
             'No.Of CPU Used': d.cpuUsed,
             'No. Of CPU Not Used': d.cpuNotUsed,
-            'No.Of Mini PC Installed': d.miniPcInstalled,
-            'No. Of Mini PC Used': d.miniPcUsed,
-            'No .Of Mini PC Not Used': d.miniPcNotUsed,
-            'Total Hours Used ( CPU)': d.totalCpuHours,
-            'Total Hours Used ( Mini PC)': d.totalMiniPcHours,
+            'No.Of Mini PC / Thin Client Installed': d.miniPcInstalled,
+            'No. Of Mini PC / Thin Client Used': d.miniPcUsed,
+            'No. Of Mini PC / Thin Client Not Used': d.miniPcNotUsed,
+            'Total Hours Used (CPU)': d.totalCpuHours,
+            'Total Hours Used (Mini PC / Thin Client)': d.totalMiniPcHours,
             'Average Hours/ Day/ Schools/ CPU': d.avgCpu,
-            'Average Hours/ Day/ Schools/ Mini PC': d.avgMini,
+            'Average Hours/ Day/ Schools/ Mini PC / Thin Client': d.avgMini,
             'ICT Classes': d.ictClasses,
             'Avg Classes/per school/Day': d.avgClasses,
             'Smart Classes': d.smartClasses,
@@ -481,13 +490,14 @@ const FieldTeamPerformance = ({
                             <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">No.of Schools</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[90px]">No. of Instructor Working</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 min-w-[90px]">No.Of CPU Installed</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-red-950/40 text-red-200 min-w-[100px]">EduStat Not Installed</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 min-w-[80px]">No.Of CPU Used</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 text-red-200 min-w-[90px]">No. Of CPU Not Used</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 min-w-[90px]">No.Of Mini PC Installed</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 min-w-[80px]">No. Of Mini PC Used</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 text-red-200 min-w-[90px]">No .Of Mini PC Not Used</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 min-w-[110px]">No.Of Mini PC / Thin Client Installed</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 min-w-[100px]">No. Of Mini PC / Thin Client Used</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 text-red-200 min-w-[110px]">No. Of Mini PC / Thin Client Not Used</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (CPU)</th>
-                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (Mini PC)</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[110px]">Total Hours Used (Mini PC / Thin Client)</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]">
                                 <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
                                     <span>Avg Hrs/Day/Sch/CPU</span>
@@ -507,21 +517,21 @@ const FieldTeamPerformance = ({
                                     </div>
                                 </div>
                             </th>
-                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]">
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[115px]">
                                 <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
-                                    <span>Avg Hrs/Day/Sch/Mini PC</span>
+                                    <span>Avg Hrs/Day/Sch/Mini PC / Thin Client</span>
                                     <span className="text-emerald-300">ⓘ</span>
                                     <div className="custom-tooltip-box text-white font-normal">
-                                        <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for Mini PC</strong>
+                                        <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for Mini PC / Thin Client</strong>
                                         <div className="border-t border-white/10 pt-1.5 mt-1">
                                             <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
-                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Mini PC Hours / (Working Days × Mini PCs Installed)</span>
+                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Mini PC / Thin Client Hours / (Working Days × Mini PC / Thin Clients Installed)</span>
                                         </div>
                                         <p className="text-[10px] text-gray-300 mt-1.5">
-                                            Shows the average daily usage hours for each active Mini PC device within the selected period.
+                                            Shows the average daily usage hours for each active Mini PC / Thin Client device within the selected period.
                                         </p>
                                         <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[9px] text-gray-400">
-                                            <strong>Example:</strong> 10 Mini PCs used for 300 hours total over 30 working days = 1.00 hr/working day/school.
+                                            <strong>Example:</strong> 10 Mini PC / Thin Clients used for 300 hours total over 30 working days = 1.00 hr/working day/school.
                                         </div>
                                     </div>
                                 </div>
@@ -608,6 +618,9 @@ const FieldTeamPerformance = ({
                                 <td className="p-3 border-r border-gray-100 text-center font-medium text-blue-700">{row.instructorWorking}</td>
                                 
                                 <td className="p-3 border-r border-gray-100 text-center bg-blue-50/30">{row.cpuInstalled}</td>
+                                <td className={`p-3 border-r border-gray-100 text-center bg-red-50/20 font-bold ${row.edustatNotInstalled > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                    {row.edustatNotInstalled}
+                                </td>
                                 <td className="p-3 border-r border-gray-100 text-center bg-blue-50/30">{row.cpuUsed}</td>
                                 <td className={`p-3 border-r border-gray-100 text-center bg-blue-50/30 font-bold ${row.cpuNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}>
                                     {row.cpuNotUsed}
