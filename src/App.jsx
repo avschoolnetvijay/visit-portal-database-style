@@ -104,6 +104,48 @@ const deduplicateVisits = (visitList) => {
 };
 
 const App = () => {
+    const [transparentSignature, setTransparentSignature] = useState(null);
+
+    useEffect(() => {
+        const img = new Image();
+        img.src = signatureLogo;
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            const threshold = 55;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i+1];
+                const b = data[i+2];
+                const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+                
+                if (luminance < threshold) {
+                    data[i+3] = 0;
+                } else {
+                    const factor = (luminance - threshold) / (255 - threshold);
+                    data[i+3] = Math.round(factor * 255);
+                    data[i] = 255;
+                    data[i+1] = 255;
+                    data[i+2] = 255;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            setTransparentSignature(canvas.toDataURL("image/png"));
+        };
+        img.onerror = (e) => {
+            console.error("Error loading signature logo for transparent conversion:", e);
+        };
+    }, []);
+
     const [activeTab, setActiveTab] = useState('setup');
     const [schools, setSchools] = useState([]);
     const [visits, setVisitsRaw] = useState([]);
@@ -1755,11 +1797,11 @@ const App = () => {
                     {/* Official Vijay Ray Custom Signature Branding */}
                     <div className="mt-2 flex flex-col items-center justify-center select-none group py-1">
                         <div className="text-[9px] uppercase tracking-[0.25em] font-black text-teal-200/50 group-hover:text-teal-200/70 transition-colors duration-200">Made By</div>
-                        <div className="relative mt-1.5 max-w-[160px] overflow-hidden rounded-lg flex items-center justify-center p-1.5 bg-black/5 dark:bg-white/5 border border-white/5 shadow-inner">
+                        <div className="relative mt-2 flex items-center justify-center">
                             <img 
-                                src={signatureLogo} 
+                                src={transparentSignature || signatureLogo} 
                                 alt="Vijay Ray" 
-                                className="h-14 w-auto object-contain signature-animated hover:scale-105 transition-transform duration-300"
+                                className="h-14 w-auto object-contain signature-animated hover:scale-110 transition-transform duration-300"
                             />
                         </div>
                     </div>
