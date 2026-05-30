@@ -109,6 +109,25 @@ const App = () => {
     const [selCCs, setSelCCs] = useState([]);
     const [selSchools, setSelSchools] = useState([]);
 
+    const [profilePhoto, setProfilePhoto] = useState(() => localStorage.getItem('snet_profile_photo') || null);
+
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 2 * 1024 * 1024) {
+                alert("File is too large! Please choose an image smaller than 2MB.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64 = event.target.result;
+                localStorage.setItem('snet_profile_photo', base64);
+                setProfilePhoto(base64);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     // Advanced dashboard filter states
     const [activeSources, setActiveSources] = useState(['jhpms', 'edustat', 'visits', 'manpower']);
     const [perfBands, setPerfBands] = useState([]);
@@ -1179,32 +1198,69 @@ const App = () => {
                         </svg>
                     </div>
 
-                    {/* Coordinator Profile Photo (Exact reference square avatar in pink shirt) */}
-                    <div className="w-14 h-14 rounded-md border border-white/20 shadow-md shrink-0 overflow-hidden mb-2 transition-transform hover:scale-105 duration-200">
-                        <svg viewBox="0 0 100 100" className="w-full h-full object-cover">
-                            {/* Background */}
-                            <rect width="100" height="100" fill="#2a8b87" />
-                            {/* Hair back */}
-                            <circle cx="50" cy="35" r="22" fill="#111111" />
-                            {/* Face */}
-                            <circle cx="50" cy="40" r="18" fill="#e5a07d" />
-                            {/* Hair front */}
-                            <path d="M32 30 Q50 15 68 30 Q50 24 32 30 Z" fill="#111111" />
-                            <rect x="32" y="28" width="36" height="8" fill="#111111" />
-                            {/* Eyes */}
-                            <circle cx="43" cy="38" r="2" fill="#111111" />
-                            <circle cx="57" cy="38" r="2" fill="#111111" />
-                            {/* Mouth */}
-                            <path d="M46 48 Q50 51 54 48" stroke="#8b4a36" strokeWidth="2" fill="none" strokeLinecap="round" />
-                            {/* Neck */}
-                            <rect x="46" y="55" width="8" height="12" fill="#e5a07d" />
-                            {/* Pink Shirt */}
-                            <path d="M20 80 Q50 62 80 80 L80 100 L20 100 Z" fill="#e05a8b" />
-                            {/* Collar */}
-                            <path d="M44 65 L50 78 L56 65 Z" fill="#b03a6b" />
-                            <path d="M35 68 L44 65 L46 72 Z" fill="#f0709b" />
-                            <path d="M65 68 L56 65 L54 72 Z" fill="#f0709b" />
-                        </svg>
+                    {/* Coordinator Profile Photo (Exact reference square avatar in pink shirt) with Upload Option */}
+                    <div className="relative group w-14 h-14 rounded-md border border-white/20 shadow-md shrink-0 mb-2 transition-all hover:border-teal-400 duration-200">
+                        {profilePhoto ? (
+                            <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover rounded-md" />
+                        ) : (
+                            <svg viewBox="0 0 100 100" className="w-full h-full object-cover rounded-md">
+                                {/* Background */}
+                                <rect width="100" height="100" fill="#2a8b87" />
+                                {/* Hair back */}
+                                <circle cx="50" cy="35" r="22" fill="#111111" />
+                                {/* Face */}
+                                <circle cx="50" cy="40" r="18" fill="#e5a07d" />
+                                {/* Hair front */}
+                                <path d="M32 30 Q50 15 68 30 Q50 24 32 30 Z" fill="#111111" />
+                                <rect x="32" y="28" width="36" height="8" fill="#111111" />
+                                {/* Eyes */}
+                                <circle cx="43" cy="38" r="2" fill="#111111" />
+                                <circle cx="57" cy="38" r="2" fill="#111111" />
+                                {/* Mouth */}
+                                <path d="M46 48 Q50 51 54 48" stroke="#8b4a36" strokeWidth="2" fill="none" strokeLinecap="round" />
+                                {/* Neck */}
+                                <rect x="46" y="55" width="8" height="12" fill="#e5a07d" />
+                                {/* Pink Shirt */}
+                                <path d="M20 80 Q50 62 80 80 L80 100 L20 100 Z" fill="#e05a8b" />
+                                {/* Collar */}
+                                <path d="M44 65 L50 78 L56 65 Z" fill="#b03a6b" />
+                                <path d="M35 68 L44 65 L46 72 Z" fill="#f0709b" />
+                                <path d="M65 68 L56 65 L54 72 Z" fill="#f0709b" />
+                            </svg>
+                        )}
+                        
+                        {/* Hover Overlay with Camera Icon */}
+                        <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity duration-200 rounded-md text-white select-none">
+                            <svg className="w-5 h-5 mb-0.5 text-teal-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span className="text-[9px] font-semibold tracking-wider uppercase text-teal-100">Upload</span>
+                            <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={handlePhotoChange} 
+                            />
+                        </label>
+
+                        {/* Reset / Delete Photo Option */}
+                        {profilePhoto && (
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    localStorage.removeItem('snet_profile_photo');
+                                    setProfilePhoto(null);
+                                }}
+                                className="absolute -top-1.5 -right-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full p-0.5 shadow-md transition-colors duration-150 border border-white/20 cursor-pointer"
+                                title="Remove Profile Photo"
+                            >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        )}
                     </div>
                 </div>
                 <nav className="flex-1 overflow-y-auto py-2 space-y-1.5 px-3 text-left select-none">
