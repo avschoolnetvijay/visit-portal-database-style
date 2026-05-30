@@ -1753,13 +1753,13 @@ const App = () => {
                     </button>
                     
                     {/* Official Vijay Ray Custom Signature Branding */}
-                    <div className="mt-2 flex flex-col items-center justify-center select-none group">
-                        <div className="text-[9px] uppercase tracking-[0.25em] font-black text-teal-200/50 group-hover:text-teal-200/70 transition-colors duration-200">Signature</div>
-                        <div className="relative mt-1 max-w-[140px] overflow-hidden rounded-lg flex items-center justify-center">
+                    <div className="mt-2 flex flex-col items-center justify-center select-none group py-1">
+                        <div className="text-[9px] uppercase tracking-[0.25em] font-black text-teal-200/50 group-hover:text-teal-200/70 transition-colors duration-200">Made By</div>
+                        <div className="relative mt-1.5 max-w-[160px] overflow-hidden rounded-lg flex items-center justify-center p-1.5 bg-black/5 dark:bg-white/5 border border-white/5 shadow-inner">
                             <img 
                                 src={signatureLogo} 
                                 alt="Vijay Ray" 
-                                className="h-10 w-auto object-contain mix-blend-screen opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300"
+                                className="h-14 w-auto object-contain signature-animated hover:scale-105 transition-transform duration-300"
                             />
                         </div>
                     </div>
