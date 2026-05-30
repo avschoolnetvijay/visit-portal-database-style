@@ -14,29 +14,30 @@ const mapKeyToHeader = (key) => {
         block: 'Block',
         district: 'District',
         project_name: 'Project',
-        visitor_name: 'Visitor / Coordinator',
+        visitor_name: 'CC / DEF Name',
         visit_date: 'Visit Date',
         visit_type: 'Visit Type',
         device: 'Device Type',
         serial: 'Serial Number',
         installed: 'Installed',
-        hours: 'Hours Used',
+        hours: 'EduStat Device Hours',
         status: 'Status',
         subjects: 'Subjects taught',
-        instructor_name: 'Instructor',
-        instructorStatus: 'Manpower Status',
-        uniqueVisits: 'Visits Count',
-        targetVisits: 'Target visits',
-        lastVisitDate: 'Last Visit Date',
-        combinedScore: 'Score %',
-        compositeScore: 'Performance Score',
-        jhpmsClasses: 'JHPMS Classes',
-        ictClasses: 'ICT Classes',
-        smartClasses: 'Smart Classes',
-        avgClassPerDay: 'Avg Class/Day',
-        avgHrsPerDay: 'Avg Hours/Day',
+        instructor_name: 'Instructor Name',
+        instructorstatus: 'Manpower Status',
+        uniquevisits: 'Visits Count',
+        targetvisits: 'Target visits',
+        lastvisitdate: 'Last Visit Date',
+        combinedscore: 'Score %',
+        compositescore: 'Performance Score',
+        jhpmsclasses: 'JHPMS Classes',
+        ictclasses: 'Total ICT Classes',
+        smartclasses: 'Total Smart Classes',
+        edustatsync: 'EduStat Sync Status',
+        avgclassperday: 'Avg Class/Day',
+        avghrsperday: 'Avg Hours/Day',
         gap_reason: 'Gap Cause Details',
-        formattedDates: 'Dates Logged',
+        formatteddates: 'Dates Logged',
         label: 'Reference / Group',
         value: 'Value'
     };
@@ -152,8 +153,23 @@ const DrillDownModal = ({ isOpen, onClose, title, data = [] }) => {
                                             const lowerKey = col.key.toLowerCase();
                                             
                                             // Handle special formatted displays
-                                            let cellDisplay = rawVal === null || rawVal === undefined ? '-' : String(rawVal);
-                                            if (lowerKey.includes('date') && rawVal) {
+                                            let cellDisplay = '-';
+                                            if (rawVal !== null && rawVal !== undefined) {
+                                                if (typeof rawVal === 'object') {
+                                                    if (Array.isArray(rawVal)) {
+                                                        cellDisplay = rawVal.join(', ');
+                                                    } else if (rawVal instanceof Set) {
+                                                        cellDisplay = Array.from(rawVal).join(', ');
+                                                    } else {
+                                                        cellDisplay = rawVal.label !== undefined ? String(rawVal.label) :
+                                                                      rawVal.name !== undefined ? String(rawVal.name) :
+                                                                      JSON.stringify(rawVal);
+                                                    }
+                                                } else {
+                                                    cellDisplay = String(rawVal);
+                                                }
+                                            }
+                                            if (lowerKey.includes('date') && rawVal && typeof rawVal !== 'object') {
                                                 const formatted = formatDate(rawVal);
                                                 if (formatted !== '-') cellDisplay = formatted;
                                             }

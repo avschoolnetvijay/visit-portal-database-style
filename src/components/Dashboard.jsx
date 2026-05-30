@@ -210,11 +210,21 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
     // --- 2. Pre-index JHPMS Classes by UDISE ---
     const classesMap = {};
+    const ictClassesMap = {};
+    const smartClassesMap = {};
     jhpmsLab.forEach(j => {
       const udise = String(j.udise_code || j.udise || '').trim();
       if (!udise) return;
       const cls = Number(j.no_of_classes || j.classes || 1) || 1;
       classesMap[udise] = (classesMap[udise] || 0) + cls;
+
+      const labType = String(j.labType || j.lab_type || j.lab || '').toUpperCase();
+      const subject = String(j.subject || '').toUpperCase();
+      if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+        ictClassesMap[udise] = (ictClassesMap[udise] || 0) + cls;
+      } else if (labType.includes('SMART')) {
+        smartClassesMap[udise] = (smartClassesMap[udise] || 0) + cls;
+      }
     });
 
     // --- 3. Pre-index Manpower by UDISE ---
@@ -244,7 +254,20 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
     });
     const topVisitor = Object.entries(visitorStats).sort((a, b) => b[1] - a[1])[0];
     if (topVisitor) {
-      const drill = schools.filter(s => s.visitor_name === topVisitor[0] && s.uniqueVisits > 0);
+      const drill = schools
+        .filter(s => s.visitor_name === topVisitor[0] && s.uniqueVisits > 0)
+        .map(s => {
+          const mRecord = manpowerMap[s.udise_code];
+          return {
+            udise_code: s.udise_code,
+            school_name: s.school_name,
+            visitor_name: s.visitor_name,
+            instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+            lastVisitDate: s.lastVisit || 'No Visits',
+            uniqueVisits: s.uniqueVisits,
+            status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
+          };
+        });
       list.push({
         type: 'success',
         text: `🚀 Top Performer: ${topVisitor[0]} with ${topVisitor[1]} unique visits.`,
@@ -263,11 +286,28 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       const sample = techSyncAnomalies[0];
       const hours = (hoursMap[sample.udise_code] || 0).toFixed(1);
       const classes = classesMap[sample.udise_code] || 0;
+      
+      const drill = techSyncAnomalies.map(s => {
+        const mRecord = manpowerMap[s.udise_code];
+        const hVal = hoursMap[s.udise_code] || 0;
+        return {
+          udise_code: s.udise_code,
+          school_name: s.school_name,
+          visitor_name: s.visitor_name,
+          instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          ictClasses: ictClassesMap[s.udise_code] || 0,
+          smartClasses: smartClassesMap[s.udise_code] || 0,
+          edustatSync: hVal > 0 ? 'Yes' : 'No',
+          lastVisitDate: s.lastVisit || 'No Visits',
+          status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
+        };
+      });
+
       list.push({
         type: 'warning',
         text: `🔌 Tech-Sync: ${sample.school_name} has discrepancy (${hours} hrs EduStat, ${classes} JHPMS classes).`,
         title: `Tech-Sync Discrepancy - ${sample.school_name}`,
-        data: [sample]
+        data: drill
       });
     }
 
@@ -281,11 +321,26 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
     });
     if (vacancyLeakSchools.length > 0) {
       const sample = vacancyLeakSchools[0];
+      const drill = vacancyLeakSchools.map(s => {
+        const mRecord = manpowerMap[s.udise_code];
+        return {
+          udise_code: s.udise_code,
+          school_name: s.school_name,
+          visitor_name: s.visitor_name,
+          instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          ictClasses: ictClassesMap[s.udise_code] || 0,
+          smartClasses: smartClassesMap[s.udise_code] || 0,
+          lastVisitDate: s.lastVisit || 'No Visits',
+          status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown'),
+          instructorStatus: mRecord ? (mRecord.status || mRecord.working_status || 'Active') : 'Active'
+        };
+      });
+
       list.push({
         type: 'danger',
         text: `🚨 Vacancy Leak: ${sample.school_name} has active instructor but 0 classes & visits for 15+ days.`,
         title: `Vacancy Leakage Details - ${sample.school_name}`,
-        data: [sample]
+        data: drill
       });
     }
 
@@ -298,11 +353,27 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
     });
     if (selfSustainingSchools.length > 0) {
       const sample = selfSustainingSchools[0];
+      const drill = selfSustainingSchools.map(s => {
+        const mRecord = manpowerMap[s.udise_code];
+        const hVal = hoursMap[s.udise_code] || 0;
+        return {
+          udise_code: s.udise_code,
+          school_name: s.school_name,
+          visitor_name: s.visitor_name,
+          instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          ictClasses: ictClassesMap[s.udise_code] || 0,
+          smartClasses: smartClassesMap[s.udise_code] || 0,
+          hours: hVal,
+          lastVisitDate: s.lastVisit || 'No Visits',
+          status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
+        };
+      });
+
       list.push({
         type: 'success',
         text: `🏆 Self-Sustaining: ${sample.school_name} is thriving with 0 visits but >30 classes & >20 hrs usage.`,
         title: `Self-Sustaining School - ${sample.school_name}`,
-        data: [sample]
+        data: drill
       });
     }
 
@@ -313,11 +384,26 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
     });
     if (lowYieldSchools.length > 0) {
       const sample = lowYieldSchools[0];
+      const drill = lowYieldSchools.map(s => {
+        const mRecord = manpowerMap[s.udise_code];
+        return {
+          udise_code: s.udise_code,
+          school_name: s.school_name,
+          visitor_name: s.visitor_name,
+          instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          ictClasses: ictClassesMap[s.udise_code] || 0,
+          smartClasses: smartClassesMap[s.udise_code] || 0,
+          uniqueVisits: s.uniqueVisits,
+          lastVisitDate: s.lastVisit || 'No Visits',
+          status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
+        };
+      });
+
       list.push({
         type: 'warning',
         text: `📉 Low-Yield: ${sample.school_name} visited 2+ times in 60 days with high class count (>15).`,
         title: `Low-Yield Visits - ${sample.school_name}`,
-        data: [sample]
+        data: drill
       });
     }
 
@@ -330,11 +416,27 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
     });
     if (lockedLabSchools.length > 0) {
       const sample = lockedLabSchools[0];
+      const drill = lockedLabSchools.map(s => {
+        const mRecord = manpowerMap[s.udise_code];
+        const hVal = hoursMap[s.udise_code] || 0;
+        return {
+          udise_code: s.udise_code,
+          school_name: s.school_name,
+          visitor_name: s.visitor_name,
+          instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          ictClasses: ictClassesMap[s.udise_code] || 0,
+          smartClasses: smartClassesMap[s.udise_code] || 0,
+          hours: hVal,
+          lastVisitDate: s.lastVisit || 'No Visits',
+          status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
+        };
+      });
+
       list.push({
         type: 'danger',
         text: `⚠️ Locked Lab: ${sample.school_name} has active instructor but 0 EduStat device hours.`,
         title: `Locked Lab Hardware - ${sample.school_name}`,
-        data: [sample]
+        data: drill
       });
     }
 
@@ -347,7 +449,22 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
     }, {});
     const criticalDist = Object.entries(distStats).sort((a, b) => (b[1].zero / b[1].total) - (a[1].zero / a[1].total))[0];
     if (criticalDist && criticalDist[1].zero > 0) {
-      const drill = schools.filter(s => s.district === criticalDist[0] && s.uniqueVisits === 0);
+      const drill = schools
+        .filter(s => s.district === criticalDist[0] && s.uniqueVisits === 0)
+        .map(s => {
+          const mRecord = manpowerMap[s.udise_code];
+          return {
+            udise_code: s.udise_code,
+            school_name: s.school_name,
+            visitor_name: s.visitor_name,
+            instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+            ictClasses: ictClassesMap[s.udise_code] || 0,
+            smartClasses: smartClassesMap[s.udise_code] || 0,
+            lastVisitDate: s.lastVisit || 'No Visits',
+            status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
+          };
+        });
+
       list.push({
         type: 'danger',
         text: `⚠️ Action Needed: ${criticalDist[0]} has ${criticalDist[1].zero} unvisited schools.`,
@@ -378,11 +495,25 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       return (classesMap[s.udise_code] || 0) === 0;
     });
     if (vacantOver30DaysSchools.length > 0) {
+      const drill = vacantOver30DaysSchools.map(s => {
+        const mRecord = manpowerMap[s.udise_code];
+        return {
+          udise_code: s.udise_code,
+          school_name: s.school_name,
+          visitor_name: s.visitor_name,
+          instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          ictClasses: ictClassesMap[s.udise_code] || 0,
+          smartClasses: smartClassesMap[s.udise_code] || 0,
+          lastVisitDate: s.lastVisit || 'No Visits',
+          status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
+        };
+      });
+
       list.push({
         type: 'danger',
         text: `👤 Manpower Vacant: ${vacantOver30DaysSchools.length} schools are vacant for more than 30 days.`,
         title: 'Prolonged Manpower Vacancies (30+ Days)',
-        data: vacantOver30DaysSchools
+        data: drill
       });
     }
 
