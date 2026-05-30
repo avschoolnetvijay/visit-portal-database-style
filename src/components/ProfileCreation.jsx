@@ -2,6 +2,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Icons } from './Icons';
 import { supabase, hashPassword } from '../supabaseClient';
 
+const EyeIcon = ({ className }) => (
+    <svg viewBox="0 0 24 24" className={className || "w-4 h-4"} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+    </svg>
+);
+
+const EyeOffIcon = ({ className }) => (
+    <svg viewBox="0 0 24 24" className={className || "w-4 h-4"} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+);
+
 const ProfileCreation = ({ userRole, schools = [] }) => {
     // Subsection toggle: 'create' | 'list'
     const [activeSubTab, setActiveSubTab] = useState('create');
@@ -47,6 +61,11 @@ const ProfileCreation = ({ userRole, schools = [] }) => {
     const [modalError, setModalError] = useState('');
     const [modalSuccess, setModalSuccess] = useState('');
 
+    // Show/Hide password toggle and password inspector states
+    const [passwordInspectorUser, setPasswordInspectorUser] = useState(null);
+    const [showCreatePassword, setShowCreatePassword] = useState(false);
+    const [showModalPassword, setShowModalPassword] = useState(false);
+
     // Load dynamic unique districts from schools master list
     const uniqueDistricts = useMemo(() => {
         if (!schools || schools.length === 0) return [];
@@ -78,7 +97,8 @@ const ProfileCreation = ({ userRole, schools = [] }) => {
             mobile: u.mobile || parsedMetadata.mobile || '',
             assigned_district: u.assigned_district || parsedMetadata.assigned_district || '',
             designation: u.designation || parsedMetadata.designation || '',
-            raw_role: u.role
+            raw_role: u.role,
+            raw_password_hash: u.password_hash
         };
     };
 
@@ -652,27 +672,38 @@ const ProfileCreation = ({ userRole, schools = [] }) => {
                                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
                                             Password
                                         </label>
-                                        <input
-                                            type="password"
-                                            placeholder="••••••••"
-                                            value={password}
-                                            onChange={e => setPassword(e.target.value)}
-                                            required
-                                            className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl px-4 py-2.5 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 dark:focus:border-teal-500 transition shadow-inner"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type={showCreatePassword ? "text" : "password"}
+                                                placeholder="••••••••"
+                                                value={password}
+                                                onChange={e => setPassword(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl pl-4 pr-10 py-2.5 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 dark:focus:border-teal-500 transition shadow-inner"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowCreatePassword(!showCreatePassword)}
+                                                className="absolute right-3 top-3 text-gray-400 hover:text-slate-600 dark:hover:text-gray-200 focus:outline-none"
+                                            >
+                                                {showCreatePassword ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                                            </button>
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
                                             Confirm Password
                                         </label>
-                                        <input
-                                            type="password"
-                                            placeholder="••••••••"
-                                            value={confirmPassword}
-                                            onChange={e => setConfirmPassword(e.target.value)}
-                                            required
-                                            className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl px-4 py-2.5 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 dark:focus:border-teal-500 transition shadow-inner"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type={showCreatePassword ? "text" : "password"}
+                                                placeholder="••••••••"
+                                                value={confirmPassword}
+                                                onChange={e => setConfirmPassword(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl pl-4 pr-10 py-2.5 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 dark:focus:border-teal-500 transition shadow-inner"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -835,6 +866,13 @@ const ProfileCreation = ({ userRole, schools = [] }) => {
                                                         title="Edit User Profile"
                                                     >
                                                         <Icons.Profile className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setPasswordInspectorUser(u)}
+                                                        className="p-1.5 text-amber-500 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition"
+                                                        title="Inspect Secure Password Hash"
+                                                    >
+                                                        <EyeIcon className="w-4 h-4" />
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteUser(u.username)}
@@ -1013,25 +1051,36 @@ const ProfileCreation = ({ userRole, schools = [] }) => {
                                         <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-0.5">
                                             New Password
                                         </label>
-                                        <input
-                                            type="password"
-                                            value={modalNewPassword}
-                                            onChange={e => setModalNewPassword(e.target.value)}
-                                            placeholder="••••••••"
-                                            className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-lg px-3 py-2 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type={showModalPassword ? "text" : "password"}
+                                                value={modalNewPassword}
+                                                onChange={e => setModalNewPassword(e.target.value)}
+                                                placeholder="••••••••"
+                                                className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-lg pl-3 pr-9 py-2 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowModalPassword(!showModalPassword)}
+                                                className="absolute right-2.5 top-2 text-gray-400 hover:text-slate-600 dark:hover:text-gray-200 focus:outline-none"
+                                            >
+                                                {showModalPassword ? <EyeOffIcon className="w-3.5 h-3.5" /> : <EyeIcon className="w-3.5 h-3.5" />}
+                                            </button>
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-0.5">
                                             Confirm Password
                                         </label>
-                                        <input
-                                            type="password"
-                                            value={modalConfirmNewPassword}
-                                            onChange={e => setModalConfirmNewPassword(e.target.value)}
-                                            placeholder="••••••••"
-                                            className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-lg px-3 py-2 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type={showModalPassword ? "text" : "password"}
+                                                value={modalConfirmNewPassword}
+                                                onChange={e => setModalConfirmNewPassword(e.target.value)}
+                                                placeholder="••••••••"
+                                                className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-lg pl-3 pr-9 py-2 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1064,6 +1113,65 @@ const ProfileCreation = ({ userRole, schools = [] }) => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Password Security Inspector Modal */}
+            {passwordInspectorUser && (
+                <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 dark:bg-slate-950/85 backdrop-blur-sm flex justify-center items-center p-4">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scale-up text-left">
+                        <div className="bg-amber-500 py-3.5 px-6 border-b border-amber-600 flex justify-between items-center text-white">
+                            <div className="flex items-center gap-2">
+                                <EyeIcon className="w-4 h-4 text-white" />
+                                <h3 className="font-extrabold text-xs uppercase tracking-wider">
+                                    Password Security Inspector
+                                </h3>
+                            </div>
+                            <button
+                                onClick={() => setPasswordInspectorUser(null)}
+                                className="p-1 hover:bg-amber-600 rounded-full transition"
+                            >
+                                <Icons.Close className="w-4 h-4 text-white" />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-4 text-left">
+                            <div className="space-y-1">
+                                <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">User ID / Username</div>
+                                <div className="text-xs font-bold text-slate-800 dark:text-white font-mono">{passwordInspectorUser.username}</div>
+                            </div>
+                            
+                            <div className="space-y-1">
+                                <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Name Of User</div>
+                                <div className="text-xs font-bold text-slate-800 dark:text-white">{passwordInspectorUser.full_name || 'Portal Member'}</div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+                                <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Cryptographic Hash (SHA-256)</div>
+                                <div className="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg text-slate-700 dark:text-slate-200 text-xs font-mono break-all border border-gray-200 dark:border-slate-700/60 shadow-inner">
+                                    {passwordInspectorUser.raw_password_hash || 'None'}
+                                </div>
+                            </div>
+
+                            <div className="p-3.5 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900/30 rounded-xl text-[11px] text-yellow-700 dark:text-yellow-400 leading-relaxed">
+                                <strong className="block mb-1">🛡️ Core Security Notice:</strong>
+                                Passwords in this portal are cryptographically hashed using <strong>one-way SHA-256</strong> client-side before submission. Plain-text passwords are never sent or stored in the database.
+                                <span className="block mt-2 font-medium">
+                                    To assign a new password, click the blue profile icon in the table to open the inspector, enter a new password in the reset fields, and click Save.
+                                </span>
+                            </div>
+
+                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setPasswordInspectorUser(null)}
+                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white py-2 text-xs font-bold rounded-lg transition text-center"
+                                >
+                                    Close Inspector
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
