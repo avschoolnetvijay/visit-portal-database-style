@@ -266,8 +266,8 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       list.push({
         type: 'warning',
         text: `🔌 Tech-Sync: ${sample.school_name} has discrepancy (${hours} hrs EduStat, ${classes} JHPMS classes).`,
-        title: 'Tech-Sync Discrepancy Schools',
-        data: techSyncAnomalies
+        title: `Tech-Sync Discrepancy - ${sample.school_name}`,
+        data: [sample]
       });
     }
 
@@ -284,8 +284,8 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       list.push({
         type: 'danger',
         text: `🚨 Vacancy Leak: ${sample.school_name} has active instructor but 0 classes & visits for 15+ days.`,
-        title: 'High-Cost Vacancy Leakage Schools',
-        data: vacancyLeakSchools
+        title: `Vacancy Leakage Details - ${sample.school_name}`,
+        data: [sample]
       });
     }
 
@@ -301,8 +301,8 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       list.push({
         type: 'success',
         text: `🏆 Self-Sustaining: ${sample.school_name} is thriving with 0 visits but >30 classes & >20 hrs usage.`,
-        title: 'Self-Sustaining Star Schools',
-        data: selfSustainingSchools
+        title: `Self-Sustaining School - ${sample.school_name}`,
+        data: [sample]
       });
     }
 
@@ -316,8 +316,8 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       list.push({
         type: 'warning',
         text: `📉 Low-Yield: ${sample.school_name} visited 2+ times in 60 days with high class count (>15).`,
-        title: 'Low-Yield Field Visits',
-        data: lowYieldSchools
+        title: `Low-Yield Visits - ${sample.school_name}`,
+        data: [sample]
       });
     }
 
@@ -333,8 +333,8 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       list.push({
         type: 'danger',
         text: `⚠️ Locked Lab: ${sample.school_name} has active instructor but 0 EduStat device hours.`,
-        title: 'Locked Lab Hardware Alerts',
-        data: lockedLabSchools
+        title: `Locked Lab Hardware - ${sample.school_name}`,
+        data: [sample]
       });
     }
 
