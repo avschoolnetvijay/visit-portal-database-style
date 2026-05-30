@@ -424,9 +424,9 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
           icon={Icons.SchoolSolid}
           onDrillDown={onDrillDown}
           items={[
-            { label: "Allocated", value: schools.length, drillData: schools },
-            { label: "Active", value: schools.length - statusBuckets.Critical.length, color: "text-green-600", drillData: schools.filter(s => s.uniqueVisits > 0) },
-            { label: "Pending", value: pendingSchoolsCount, color: "text-red-600", drillData: schools.filter(s => s.uniqueVisits < s.targetVisits) }
+            { label: "Assigned School", value: schools.length, drillData: schools },
+            { label: "Touched (≥ 1 Visit)", value: schools.length - statusBuckets.Critical.length, color: "text-green-600", drillData: schools.filter(s => s.uniqueVisits > 0) },
+            { label: "Target Incomplete", value: pendingSchoolsCount, color: "text-red-600", drillData: schools.filter(s => s.uniqueVisits < s.targetVisits) }
           ]}
         />
         <PortalCard
