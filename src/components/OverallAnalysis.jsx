@@ -128,18 +128,34 @@ const MiniBar = ({ label, value, weight, color, isReporting = true }) => (
 );
 
 /* ───── Safe Recharts Custom Tooltip ───── */
-const CustomTooltip = ({ active, payload }) => {
-  if (!active || !payload?.length) return null;
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null;
   const d = payload[0].payload;
+  const title = label || d?.fullName || d?.name || "";
   return (
-    <div className="pointer-events-none z-50 bg-white dark:bg-slate-900 p-3 rounded-lg shadow-xl border border-slate-200 dark:border-slate-800 text-xs font-sans">
-      <p className="font-extrabold text-slate-800 dark:text-slate-100 mb-1">{d.fullName || d.name}</p>
-      {payload.map((p, idx) => (
-        <p key={idx} className="font-bold" style={{ color: p.color }}>
-          {p.name}: {typeof p.value === 'number' ? p.value.toFixed(1) : p.value}
-          {p.name.includes('%') || p.name.includes('Score') ? '%' : ''}
+    <div className="bg-[#111827] text-white p-3 rounded-xl shadow-2xl border border-[#374151] text-xs font-sans min-w-[180px] pointer-events-none select-none z-50">
+      {title && (
+        <p className="font-extrabold text-[#f3f4f6] text-sm mb-2 border-b border-[#374151] pb-1.5">
+          {title}
         </p>
-      ))}
+      )}
+      <div className="space-y-1.5">
+        {payload.map((p, idx) => {
+          const bulletColor = p.color || '#0d9488';
+          return (
+            <div key={idx} className="flex items-center justify-between gap-4 font-bold py-0.5">
+              <div className="flex items-center gap-1.5 text-[#d1d5db]">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: bulletColor }} />
+                <span>{p.name}:</span>
+              </div>
+              <span className="font-black text-white">
+                {typeof p.value === 'number' ? (Number.isInteger(p.value) ? p.value : p.value.toFixed(1)) : p.value}
+                {p.name.includes('%') || p.name.includes('Score') || p.name.includes('Ratio') ? '%' : ''}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -1965,7 +1981,7 @@ const OverallAnalysis = ({
                               <Cell key={idx} fill={entry.color} />
                             ))}
                           </Pie>
-                          <Tooltip />
+                          <Tooltip content={<CustomTooltip />} />
                           <Legend wrapperStyle={{ fontSize: 9 }} />
                         </PieChart>
                       </ResponsiveContainer>
@@ -2037,7 +2053,7 @@ const OverallAnalysis = ({
                               <Cell key={idx} fill={entry.color} />
                             ))}
                           </Pie>
-                          <Tooltip />
+                          <Tooltip content={<CustomTooltip />} />
                           <Legend wrapperStyle={{ fontSize: 9 }} />
                         </PieChart>
                       </ResponsiveContainer>

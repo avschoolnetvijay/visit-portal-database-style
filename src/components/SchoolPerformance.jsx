@@ -10,6 +10,38 @@ const getVal = (row, keyMatch) => {
     return key ? row[key] : null;
 };
 
+const PremiumChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null;
+  const title = label || payload[0]?.payload?.name || payload[0]?.payload?.fullName || "";
+  return (
+    <div className="bg-[#111827] text-white p-3 rounded-xl shadow-2xl border border-[#374151] text-xs font-sans min-w-[180px] pointer-events-none select-none z-50">
+      {title && (
+        <p className="font-extrabold text-[#f3f4f6] text-sm mb-2 border-b border-[#374151] pb-1.5">
+          {title}
+        </p>
+      )}
+      <div className="space-y-1.5">
+        {payload.map((p, idx) => {
+          const bulletColor = p.color || '#0d9488';
+          const isScore = p.name.toLowerCase().includes('score') || p.name.includes('%');
+          return (
+            <div key={idx} className="flex items-center justify-between gap-4 font-bold py-0.5">
+              <div className="flex items-center gap-1.5 text-[#d1d5db]">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: bulletColor }} />
+                <span>{p.name}:</span>
+              </div>
+              <span className="font-black text-white">
+                {typeof p.value === 'number' ? (Number.isInteger(p.value) ? p.value : p.value.toFixed(1)) : p.value}
+                {isScore ? '%' : ''}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const SchoolPerformance = ({
     schools = [],
     jhpmsLab = [],
@@ -808,10 +840,7 @@ const SchoolPerformance = ({
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                                     <XAxis type="number" domain={[0, 100]} stroke="#94a3b8" fontSize={9} />
                                     <YAxis type="category" dataKey="name" stroke="#94a3b8" fontSize={9} width={80} />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '11px', fontWeight: 'bold' }}
-                                        formatter={(val, name, props) => [`${val}%`, 'Score']}
-                                    />
+                                    <Tooltip content={<PremiumChartTooltip />} />
                                     <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={12}>
                                         {barChartData.map((entry, index) => {
                                             let fill = '#0d9488'; // Teal
@@ -849,7 +878,7 @@ const SchoolPerformance = ({
                                                     <Cell key={`cell-${index}`} fill={entry.color} />
                                                 ))}
                                             </Pie>
-                                            <Tooltip formatter={(value) => [value, 'Classes']} />
+                                            <Tooltip content={<PremiumChartTooltip />} />
                                         </PieChart>
                                     </ResponsiveContainer>
                                     {/* Donut Center Count */}

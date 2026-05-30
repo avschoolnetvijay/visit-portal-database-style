@@ -2,6 +2,36 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Cell } from 'recharts';
 import { Icons } from './Icons';
 
+const PremiumChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null;
+  const title = label || payload[0]?.payload?.name || "";
+  return (
+    <div className="bg-[#111827] text-white p-3 rounded-xl shadow-2xl border border-[#374151] text-xs font-sans min-w-[180px] pointer-events-none select-none z-50">
+      {title && (
+        <p className="font-extrabold text-[#f3f4f6] text-sm mb-2 border-b border-[#374151] pb-1.5">
+          {title}
+        </p>
+      )}
+      <div className="space-y-1.5">
+        {payload.map((p, idx) => {
+          const bulletColor = p.color || '#0d9488';
+          return (
+            <div key={idx} className="flex items-center justify-between gap-4 font-bold py-0.5">
+              <div className="flex items-center gap-1.5 text-[#d1d5db]">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: bulletColor }} />
+                <span>{p.name}:</span>
+              </div>
+              <span className="font-black text-white">
+                {typeof p.value === 'number' ? p.value.toFixed(1) + '%' : p.value}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const PerformanceView = ({ data }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -77,7 +107,7 @@ const PerformanceView = ({ data }) => {
                                 width={100}
                                 interval={0}
                             />
-                            <Tooltip cursor={{ fill: '#f0f9ff' }} contentStyle={{ borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '11px', zIndex: 100 }} />
+                            <Tooltip cursor={{ fill: 'rgba(13, 148, 136, 0.08)' }} content={<PremiumChartTooltip />} />
                             <Bar dataKey="performancePct" name="Completion %" radius={[0, 4, 4, 0]}>
                                 {visitors.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.performancePct >= 100 ? '#22c55e' : entry.performancePct >= 50 ? '#eab308' : '#ef4444'} />

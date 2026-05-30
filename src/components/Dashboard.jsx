@@ -6,6 +6,36 @@ import {
 import { Icons } from './Icons';
 import { formatDate, calculateEngagement, calculateStatus } from '../utils';
 
+const PremiumChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null;
+  const title = label || payload[0]?.payload?.name || "";
+  return (
+    <div className="bg-[#111827] text-white p-3 rounded-xl shadow-2xl border border-[#374151] text-xs font-sans min-w-[180px] pointer-events-none select-none z-50">
+      {title && (
+        <p className="font-extrabold text-[#f3f4f6] text-sm mb-2 border-b border-[#374151] pb-1.5">
+          {title}
+        </p>
+      )}
+      <div className="space-y-1.5">
+        {payload.map((p, idx) => {
+          const bulletColor = p.color || '#0d9488';
+          return (
+            <div key={idx} className="flex items-center justify-between gap-4 font-bold py-0.5">
+              <div className="flex items-center gap-1.5 text-[#d1d5db]">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: bulletColor }} />
+                <span>{p.name}:</span>
+              </div>
+              <span className="font-black text-white">
+                {typeof p.value === 'number' ? (Number.isInteger(p.value) ? p.value : p.value.toFixed(1)) : p.value}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const StatusCards = ({ buckets, onDrillDown }) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
@@ -447,7 +477,7 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
                     minTickGap={30}
                   />
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', fontSize: '11px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                  <Tooltip content={<PremiumChartTooltip />} />
                   <Line name="Target Goal" type="monotone" dataKey="Target" stroke="#cbd5e1" strokeDasharray="4 4" dot={false} strokeWidth={2} activeDot={false} />
                   <Line name="Actual Visits" type="monotone" dataKey="Actual" stroke="#0d9488" strokeWidth={3} dot={{ r: 3, fill: '#0d9488', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={false} />
                 </LineChart>
@@ -509,7 +539,7 @@ const Dashboard = ({ data, onDrillDown, startDate, endDate }) => {
                   </defs>
                   <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} minTickGap={30} />
                   <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', fontSize: '11px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                  <Tooltip content={<PremiumChartTooltip />} />
                   <Area type="monotone" dataKey="Smart" stroke="#0d9488" fillOpacity={1} fill="url(#colorSmart)" strokeWidth={2} />
                   <Area type="monotone" dataKey="ICT" stroke="#0891b2" fillOpacity={1} fill="url(#colorICT)" strokeWidth={2} />
                 </AreaChart>

@@ -3,6 +3,37 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import { Icons } from './Icons';
 import { formatDate } from '../utils';
 
+const PremiumChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null;
+  const title = label || payload[0]?.payload?.date || payload[0]?.payload?.name || "";
+  return (
+    <div className="bg-[#111827] text-white p-3 rounded-xl shadow-2xl border border-[#374151] text-xs font-sans min-w-[180px] pointer-events-none select-none z-50">
+      {title && (
+        <p className="font-extrabold text-[#f3f4f6] text-sm mb-2 border-b border-[#374151] pb-1.5">
+          {title}
+        </p>
+      )}
+      <div className="space-y-1.5">
+        {payload.map((p, idx) => {
+          const bulletColor = p.color || '#0d9488';
+          const name = p.name === 'Total' ? 'Total (Unique)' : p.name;
+          return (
+            <div key={idx} className="flex items-center justify-between gap-4 font-bold py-0.5">
+              <div className="flex items-center gap-1.5 text-[#d1d5db]">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: bulletColor }} />
+                <span>{name}:</span>
+              </div>
+              <span className="font-black text-white">
+                {typeof p.value === 'number' ? (Number.isInteger(p.value) ? p.value : p.value.toFixed(1)) : p.value}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
   const [searchType, setSearchType] = useState('school'); // 'school' or 'visitor'
   const [searchTerm, setSearchTerm] = useState("");
@@ -582,10 +613,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown }) => {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={visitorData.chartData} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
                       <XAxis dataKey="date" hide />
-                      <Tooltip
-                        contentStyle={{ fontSize: '10px' }}
-                        formatter={(value, name) => [value, name === 'Total' ? 'Total (Unique)' : name]}
-                      />
+                      <Tooltip content={<PremiumChartTooltip />} />
                       <Bar dataKey="Total" fill="#8b5cf6" radius={[2, 2, 0, 0]} stackId="a" />
                       <Bar dataKey="Smart" fill="#14b8a6" radius={[2, 2, 0, 0]} stackId="b" />
                       <Bar dataKey="ICT" fill="#3b82f6" radius={[2, 2, 0, 0]} stackId="b" />
