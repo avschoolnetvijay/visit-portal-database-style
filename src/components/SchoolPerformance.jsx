@@ -46,6 +46,7 @@ const SchoolPerformance = ({
     schools = [],
     jhpmsLab = [],
     edustat = [],
+    edustatMaster = [],
     manpower = [],
     startDate,
     endDate,
@@ -333,11 +334,15 @@ const SchoolPerformance = ({
 
 
             // Group Edustat data
+            const filteredEdustat = (edustat || []).filter(e => {
+                return e.date && e.date >= startDate && e.date <= endDate;
+            });
+
             const edustatGroups = {};
-            (edustat || []).forEach(e => {
+            filteredEdustat.forEach(e => {
                 const udise = String(e.udise || '').trim();
                 if (!validUdises.has(udise)) return;
-                const hours = parseHours(e['total used hours']);
+                const hours = e.hours !== undefined ? Number(e.hours) : parseHours(e['total used hours'] || getVal(e, 'hours') || 0);
 
                 if (!edustatGroups[udise]) {
                     edustatGroups[udise] = 0;
@@ -479,7 +484,7 @@ const SchoolPerformance = ({
         }
 
         return { results: [], type: '', totalIct: 0, totalSmart: 0 };
-    }, [performanceType, dataSource, filteredJhpms, edustat, workingDays, schoolLookup, manpowerLookup, validUdises]);
+    }, [performanceType, dataSource, filteredJhpms, edustat, edustatMaster, startDate, endDate, workingDays, schoolLookup, manpowerLookup, validUdises]);
 
     // 4. Excel Export Handler
     const handleExport = useMemo(() => {

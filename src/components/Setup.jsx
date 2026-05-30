@@ -135,8 +135,17 @@ const Setup = ({
                             <div className="font-bold text-amber-700 mb-2 text-xs uppercase">3. JHPMS Lab Data</div>
                             <input type="file" onChange={(e) => onUpload(e, 'jhpms_lab')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
                         </div>
-                        <div className="border border-dashed border-gray-300 rounded p-6 hover:border-purple-500 bg-gray-50 transition relative">
-                            <div className="font-bold text-purple-700 mb-2 text-xs uppercase">4. Edustat Data</div>
+                        {userRole === 'admin' && (
+                            <div className="border border-dashed border-gray-300 rounded p-6 hover:border-purple-600 bg-gray-50 transition relative">
+                                <div className="font-bold text-purple-800 mb-2 text-xs uppercase flex items-center justify-between">
+                                    <span>4a. Edustat Master Inventory</span>
+                                    <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-black">ADMIN-ONLY</span>
+                                </div>
+                                <input type="file" onChange={(e) => onUpload(e, 'edustat_master')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
+                            </div>
+                        )}
+                        <div className="border border-dashed border-gray-300 rounded p-6 hover:border-violet-500 bg-gray-50 transition relative">
+                            <div className="font-bold text-violet-700 mb-2 text-xs uppercase">4b. Edustat Daily Logs</div>
                             <input type="file" onChange={(e) => onUpload(e, 'edustat')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
                         </div>
                         <div className="border border-dashed border-gray-300 rounded p-6 hover:border-indigo-500 bg-gray-50 transition relative">
@@ -146,15 +155,17 @@ const Setup = ({
                     </div>
                 </div>
                 <div className="bg-gray-50 p-3 border-t border-gray-200 flex justify-between items-center">
-                    <div className="text-xs text-gray-600 font-medium">
+                    <div className="text-xs text-gray-600 font-medium flex flex-wrap gap-x-2 gap-y-1">
                         <span className={status.schools ? "text-green-600" : "text-red-500"}>● Schools: {status.schools}</span>
-                        <span className="mx-2">|</span>
+                        <span className="text-gray-300">|</span>
                         <span className={status.visits ? "text-green-600" : "text-red-500"}>● Visits: {status.visits}</span>
-                        <span className="mx-2">|</span>
+                        <span className="text-gray-300">|</span>
                         <span className={status.jhpms_lab ? "text-green-600" : "text-gray-400"}>● Lab Uses: {status.jhpms_lab || 0}</span>
-                        <span className="mx-2">|</span>
-                        <span className={status.edustat ? "text-green-600" : "text-gray-400"}>● Edustat: {status.edustat || 0}</span>
-                        <span className="mx-2">|</span>
+                        <span className="text-gray-300">|</span>
+                        <span className={status.edustat_master ? "text-green-600" : "text-gray-400"}>● Edustat Master: {status.edustat_master || 0}</span>
+                        <span className="text-gray-300">|</span>
+                        <span className={status.edustat ? "text-green-600" : "text-gray-400"}>● Daily Logs: {status.edustat || 0}</span>
+                        <span className="text-gray-300">|</span>
                         <span className={status.manpower ? "text-green-600" : "text-gray-400"}>● Manpower: {status.manpower || 0}</span>
                     </div>
                     <button onClick={onReset} className="text-red-600 text-xs font-bold hover:bg-red-50 px-3 py-1 rounded border border-red-200 transition">CLEAR CLOUD DATA</button>

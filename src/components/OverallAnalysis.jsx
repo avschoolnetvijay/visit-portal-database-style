@@ -214,6 +214,7 @@ const OverallAnalysis = ({
   visits = [],
   jhpmsLab = [],
   edustat = [],
+  edustatMaster = [],
   manpower = [],
   startDate,
   endDate,
@@ -360,13 +361,35 @@ const OverallAnalysis = ({
     });
   }, [visits, compareMode, prevDateRange]);
 
-  // Mock EduStat map for previous period to enable realistic comparisons
+  // 4b. Current Period Filtered Edustat Logs
+  const currentEdustat = useMemo(() => {
+    let list = edustat || [];
+    if (parsedStartDate && parsedEndDate) {
+      list = list.filter(row => {
+        const d = parseDateRobust(row.date);
+        return d && d >= parsedStartDate && d <= parsedEndDate;
+      });
+    }
+    return list;
+  }, [edustat, parsedStartDate, parsedEndDate]);
+
+  // Mock / Filtered EduStat map for previous period to enable realistic comparisons
   const prevEdustat = useMemo(() => {
-    return edustat.map(e => ({
-      ...e,
-      'total used hours': parseHours(e['total used hours'] || getVal(e, 'hours') || 0) * 0.92
-    }));
-  }, [edustat]);
+    let list = edustat || [];
+    const { start, end } = prevDateRange;
+    if (start && end) {
+      list = list.filter(row => {
+        const d = parseDateRobust(row.date);
+        return d && d >= start && d <= end;
+      });
+    } else {
+      list = list.map(e => ({
+        ...e,
+        hours: (e.hours !== undefined ? Number(e.hours) : parseHours(e['total used hours'] || getVal(e, 'hours') || 0)) * 0.92
+      }));
+    }
+    return list;
+  }, [edustat, prevDateRange]);
 
   // 5. Normalised Maps Compilations (Current Period)
   const jhpmsMap = useMemo(() => {
@@ -403,14 +426,51 @@ const OverallAnalysis = ({
 
   const edustatMap = useMemo(() => {
     const map = {};
-    (edustat || []).forEach((e) => {
-      const udise = cleanUdise(e.udise || getVal(e, 'udise'));
+    (currentEdustat || []).forEach((e) => {
+      const udise = cleanUdise(e.udise);
       if (!validUdises.has(udise)) return;
-      const hours = parseHours(e['total used hours'] || getVal(e, 'total used hours') || getVal(e, 'hours') || getVal(e, 'used') || 0);
+      const hours = Number(e.hours) || 0;
       map[udise] = (map[udise] || 0) + hours;
     });
     return map;
-  }, [edustat, validUdises]);
+  }, [currentEdustat, validUdises]);
+
+  // 5b. Cross-reference Edustat Master Baseline & Daily Sync logs to determine device health
+  const edustatSyncMap = useMemo(() => {
+    const map = {};
+    
+    // Build baseline from Master List
+    (edustatMaster || []).forEach((m) => {
+      const udise = cleanUdise(m.udise);
+      if (!validUdises.has(udise)) return;
+      if (!map[udise]) {
+        map[udise] = { installed: 0, syncing: 0, serials: new Set() };
+      }
+      if (String(m.installed).toLowerCase() === 'yes') {
+        map[udise].installed++;
+        map[udise].serials.add(String(m.serial).trim());
+      }
+    });
+    
+    // Trace active/syncing serial numbers in filtered date range
+    const activeSerials = new Set();
+    (currentEdustat || []).forEach((e) => {
+      if (e.serial) {
+        activeSerials.add(String(e.serial).trim());
+      }
+    });
+    
+    // Compute cross-referenced syncing stats
+    Object.keys(map).forEach(udise => {
+      map[udise].serials.forEach(serial => {
+        if (activeSerials.has(serial)) {
+          map[udise].syncing++;
+        }
+      });
+    });
+    
+    return map;
+  }, [edustatMaster, currentEdustat, validUdises]);
 
   const manpowerMap = useMemo(() => {
     const map = {};
@@ -460,6 +520,13 @@ const OverallAnalysis = ({
       const smartClasses = jhpmsSplitMap[udise]?.smart || 0;
       const misClasses = jhpmsSplitMap[udise]?.mis || 0;
       const eduHours = edustatMap[udise] || 0;
+      
+      const syncInfo = edustatSyncMap[udise] || { installed: 0, syncing: 0 };
+      const installedDevices = syncInfo.installed;
+      const syncingDevices = syncInfo.syncing;
+      const offlineDevices = Math.max(0, installedDevices - syncingDevices);
+      const syncRate = installedDevices > 0 ? (syncingDevices / installedDevices) * 100 : 0;
+
       const mp = manpowerMap[udise] || { status: 'Vacant', name: '-' };
       const vis = visitMap[udise] || { count: 0, lastDate: null };
 
@@ -484,7 +551,7 @@ const OverallAnalysis = ({
       let rootCause = 'Normal';
       let recommendation = 'Continue monitoring';
 
-      if (isJhpmsActive && isEdustatActive && jhpmsClasses > 0 && eduHours === 0) {
+      if (isJhpmsActive && isEdustatActive && jhpmsClasses > 0 && eduHours === 0 && installedDevices > 0) {
         rootCause = 'Power Failure';
         recommendation = 'Investigate device/power issues at school';
       } else if (isJhpmsActive && isEdustatActive && jhpmsClasses === 0 && eduHours === 0 && (mp.status === 'Vacant' || mp.status === 'Pending')) {
@@ -499,6 +566,9 @@ const OverallAnalysis = ({
       } else if (isVisitActive && fieldVisits > 3 && compositeScore < 30) {
         rootCause = 'Visitor Ineffectiveness';
         recommendation = 'Review visit quality & follow-up mechanism';
+      } else if (isEdustatActive && installedDevices > 0 && syncingDevices === 0) {
+        rootCause = 'Not Syncing';
+        recommendation = 'Check device internet & power status';
       } else if (isJhpmsActive && isEdustatActive && jhpmsClasses === 0 && eduHours === 0) {
         rootCause = 'Non-Functional Lab';
         recommendation = 'Dispatch technical team for diagnosis';
@@ -541,6 +611,10 @@ const OverallAnalysis = ({
         smartClasses,
         misClasses,
         eduHours,
+        installedDevices,
+        syncingDevices,
+        offlineDevices,
+        syncRate,
         jhpmsScore,
         edustatScore,
         visitScore,
@@ -552,7 +626,7 @@ const OverallAnalysis = ({
         avgClassPerDay
       };
     });
-  }, [fSchools, jhpmsMap, jhpmsSplitMap, edustatMap, manpowerMap, visitMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, weights, validWdays, ccNameMapping, durationMonths]);
+  }, [fSchools, jhpmsMap, jhpmsSplitMap, edustatMap, edustatSyncMap, manpowerMap, visitMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, weights, validWdays, ccNameMapping, durationMonths]);
 
   // 7. Enriched dataset with Prop-Filters applied (Exceptions & Performance Bands)
   const finalEnriched = useMemo(() => {
@@ -663,7 +737,7 @@ const OverallAnalysis = ({
     edustatList.forEach(e => {
       const udise = String(e.udise || getVal(e, 'udise') || '').trim();
       if (validUdisesLocal.has(udise)) {
-        const hours = parseHours(e['total used hours'] || getVal(e, 'total used hours') || getVal(e, 'hours') || getVal(e, 'used') || 0);
+        const hours = e.hours !== undefined ? Number(e.hours) : parseHours(e['total used hours'] || getVal(e, 'total used hours') || getVal(e, 'hours') || getVal(e, 'used') || 0);
         edustatLocalMap[udise] = (edustatLocalMap[udise] || 0) + hours;
       }
     });
@@ -733,7 +807,7 @@ const OverallAnalysis = ({
     edustatList.forEach(e => {
       const udise = cleanUdise(e.udise || getVal(e, 'udise'));
       if (validUdisesLocal.has(udise)) {
-        const hours = parseHours(e['total used hours'] || getVal(e, 'hours') || 0);
+        const hours = e.hours !== undefined ? Number(e.hours) : parseHours(e['total used hours'] || getVal(e, 'hours') || 0);
         edustatLocalMap[udise] = (edustatLocalMap[udise] || 0) + hours;
       }
     });
@@ -773,7 +847,7 @@ const OverallAnalysis = ({
     const deviceHours = edustatList.reduce((acc, curr) => {
       const udise = cleanUdise(curr.udise || getVal(curr, 'udise'));
       if (validUdisesLocal.has(udise)) {
-        return acc + parseHours(curr['total used hours'] || getVal(curr, 'hours') || 0);
+        return acc + (curr.hours !== undefined ? Number(curr.hours) : parseHours(curr['total used hours'] || getVal(curr, 'hours') || 0));
       }
       return acc;
     }, 0);
@@ -1051,7 +1125,7 @@ const OverallAnalysis = ({
       { name: 'Visit Reports', compliance: visitComp, sync: visitLast, mismatches: mismatches, stale: fSchools.filter(s => !(visitMap[s.udise_code]?.count > 0)).length, badge: getBadge(visitComp, isVisitActive, 'Visits') },
       { name: 'Manpower Status', compliance: manpowerComp, sync: 'Static Roster', mismatches: mismatches, stale: fSchools.filter(s => manpowerMap[s.udise_code]?.status !== 'Active').length, badge: getBadge(manpowerComp, isManpowerActive, 'Manpower') }
     ];
-  }, [fSchools, jhpmsLab, edustat, visits, manpower, jhpmsMap, edustatMap, visitMap, manpowerMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, ccNameMapping]);
+  }, [fSchools, jhpmsLab, currentEdustat, visits, manpower, jhpmsMap, edustatMap, visitMap, manpowerMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, ccNameMapping]);
 
   // 10. Pareto Bottlenecks Compilation
   const paretoData = useMemo(() => {
@@ -1233,24 +1307,36 @@ const OverallAnalysis = ({
 
   const edustatCpuVsMiniPc = useMemo(() => {
     if (!isEdustatActive) return [];
+    
+    // Create serial to device type map from Master Inventory
+    const serialDeviceMap = {};
+    (edustatMaster || []).forEach(m => {
+      if (m.serial) {
+        serialDeviceMap[String(m.serial).trim()] = String(m.device || '').toUpperCase();
+      }
+    });
+
     let cpuHours = 0;
     let miniPcHours = 0;
-    edustat.forEach(e => {
-      const udise = String(e.udise || getVal(e, 'udise') || '').trim();
+    
+    currentEdustat.forEach(e => {
+      const udise = String(e.udise).trim();
       if (!validUdises.has(udise)) return;
-      const device = String(e.device || getVal(e, 'device') || '').toUpperCase();
-      const hrs = parseHours(e['total used hours'] || getVal(e, 'hours') || 0);
-      if (device.includes('CPU') || device.includes('DESKTOP')) {
+      const serial = String(e.serial).trim();
+      const device = serialDeviceMap[serial] || 'CPU'; // Default to CPU if not in Master
+      const hrs = Number(e.hours) || 0;
+      if (device.includes('CPU') || device.includes('DESKTOP') || device.includes('PC')) {
         cpuHours += hrs;
       } else {
         miniPcHours += hrs;
       }
     });
+    
     return [
       { name: 'Traditional CPU', value: Math.round(cpuHours), color: '#3b82f6' },
       { name: 'Mini PC/Thin Client', value: Math.round(miniPcHours), color: '#10b981' }
     ];
-  }, [edustat, validUdises, isEdustatActive]);
+  }, [currentEdustat, edustatMaster, validUdises, isEdustatActive]);
 
   const visitAgingGroups = useMemo(() => {
     const groups = { '0-15 Days': 0, '16-30 Days': 0, '31-45 Days': 0, '45+ Days': 0 };

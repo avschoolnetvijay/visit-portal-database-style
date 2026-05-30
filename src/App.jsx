@@ -69,6 +69,7 @@ const App = () => {
     const [visits, setVisits] = useState([]);
     const [jhpmsLab, setJhpmsLab] = useState([]);
     const [edustat, setEdustat] = useState([]);
+    const [edustatMaster, setEdustatMaster] = useState([]);
     const [manpower, setManpower] = useState([]);
     const [drillDownData, setDrillDownData] = useState(null);
 
@@ -396,12 +397,14 @@ const App = () => {
                 const v = await get('visits');
                 const jl = await get('jhpms_lab');
                 const e = await get('edustat');
+                const em = await get('edustat_master');
                 const m = await get('manpower');
                 
                 if (s) setSchools(s);
                 if (v) setVisits(v);
                 if (jl) setJhpmsLab(jl);
                 if (e) setEdustat(e);
+                if (em) setEdustatMaster(em);
                 if (m) setManpower(m);
                 
                 if (s && v) setActiveTab('dashboard');
@@ -716,18 +719,65 @@ const App = () => {
                         if (missingKeysAlert) {
                             alert("Warning: The uploaded JHPMS file does not seem to have 'Lab Type' or 'Subject' columns. ICT/Smart classes might show as zero. Please check your Excel headers.");
                         }
+                    } else if (type === 'edustat_master') {
+                        normalized = data.map(r => {
+                            const cleanKeys = Object.keys(r).map(k => ({ orig: k, clean: k.toLowerCase().replace(/[^a-z0-9]/g, '') }));
+                            const uKey = cleanKeys.find(k => k.clean.includes('udise'))?.orig;
+                            const devKey = cleanKeys.find(k => k.clean === 'device')?.orig;
+                            const serialKey = cleanKeys.find(k => k.clean.includes('serialnumber') || k.clean.includes('serial'))?.orig;
+                            const instKey = cleanKeys.find(k => k.clean.includes('installed'))?.orig;
+                            return {
+                                udise: uKey ? String(r[uKey]).trim() : '',
+                                device: devKey ? String(r[devKey]).trim() : '',
+                                serial: serialKey ? String(r[serialKey]).trim() : '',
+                                installed: instKey ? String(r[instKey]).trim() : ''
+                            };
+                        });
                     } else if (type === 'edustat') {
                         normalized = data.map(r => {
                             const cleanKeys = Object.keys(r).map(k => ({ orig: k, clean: k.toLowerCase().replace(/[^a-z0-9]/g, '') }));
                             const uKey = cleanKeys.find(k => k.clean.includes('udise'))?.orig;
-                            const devKey = cleanKeys.find(k => k.clean.includes('device'))?.orig;
-                            const instKey = cleanKeys.find(k => k.clean.includes('installed'))?.orig;
-                            const hrsKey = cleanKeys.find(k => k.clean.includes('totalusedhours'))?.orig;
+                            const serialKey = cleanKeys.find(k => k.clean.includes('serialnumber') || k.clean.includes('serial'))?.orig;
+                            const dateKey = cleanKeys.find(k => k.clean.includes('processdate') || k.clean.includes('date'))?.orig;
+                            const hrsKey = cleanKeys.find(k => k.clean.includes('totalhour') || k.clean.includes('hours') || k.clean.includes('usedhour'))?.orig;
+                            
+                            const rawDate = dateKey ? r[dateKey] : '';
+                            let parsedDate = '';
+                            if (rawDate) {
+                                const dObj = new Date(rawDate);
+                                if (!isNaN(dObj.getTime())) {
+                                    parsedDate = dObj.toISOString().split('T')[0];
+                                } else {
+                                    parsedDate = String(rawDate).trim();
+                                }
+                            }
+                            
+                            const rawHour = hrsKey ? r[hrsKey] : '0';
+                            let parsedHours = 0;
+                            if (typeof rawHour === 'number') {
+                                parsedHours = rawHour;
+                            } else if (rawHour) {
+                                const parts = String(rawHour).split(':');
+                                if (parts.length === 3) {
+                                    const hrs = parseInt(parts[0], 10) || 0;
+                                    const mins = parseInt(parts[1], 10) || 0;
+                                    const secs = parseInt(parts[2], 10) || 0;
+                                    parsedHours = hrs + (mins / 60) + (secs / 3600);
+                                } else if (parts.length === 2) {
+                                    const hrs = parseInt(parts[0], 10) || 0;
+                                    const mins = parseInt(parts[1], 10) || 0;
+                                    parsedHours = hrs + (mins / 60);
+                                } else {
+                                    const num = parseFloat(rawHour);
+                                    parsedHours = isNaN(num) ? 0 : num;
+                                }
+                            }
+
                             return {
-                                udise: uKey ? r[uKey] : '',
-                                device: devKey ? r[devKey] : '',
-                                installed: instKey ? r[instKey] : '',
-                                'total used hours': hrsKey ? r[hrsKey] : ''
+                                udise: uKey ? String(r[uKey]).trim() : '',
+                                serial: serialKey ? String(r[serialKey]).trim() : '',
+                                date: parsedDate,
+                                hours: parsedHours
                             };
                         });
                     } else if (type === 'manpower') {
@@ -773,7 +823,11 @@ const App = () => {
                     } else if (type === 'edustat') {
                         setEdustat(normalized);
                         await set('edustat', normalized);
-                        alert(`Successfully uploaded ${normalized.length} Edustat records!`);
+                        alert(`Successfully uploaded ${normalized.length} Edustat Daily utilization records!`);
+                    } else if (type === 'edustat_master') {
+                        setEdustatMaster(normalized);
+                        await set('edustat_master', normalized);
+                        alert(`Successfully uploaded ${normalized.length} Edustat Master Inventory records!`);
                     } else if (type === 'manpower') {
                         setManpower(normalized);
                         await set('manpower', normalized);
@@ -826,6 +880,7 @@ const App = () => {
                             setVisits([]);
                             setJhpmsLab([]);
                             setEdustat([]);
+                            setEdustatMaster([]);
                             setManpower([]);
                             window.location.reload();
                         }
@@ -835,6 +890,7 @@ const App = () => {
                         visits: visits.length,
                         jhpms_lab: jhpmsLab.length,
                         edustat: edustat.length,
+                        edustat_master: edustatMaster.length,
                         manpower: manpower.length
                     }}
                     onGoogleFetch={fetchFromGoogleSheet}
@@ -886,8 +942,8 @@ const App = () => {
         }
 
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
-        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
-        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={jhpmsLab} edustat={edustat} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
+        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
+        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={defStartDate} endDate={defEndDate} selProjects={defSelProjects} selDistricts={defSelDistricts} selBlocks={defSelBlocks} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
         if (activeTab === 'plan') return <PlanView data={processedData} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
@@ -897,6 +953,7 @@ const App = () => {
                 visits={visits} 
                 jhpmsLab={jhpmsLab} 
                 edustat={edustat} 
+                edustatMaster={edustatMaster} 
                 manpower={manpower} 
                 startDate={defStartDate} 
                 endDate={defEndDate} 

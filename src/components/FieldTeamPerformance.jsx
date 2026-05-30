@@ -7,6 +7,7 @@ const FieldTeamPerformance = ({
     visits, 
     jhpmsLab, 
     edustat, 
+    edustatMaster = [],
     manpower,
     startDate,
     endDate,
@@ -80,36 +81,88 @@ const FieldTeamPerformance = ({
             }
         });
 
-        // Parse HH:MM:SS to hours
-        const parseHours = (timeStr) => {
-            if (!timeStr) return 0;
-            const parts = String(timeStr).split(':');
-            if (parts.length >= 2) {
-                return parseInt(parts[0], 10) + (parseInt(parts[1], 10) / 60);
-            }
-            return parseFloat(timeStr) || 0;
-        };
+        // 3. Process Edustat (Dual-Layer Logic with Master Baseline & Daily utilisation logs)
+        // Filter daily logs to the selected date range
+        const filteredEdustat = edustat.filter(row => {
+            return row.date && row.date >= startDate && row.date <= endDate;
+        });
 
-        // 3. Process Edustat (CPU / Mini PC usage)
-        edustat.forEach(e => {
-            const udise = String(e.udise || getVal(e, 'udise') || '').trim();
-            const device = String(getVal(e, 'device') || '').toUpperCase();
-            const installed = String(getVal(e, 'installed') || '').toUpperCase();
-            const hours = parseHours(getVal(e, 'total used hours'));
+        // Create serial-to-device mapping from Master List
+        const serialMap = {};
+        (edustatMaster || []).forEach(m => {
+            if (m.serial) {
+                serialMap[String(m.serial).trim()] = {
+                    device: String(m.device || '').toUpperCase(),
+                    installed: String(m.installed || '').toUpperCase()
+                };
+            }
+        });
+
+        // Initialize installation counts from the Master baseline
+        (edustatMaster || []).forEach(m => {
+            const udise = String(m.udise).trim();
+            const device = String(m.device || '').toUpperCase();
+            const installed = String(m.installed || '').toUpperCase();
+            
+            if (installed === 'YES') {
+                Object.values(ccMap).forEach(ccData => {
+                    if (ccData.udises.has(udise)) {
+                        if (device.includes('CPU') || device.includes('DESKTOP') || device.includes('PC')) {
+                            ccData.cpuInstalled++;
+                        } else {
+                            ccData.miniPcInstalled++;
+                        }
+                    }
+                });
+            }
+        });
+
+        // Track active/syncing serial numbers in this range
+        const activeSerials = new Set();
+        filteredEdustat.forEach(e => {
+            if (e.hours > 0 && e.serial) {
+                activeSerials.add(String(e.serial).trim());
+            }
+        });
+
+        // Accumulate active run hours
+        filteredEdustat.forEach(e => {
+            const udise = String(e.udise).trim();
+            const serial = String(e.serial).trim();
+            const hours = Number(e.hours) || 0;
+            
+            const devInfo = serialMap[serial] || { device: 'CPU' };
+            const deviceType = devInfo.device;
             
             Object.values(ccMap).forEach(ccData => {
                 if (ccData.udises.has(udise)) {
-                    if (device.includes('CPU')) {
-                        if (installed.includes('YES')) ccData.cpuInstalled++;
-                        if (hours > 0) ccData.cpuUsed++;
+                    if (deviceType.includes('CPU') || deviceType.includes('DESKTOP') || deviceType.includes('PC')) {
                         ccData.totalCpuHours += hours;
-                    } else if (device.includes('MINI')) {
-                        if (installed.includes('YES')) ccData.miniPcInstalled++;
-                        if (hours > 0) ccData.miniPcUsed++;
+                    } else {
                         ccData.totalMiniPcHours += hours;
                     }
                 }
             });
+        });
+
+        // Calculate cpuUsed and miniPcUsed counts
+        (edustatMaster || []).forEach(m => {
+            const udise = String(m.udise).trim();
+            const serial = String(m.serial).trim();
+            const device = String(m.device || '').toUpperCase();
+            const installed = String(m.installed || '').toUpperCase();
+
+            if (installed === 'YES' && activeSerials.has(serial)) {
+                Object.values(ccMap).forEach(ccData => {
+                    if (ccData.udises.has(udise)) {
+                        if (device.includes('CPU') || device.includes('DESKTOP') || device.includes('PC')) {
+                            ccData.cpuUsed++;
+                        } else {
+                            ccData.miniPcUsed++;
+                        }
+                    }
+                });
+            }
         });
 
         // 4. Process JHPMS Lab Uses (ICT Classes & Smart Classes)
@@ -275,7 +328,7 @@ const FieldTeamPerformance = ({
 
         return finalData;
 
-    }, [schools, visits, jhpmsLab, edustat, manpower, startDate, endDate, selProjects, selDistricts, selBlocks, workingDays]);
+    }, [schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate, selProjects, selDistricts, selBlocks, workingDays]);
 
     const handleExport = () => {
         const exportFormat = performanceData.map(d => ({

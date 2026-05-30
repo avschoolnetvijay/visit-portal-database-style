@@ -41,7 +41,11 @@ async function decompressFromGzipBlob(blob) {
 // Helper functions using CDN-optimized compressed storage for infinite scaling and zero timeouts
 export async function get(key) {
   try {
-    const prefix = getPrefix();
+    let prefix = getPrefix();
+    // Edustat Master List is a globally shared baseline uploaded only by admin
+    if (key === 'edustat_master') {
+      prefix = 'admin_';
+    }
     const { data, error } = await supabase.storage
       .from('app-data')
       .download(`${prefix}${key}.json.gz`);
@@ -64,7 +68,11 @@ export async function get(key) {
 
 export async function set(key, val) {
   try {
-    const prefix = getPrefix();
+    let prefix = getPrefix();
+    // Edustat Master List is a globally shared baseline uploaded only by admin
+    if (key === 'edustat_master') {
+      prefix = 'admin_';
+    }
     const compressedBlob = await compressToGzipBlob(val);
     
     const { error } = await supabase.storage
