@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { exportToExcel, parseDateRobust } from '../utils';
 import { Icons } from './Icons';
 
@@ -19,6 +19,8 @@ const FieldTeamPerformance = ({
 }) => {
     
     const [activeCCDetail, setActiveCCDetail] = useState(null);
+    const [drilldownFilter, setDrilldownFilter] = useState('all');
+    const fileInputRef = useRef(null);
     
     const performanceData = useMemo(() => {
         // 1. Filter schools based on global filters (optional, but requested by standard usage)
@@ -393,7 +395,7 @@ const FieldTeamPerformance = ({
         });
 
         // Map UDISE to schools details
-        return ccSchoolsList.map((s, idx) => {
+        const schDetailsList = ccSchoolsList.map((s, idx) => {
             const udise = String(s.udise_code || '').trim();
 
             // 1. Instructor Status
@@ -494,7 +496,6 @@ const FieldTeamPerformance = ({
             }
 
             return {
-                slno: idx + 1,
                 udise,
                 schoolName: s.school_name || s.school || '-',
                 block: s.block || '-',
@@ -510,7 +511,41 @@ const FieldTeamPerformance = ({
                 lastVisitDate: lastVisitClean
             };
         });
-    }, [activeCCDetail, schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate]);
+
+        // Apply targeted drilldown filtering
+        let filteredSchools = schDetailsList;
+        if (drilldownFilter === 'working_instructors') {
+            filteredSchools = filteredSchools.filter(sch => sch.instructorStatus === 'Active');
+        } else if (drilldownFilter === 'cpu_installed') {
+            filteredSchools = filteredSchools.filter(sch => sch.cpuInstalled > 0);
+        } else if (drilldownFilter === 'edustat_not_installed') {
+            filteredSchools = filteredSchools.filter(sch => sch.edustatNotInstalled > 0);
+        } else if (drilldownFilter === 'cpu_used') {
+            filteredSchools = filteredSchools.filter(sch => sch.totalCpuHours > 0);
+        } else if (drilldownFilter === 'cpu_not_used') {
+            filteredSchools = filteredSchools.filter(sch => sch.cpuInstalled > 0 && sch.totalCpuHours === 0);
+        } else if (drilldownFilter === 'mini_installed') {
+            filteredSchools = filteredSchools.filter(sch => sch.miniInstalled > 0);
+        } else if (drilldownFilter === 'mini_used') {
+            filteredSchools = filteredSchools.filter(sch => sch.totalMiniPcHours > 0);
+        } else if (drilldownFilter === 'mini_not_used') {
+            filteredSchools = filteredSchools.filter(sch => sch.miniInstalled > 0 && sch.totalMiniPcHours === 0);
+        } else if (drilldownFilter === 'ict_classes') {
+            filteredSchools = filteredSchools.filter(sch => sch.ictClasses > 0);
+        } else if (drilldownFilter === 'smart_classes') {
+            filteredSchools = filteredSchools.filter(sch => sch.smartClasses > 0);
+        } else if (drilldownFilter === 'ict_visits') {
+            filteredSchools = filteredSchools.filter(sch => sch.visitsCount > 0);
+        } else if (drilldownFilter === 'smart_visits') {
+            filteredSchools = filteredSchools.filter(sch => sch.visitsCount > 0);
+        }
+
+        // Re-assign serial numbers after filter
+        return filteredSchools.map((sch, i) => ({
+            ...sch,
+            slno: i + 1
+        }));
+    }, [activeCCDetail, schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate, drilldownFilter]);
 
     const handleExportDetails = () => {
         if (!activeCCDetail || !activeCCDetailSchools.length) return;
@@ -800,13 +835,27 @@ const FieldTeamPerformance = ({
                         {performanceData.map((row, i) => (
                              <tr 
                                  key={i} 
-                                 onClick={() => setActiveCCDetail(row)}
-                                 className="hover:bg-teal-50/80 transition-all group cursor-pointer active:bg-teal-100/50 duration-150"
-                                 title={`Click to view detailed school performance breakdown for ${row.ccName}`}
+                                 className="hover:bg-teal-50/50 transition-all group"
                              >
-                                <td className="p-3 border-r border-gray-100 text-center font-medium sticky left-0 z-20 bg-white group-hover:bg-teal-50/80 w-[60px] min-w-[60px] max-w-[60px] overflow-hidden text-ellipsis">{row.slno}</td>
-                                <td className="p-3 border-r border-gray-100 sticky left-[60px] z-20 bg-white group-hover:bg-teal-50/80 w-[120px] min-w-[120px] max-w-[120px] overflow-hidden text-ellipsis">{row.district}</td>
-                                <td className="p-0 border-r border-gray-100 font-bold text-teal-800 sticky left-[180px] z-20 bg-white group-hover:bg-teal-50/80 w-[200px] min-w-[200px] max-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('all'); }}
+                                    className="p-3 border-r border-gray-100 text-center font-medium sticky left-0 z-20 bg-white group-hover:bg-teal-50/80 w-[60px] min-w-[60px] max-w-[60px] overflow-hidden text-ellipsis cursor-pointer hover:text-teal-900 transition-all"
+                                    title="Click to view all allotted schools"
+                                >
+                                    {row.slno}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('all'); }}
+                                    className="p-3 border-r border-gray-100 sticky left-[60px] z-20 bg-white group-hover:bg-teal-50/80 w-[120px] min-w-[120px] max-w-[120px] overflow-hidden text-ellipsis cursor-pointer hover:text-teal-900 transition-all"
+                                    title="Click to view all allotted schools"
+                                >
+                                    {row.district}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('all'); }}
+                                    className="p-0 border-r border-gray-100 font-bold text-teal-800 sticky left-[180px] z-20 bg-white group-hover:bg-teal-50/80 w-[200px] min-w-[200px] max-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] cursor-pointer hover:text-teal-955 transition-all"
+                                    title="Click to view all allotted schools"
+                                >
                                     <div className="p-3 flex items-center gap-1.5 w-full h-full overflow-hidden whitespace-nowrap">
                                         {row.slno === 1 && <span className="px-1 py-0.5 rounded text-[9px] bg-yellow-500 text-white shadow-sm flex-shrink-0 leading-none">#1</span>}
                                         {row.slno === 2 && <span className="px-1 py-0.5 rounded text-[9px] bg-gray-400 text-white shadow-sm flex-shrink-0 leading-none">#2</span>}
@@ -814,41 +863,161 @@ const FieldTeamPerformance = ({
                                         <span className="truncate block w-full">{row.ccName}</span>
                                     </div>
                                 </td>
-                                <td className="p-3 border-r border-gray-100 text-center">{row.totalSchools}</td>
-                                <td className="p-3 border-r border-gray-100 text-center font-medium text-blue-700">{row.instructorWorking}</td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('all'); }}
+                                    className="p-3 border-r border-gray-100 text-center font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view all ${row.totalSchools} allotted schools`}
+                                >
+                                    {row.totalSchools}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('working_instructors'); }}
+                                    className="p-3 border-r border-gray-100 text-center font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view the ${row.instructorWorking} schools with Active Instructors`}
+                                >
+                                    {row.instructorWorking}
+                                </td>
                                 
-                                <td className="p-3 border-r border-gray-100 text-center bg-blue-50/30">{row.cpuInstalled}</td>
-                                <td className={`p-3 border-r border-gray-100 text-center bg-red-50/20 font-bold ${row.edustatNotInstalled > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('cpu_installed'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-blue-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view schools with CPU devices installed (Total: ${row.cpuInstalled})`}
+                                >
+                                    {row.cpuInstalled}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('edustat_not_installed'); }}
+                                    className={`p-3 border-r border-gray-100 text-center bg-red-50/20 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all ${row.edustatNotInstalled > 0 ? 'text-red-600' : 'text-gray-400'}`}
+                                    title={`Click to view the ${row.edustatNotInstalled} schools where devices are Not Installed`}
+                                >
                                     {row.edustatNotInstalled}
                                 </td>
-                                <td className="p-3 border-r border-gray-100 text-center bg-blue-50/30">{row.cpuUsed}</td>
-                                <td className={`p-3 border-r border-gray-100 text-center bg-blue-50/30 font-bold ${row.cpuNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('cpu_used'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-blue-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view schools with active CPU usage (Total used: ${row.cpuUsed})`}
+                                >
+                                    {row.cpuUsed}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('cpu_not_used'); }}
+                                    className={`p-3 border-r border-gray-100 text-center bg-blue-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all ${row.cpuNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}
+                                    title={`Click to view the ${row.cpuNotUsed} schools where CPU devices were Not Used`}
+                                >
                                     {row.cpuNotUsed}
                                 </td>
                                 
-                                <td className="p-3 border-r border-gray-100 text-center bg-purple-50/30">{row.miniPcInstalled}</td>
-                                <td className="p-3 border-r border-gray-100 text-center bg-purple-50/30">{row.miniPcUsed}</td>
-                                <td className={`p-3 border-r border-gray-100 text-center bg-purple-50/30 font-bold ${row.miniPcNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('mini_installed'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-purple-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view schools with Mini PC / Thin Client installed (Total: ${row.miniPcInstalled})`}
+                                >
+                                    {row.miniPcInstalled}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('mini_used'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-purple-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view schools with active Mini PC usage (Total used: ${row.miniPcUsed})`}
+                                >
+                                    {row.miniPcUsed}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('mini_not_used'); }}
+                                    className={`p-3 border-r border-gray-100 text-center bg-purple-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all ${row.miniPcNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}
+                                    title={`Click to view the ${row.miniPcNotUsed} schools where Mini PC devices were Not Used`}
+                                >
                                     {row.miniPcNotUsed}
                                 </td>
                                 
-                                <td className="p-3 border-r border-gray-100 text-center bg-orange-50/30 font-medium">{row.totalCpuHours}</td>
-                                <td className="p-3 border-r border-gray-100 text-center bg-orange-50/30 font-medium">{row.totalMiniPcHours}</td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('cpu_used'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-orange-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view CPU run hours details (Total: ${row.totalCpuHours} hrs)`}
+                                >
+                                    {row.totalCpuHours}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('mini_used'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-orange-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view Mini PC / Thin Client run hours details (Total: ${row.totalMiniPcHours} hrs)`}
+                                >
+                                    {row.totalMiniPcHours}
+                                </td>
                                 
-                                <td className="p-3 border-r border-gray-100 text-center bg-emerald-50/30 text-emerald-700 font-bold">{row.avgCpu}</td>
-                                <td className="p-3 border-r border-gray-100 text-center bg-emerald-50/30 text-emerald-700 font-bold">{row.avgMini}</td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('cpu_used'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-emerald-50/30 text-emerald-700 font-bold hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view CPU efficiency details (Avg: ${row.avgCpu})`}
+                                >
+                                    {row.avgCpu}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('mini_used'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-emerald-50/30 text-emerald-700 font-bold hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view Mini PC efficiency details (Avg: ${row.avgMini})`}
+                                >
+                                    {row.avgMini}
+                                </td>
                                 
-                                <td className="p-3 border-r border-gray-100 text-center bg-pink-50/30 text-pink-700 font-bold">{row.ictClasses}</td>
-                                <td className="p-3 border-r border-gray-100 text-center bg-pink-50/30">{row.avgClasses}</td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('ict_classes'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-pink-50/30 text-pink-700 font-bold hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view ICT classes conducted (Total: ${row.ictClasses})`}
+                                >
+                                    {row.ictClasses}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('ict_classes'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-pink-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view ICT daily class averages (Avg: ${row.avgClasses})`}
+                                >
+                                    {row.avgClasses}
+                                </td>
                                 
-                                <td className="p-3 border-r border-gray-100 text-center bg-yellow-50/30 text-yellow-700 font-bold">{row.smartClasses}</td>
-                                <td className="p-3 border-r border-gray-100 text-center bg-yellow-50/30">{row.avgSmartClasses}</td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('smart_classes'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-yellow-50/30 text-yellow-700 font-bold hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view Smart board classes conducted (Total: ${row.smartClasses})`}
+                                >
+                                    {row.smartClasses}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('smart_classes'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-yellow-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view Smart board class averages (Avg: ${row.avgSmartClasses})`}
+                                >
+                                    {row.avgSmartClasses}
+                                </td>
                                 
-                                <td className="p-3 border-r border-gray-100 text-center">{row.totalIctVisits}</td>
-                                <td className="p-3 border-r border-gray-100 text-center">{row.totalSmartVisits}</td>
-                                <td className="p-3 border-r border-gray-100 text-center font-extrabold text-teal-800 bg-teal-50/50">{row.grandTotal}</td>
-                                <td className="p-3 text-center font-extrabold text-indigo-700 bg-indigo-50 border-l border-indigo-100 text-sm shadow-[inset_1px_0_0_rgba(0,0,0,0.05)]">{row.performanceScore}%</td>
-                            </tr>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('ict_visits'); }}
+                                    className="p-3 border-r border-gray-100 text-center font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view ICT visits conducted (Total: ${row.totalIctVisits})`}
+                                >
+                                    {row.totalIctVisits}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('smart_visits'); }}
+                                    className="p-3 border-r border-gray-100 text-center font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view Smart class visits conducted (Total: ${row.totalSmartVisits})`}
+                                >
+                                    {row.totalSmartVisits}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('all'); }}
+                                    className="p-3 border-r border-gray-100 text-center font-extrabold text-teal-800 bg-teal-50/50 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-955 transition-all"
+                                    title={`Click to view all JHPMS/Edustat details (Total: ${row.grandTotal})`}
+                                >
+                                    {row.grandTotal}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('all'); }}
+                                    className="p-3 text-center font-extrabold text-indigo-700 bg-indigo-50 border-l border-indigo-100 text-sm shadow-[inset_1px_0_0_rgba(0,0,0,0.05)] cursor-pointer hover:bg-teal-100/50 hover:text-indigo-950 transition-all"
+                                    title={`Click to view full allotted school performance sheet (Score: ${row.performanceScore}%)`}
+                                >
+                                    {row.performanceScore}%
+                                </td>
+                             </tr>
                         ))}
                         {performanceData.length === 0 && (
                             <tr>
@@ -867,7 +1036,19 @@ const FieldTeamPerformance = ({
                         <div className="p-4 border-b border-gray-150 dark:border-white/5 flex items-center justify-between bg-gradient-to-r from-teal-50 to-teal-50/20 dark:from-teal-950/20 dark:to-transparent">
                             <div className="text-left">
                                 <h3 className="font-extrabold text-teal-800 dark:text-teal-400 text-base leading-tight">
-                                    Allotted Schools Performance Breakdown
+                                    {drilldownFilter === 'all' && "Allotted Schools Performance Breakdown"}
+                                    {drilldownFilter === 'working_instructors' && "Allotted Schools with Active Instructors"}
+                                    {drilldownFilter === 'cpu_installed' && "Schools with CPU Devices Installed"}
+                                    {drilldownFilter === 'edustat_not_installed' && "Schools with Devices Not Installed (EduStat Master)"}
+                                    {drilldownFilter === 'cpu_used' && "Schools with Active CPU Usage"}
+                                    {drilldownFilter === 'cpu_not_used' && "Schools where CPU was Not Used"}
+                                    {drilldownFilter === 'mini_installed' && "Schools with Mini PC / Thin Client Installed"}
+                                    {drilldownFilter === 'mini_used' && "Schools with Active Mini PC / Thin Client Usage"}
+                                    {drilldownFilter === 'mini_not_used' && "Schools where Mini PC / Thin Client was Not Used"}
+                                    {drilldownFilter === 'ict_classes' && "Schools with JHPMS Computer Classes"}
+                                    {drilldownFilter === 'smart_classes' && "Schools with JHPMS Smart Classes"}
+                                    {drilldownFilter === 'ict_visits' && "Schools with JHPMS Computer Class Visits"}
+                                    {drilldownFilter === 'smart_visits' && "Schools with Smart Class Visits"}
                                 </h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
                                     Coordinator: <span className="font-bold text-gray-800 dark:text-gray-200">{activeCCDetail.ccName}</span> ({activeCCDetail.district})
