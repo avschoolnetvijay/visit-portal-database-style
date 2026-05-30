@@ -1108,7 +1108,7 @@ const App = () => {
             )}
 
             {/* Sidebar Left Navigation Panel */}
-            <div className={`fixed md:relative top-0 bottom-0 left-0 h-[calc(100vh-24px)] md:h-auto w-64 portal-sidebar flex flex-col z-40 md:z-20 m-3 rounded-2xl border border-white/10 shadow-2xl shrink-0 transition-transform duration-300 md:translate-x-0 no-print ${isSidebarOpen ? 'translate-x-0' : '-translate-x-[calc(100%+24px)]'}`}>
+            <div className={`fixed md:relative top-0 bottom-0 left-0 h-screen w-64 portal-sidebar flex flex-col z-40 md:z-20 border-r border-white/10 shrink-0 transition-transform duration-300 md:translate-x-0 no-print ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="p-5 border-b border-white/10 flex flex-col items-center text-center relative select-none">
                     {/* Mobile Close Button */}
                     <button
@@ -1119,30 +1119,41 @@ const App = () => {
                     </button>
 
                     {/* Circular JEPC Emblem Logo */}
-                    <div className="w-16 h-16 rounded-full bg-white border-2 border-red-500/80 flex items-center justify-center overflow-hidden shadow-lg mb-4 transition-transform hover:scale-105 duration-200">
-                        <svg viewBox="0 0 100 100" className="w-12 h-12 text-red-600">
+                    <div className="w-16 h-16 flex items-center justify-center overflow-hidden mb-2 transition-transform hover:scale-105 duration-200">
+                        <svg viewBox="0 0 100 100" className="w-14 h-14 text-white">
                             <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="2.5" />
                             <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2,2" />
-                            <path d="M35 40 L45 35 L55 38 L65 35 L70 42 L65 52 L58 50 L52 58 L42 62 L38 52 Z" fill="#e0f2f1" stroke="#357e7d" strokeWidth="2.5" />
-                            <circle cx="50" cy="48" r="4" fill="red" />
+                            <path d="M35 40 L45 35 L55 38 L65 35 L70 42 L65 52 L58 50 L52 58 L42 62 L38 52 Z" fill="rgba(255,255,255,0.15)" stroke="currentColor" strokeWidth="2.5" />
+                            <circle cx="50" cy="48" r="4" fill="#ffca28" />
                         </svg>
                     </div>
 
-                    {/* User Profile Bar (Photo + Name) */}
-                    <div className="flex items-center gap-3 w-full bg-black/10 p-2.5 rounded-xl border border-white/5 shadow-inner">
-                        <div className="w-10 h-10 rounded-lg bg-transparent flex items-center justify-center shrink-0 overflow-hidden">
-                            <Icons.Profile className="w-8 h-8 shrink-0" />
-                        </div>
-                        <div className="text-left overflow-hidden">
-                            <div className="font-bold text-white text-sm tracking-wide leading-tight truncate shadow-black drop-shadow-sm font-serif">
-                                {localStorage.getItem('snet_username') 
-                                    ? String(localStorage.getItem('snet_username')).toUpperCase() 
-                                    : 'SUVENDU SHEKHAR JANA'}
-                            </div>
-                            <div className="text-[9px] text-teal-200/80 uppercase tracking-widest font-black mt-0.5">
-                                {userRole === 'admin' ? 'Administrator' : 'Standard User'}
-                            </div>
-                        </div>
+                    {/* Coordinator Profile Photo (Exact reference square avatar in pink shirt) */}
+                    <div className="w-14 h-14 rounded-md border border-white/20 shadow-md shrink-0 overflow-hidden mb-2 transition-transform hover:scale-105 duration-200">
+                        <svg viewBox="0 0 100 100" className="w-full h-full object-cover">
+                            {/* Background */}
+                            <rect width="100" height="100" fill="#2a8b87" />
+                            {/* Hair back */}
+                            <circle cx="50" cy="35" r="22" fill="#111111" />
+                            {/* Face */}
+                            <circle cx="50" cy="40" r="18" fill="#e5a07d" />
+                            {/* Hair front */}
+                            <path d="M32 30 Q50 15 68 30 Q50 24 32 30 Z" fill="#111111" />
+                            <rect x="32" y="28" width="36" height="8" fill="#111111" />
+                            {/* Eyes */}
+                            <circle cx="43" cy="38" r="2" fill="#111111" />
+                            <circle cx="57" cy="38" r="2" fill="#111111" />
+                            {/* Mouth */}
+                            <path d="M46 48 Q50 51 54 48" stroke="#8b4a36" strokeWidth="2" fill="none" strokeLinecap="round" />
+                            {/* Neck */}
+                            <rect x="46" y="55" width="8" height="12" fill="#e5a07d" />
+                            {/* Pink Shirt */}
+                            <path d="M20 80 Q50 62 80 80 L80 100 L20 100 Z" fill="#e05a8b" />
+                            {/* Collar */}
+                            <path d="M44 65 L50 78 L56 65 Z" fill="#b03a6b" />
+                            <path d="M35 68 L44 65 L46 72 Z" fill="#f0709b" />
+                            <path d="M65 68 L56 65 L54 72 Z" fill="#f0709b" />
+                        </svg>
                     </div>
                 </div>
                 <nav className="flex-1 overflow-y-auto py-2 space-y-1.5 px-3 text-left select-none">
@@ -1161,10 +1172,10 @@ const App = () => {
                                                 [g.title]: !prev[g.title]
                                             }));
                                         }}
-                                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[18px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                                        className="w-full flex items-center justify-between px-3 py-2 rounded-none text-[14.5px] font-bold text-white hover:bg-white/5 transition duration-150 font-sans"
                                     >
                                         <div className="flex items-center gap-2.5">
-                                            <span className="p-0.5 rounded-md text-white shrink-0">
+                                            <span className="p-0.5 rounded text-white shrink-0">
                                                 <g.icon className="w-5 h-5" />
                                             </span>
                                             <span>{g.title}</span>
@@ -1184,7 +1195,7 @@ const App = () => {
                                     {/* Collapsible Submenu list */}
                                     <div
                                         className={`pl-3 space-y-0.5 overflow-hidden transition-all duration-300 ${
-                                            isExpanded ? 'max-h-64 opacity-100 py-0.5' : 'max-h-0 opacity-0 pointer-events-none'
+                                            isExpanded ? 'max-h-80 opacity-100 py-0.5' : 'max-h-0 opacity-0 pointer-events-none'
                                         }`}
                                     >
                                         {g.items.map(t => {
@@ -1196,21 +1207,12 @@ const App = () => {
                                                         setActiveTab(t.id);
                                                         setIsSidebarOpen(false);
                                                     }}
-                                                    className={`w-full flex items-center py-2 px-3 rounded-lg text-[15.5px] font-bold transition font-serif ${
+                                                    className={`w-full flex items-center py-2 pl-[42px] pr-3 rounded-none text-[12.5px] font-semibold transition font-sans ${
                                                         isActive
                                                             ? 'bg-black/15 text-white font-extrabold border-l-4 border-white'
-                                                            : 'text-teal-100 hover:text-white hover:bg-white/5'
+                                                            : 'text-teal-100/90 hover:text-white hover:bg-white/5'
                                                     }`}
                                                 >
-                                                    <span
-                                                        className={`mr-2.5 p-0.5 rounded-md transition-colors shrink-0 ${
-                                                            isActive
-                                                                ? 'bg-teal-900/30'
-                                                                : 'bg-white/5'
-                                                        }`}
-                                                    >
-                                                        <t.icon className="w-4 h-4" />
-                                                    </span>
                                                     <span>{t.label}</span>
                                                     {isActive && (
                                                         <span className="ml-auto w-1 h-1 rounded-full bg-white animate-pulse"></span>
@@ -1226,10 +1228,10 @@ const App = () => {
                         {/* Helpdesk Menu Item */}
                         <button
                             onClick={() => alert("Helpdesk Console: Official support is always active. Feature coming soon!")}
-                            className="w-full flex items-center justify-between py-2 px-3 rounded-lg text-[18px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                            className="w-full flex items-center justify-between py-2 px-3 rounded-none text-[14.5px] font-bold text-white hover:bg-white/5 transition duration-150 font-sans"
                         >
                             <div className="flex items-center gap-2.5">
-                                <span className="p-0.5 rounded-md text-teal-200 shrink-0">
+                                <span className="p-0.5 rounded text-white shrink-0">
                                     <Icons.Help className="w-5 h-5" />
                                 </span>
                                 <span>Helpdesk</span>
@@ -1239,11 +1241,11 @@ const App = () => {
                         {/* Integrated Premium Logout Button inside sidebar nav list */}
                         <button
                             onClick={handleLogout}
-                            className="w-full flex items-center justify-between py-2 px-3 rounded-lg text-[18px] font-bold text-white hover:bg-white/5 transition duration-150 font-serif"
+                            className="w-full flex items-center justify-between py-2 px-3 rounded-none text-[14.5px] font-bold text-white hover:bg-white/5 transition duration-150 font-sans"
                             title="Sign Out of Portal"
                         >
                             <div className="flex items-center gap-2.5">
-                                <span className="p-0.5 rounded-md text-red-200 shrink-0">
+                                <span className="p-0.5 rounded text-white shrink-0">
                                     <Icons.Close className="w-5 h-5" />
                                 </span>
                                 <span>Logout</span>
@@ -1273,7 +1275,7 @@ const App = () => {
                     {/* Official JHPMS Schoolnet Branding */}
                     <div className="mt-2 text-white font-sans">
                         <div className="text-[10px] uppercase tracking-[0.2em] font-black text-white/70">Powered By</div>
-                        <div className="text-xl font-black tracking-wider flex items-center justify-center gap-0.5 mt-1 font-serif">
+                        <div className="text-xl font-black tracking-wider flex items-center justify-center gap-0.5 mt-1 font-sans">
                             <span>SCH</span>
                             <span className="w-4 h-4 rounded-full bg-gradient-to-tr from-orange-600 to-amber-400 inline-block shadow-sm shadow-orange-500/50"></span>
                             <span>OLNET</span>
@@ -1283,7 +1285,7 @@ const App = () => {
             </div>
 
             {/* Main Center Tab Panel */}
-            <div className="flex-1 flex flex-col overflow-hidden relative m-3 md:my-3 md:mr-3 md:ml-0 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 shadow-xl">
+            <div className="flex-1 flex flex-col overflow-hidden relative m-3 md:my-3 md:mr-3 md:ml-3 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 shadow-xl">
                 <main className="flex-1 overflow-y-auto p-4 scroll-smooth">
                     {activeTab !== 'search' && activeTab !== 'setup' && activeTab !== 'profile-creation' && (
                         <div className="portal-filter-bar z-10 mb-4 rounded-xl border border-white shadow-sm flex flex-col gap-2 no-print">

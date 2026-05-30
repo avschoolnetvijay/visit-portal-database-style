@@ -67,15 +67,15 @@ body {
 
 /* Modern Sidebar */
 .portal-sidebar {
-    background: #357e7d !important;
+    background: #237775 !important;
     color: #ffffff !important;
     box-shadow: none !important;
     border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
-    font-family: var(--font-main) !important;
+    font-family: var(--font-sans) !important;
 }
 
 .portal-sidebar button, .portal-sidebar span, .portal-sidebar div {
-    font-family: var(--font-main) !important;
+    font-family: var(--font-sans) !important;
 }
 
 .nav-item {
