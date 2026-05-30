@@ -555,6 +555,7 @@ const App = () => {
                 let userPerms = null;
                 let userDists = [];
                 let resolvedRole = userRole;
+                let rawUserData = null;
 
                 if (u) {
                     const { data, error } = await supabase
@@ -564,6 +565,7 @@ const App = () => {
                         .single();
 
                     if (!error && data) {
+                        rawUserData = data;
                         resolvedRole = data.role;
                         let fullNameVal = data.full_name || '';
                         let designationVal = data.designation || '';
@@ -583,17 +585,20 @@ const App = () => {
                             }
                         }
 
-                        // Parse permissions
+                        // Parse permissions & extract allowed districts
                         if (permsData) {
                             try {
                                 userPerms = typeof permsData === 'string' ? JSON.parse(permsData) : permsData;
+                                if (userPerms && userPerms.allowed_districts) {
+                                    userDists = userPerms.allowed_districts;
+                                }
                             } catch (e) {
                                 console.error("Error parsing permissions", e);
                             }
                         }
 
-                        // Parse allowed districts
-                        if (distsData) {
+                        // Parse allowed districts fallback if not already loaded from permissions
+                        if ((!userDists || userDists.length === 0) && distsData) {
                             try {
                                 userDists = typeof distsData === 'string' ? JSON.parse(distsData) : distsData;
                                 if (!Array.isArray(userDists)) {
@@ -639,8 +644,14 @@ const App = () => {
                 let filteredEdustat = e || [];
                 let filteredManpower = m || [];
 
-                if (resolvedRole !== 'admin' && userDists && userDists.length > 0) {
-                    const allowedSet = new Set(userDists.map(d => d.toUpperCase().trim()));
+                if (resolvedRole !== 'admin') {
+                    // Standard users must be restricted
+                    const fallbackDistrict = rawUserData && rawUserData.assigned_district ? [rawUserData.assigned_district] : [];
+                    const districtsToGate = (userDists && userDists.length > 0) 
+                        ? userDists 
+                        : (fallbackDistrict.length > 0 ? fallbackDistrict : ['__FORCE_EMPTY_DISTRICT__']);
+                    
+                    const allowedSet = new Set(districtsToGate.map(d => d.toUpperCase().trim()));
 
                     // Filter schools
                     filteredSchools = (s || []).filter(sch => sch.district && allowedSet.has(sch.district.toUpperCase().trim()));
