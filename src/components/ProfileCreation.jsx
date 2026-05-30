@@ -389,6 +389,9 @@ const ProfileCreation = ({ userRole, schools = [] }) => {
             // If the admin edited their own active account, update local storage roles dynamically
             if (u === localStorage.getItem('snet_username')) {
                 localStorage.setItem('snet_user_role', dbHasColumns ? modalPrivilegeRole : updatePayload.role);
+                localStorage.setItem('snet_full_name', modalFullName.trim());
+                localStorage.setItem('snet_designation', finalDesignation);
+                window.dispatchEvent(new Event('storage'));
             }
 
             // Close modal after brief success presentation

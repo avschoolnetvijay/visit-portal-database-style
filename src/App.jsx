@@ -137,12 +137,16 @@ const App = () => {
         }
         return storedRole;
     });
+    const [userFullName, setUserFullName] = useState(() => localStorage.getItem('snet_full_name') || '');
+    const [userDesignation, setUserDesignation] = useState(() => localStorage.getItem('snet_designation') || '');
 
     const handleLogout = () => {
         sessionStorage.removeItem('snet_authenticated');
         localStorage.removeItem('snet_username');
         localStorage.removeItem('snet_user_role');
         localStorage.removeItem('snet_profile_photo');
+        localStorage.removeItem('snet_full_name');
+        localStorage.removeItem('snet_designation');
         window.location.reload();
     };
 
@@ -304,6 +308,55 @@ const App = () => {
         setLocalShowExceptions(showExceptions);
         setLocalCompareMode(compareMode);
     }, [startDate, endDate, selProjects, selDistricts, selBlocks, selCCs, selSchools, workingDays, isWorkingDaysManual, activeSources, perfBands, showExceptions, compareMode]);
+
+    // Dynamic mount-time user profile sync (auto-populates/updates Name and Designation badges)
+    useEffect(() => {
+        if (isAuthenticated) {
+            const u = localStorage.getItem('snet_username');
+            if (u) {
+                supabase
+                    .from('users')
+                    .select('*')
+                    .eq('username', u)
+                    .single()
+                    .then(({ data }) => {
+                        if (data) {
+                            let resolvedRole = data.role;
+                            let fullNameVal = data.full_name || '';
+                            let designationVal = data.designation || '';
+
+                            if (data.role && data.role.startsWith('{')) {
+                                try {
+                                    const parsed = JSON.parse(data.role);
+                                    resolvedRole = parsed.privilege || 'user';
+                                    fullNameVal = parsed.full_name || '';
+                                    designationVal = parsed.designation || '';
+                                } catch (e) {
+                                    console.error("Error parsing role metadata on mount", e);
+                                }
+                            }
+                            
+                            localStorage.setItem('snet_full_name', fullNameVal || data.username);
+                            localStorage.setItem('snet_designation', designationVal || (resolvedRole === 'admin' ? 'Administrator' : 'Standard User'));
+                            
+                            setUserFullName(fullNameVal || data.username);
+                            setUserDesignation(designationVal || (resolvedRole === 'admin' ? 'Administrator' : 'Standard User'));
+                        }
+                    })
+                    .catch(err => console.error("Error syncing profile on mount", err));
+            }
+        }
+    }, [isAuthenticated]);
+
+    // Cross-tab / cross-component storage listener to immediately sync sidebar profile photo or text changes
+    useEffect(() => {
+        const handleStorageChange = () => {
+            setUserFullName(localStorage.getItem('snet_full_name') || '');
+            setUserDesignation(localStorage.getItem('snet_designation') || '');
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
 
     // Auto-expand folder when active tab changes programmatically
     useEffect(() => {
@@ -1093,7 +1146,7 @@ const App = () => {
                 // Fetch credentials from the public users table in Supabase
                 const { data, error } = await supabase
                     .from('users')
-                    .select('username, role')
+                    .select('*')
                     .eq('username', u)
                     .eq('password_hash', hash)
                     .single();
@@ -1110,15 +1163,25 @@ const App = () => {
                 localStorage.setItem('snet_user_role', data.role);
                 
                 let resolvedRole = data.role;
+                let fullNameVal = data.full_name || '';
+                let designationVal = data.designation || '';
+
                 if (data.role && data.role.startsWith('{')) {
                     try {
                         const parsed = JSON.parse(data.role);
                         resolvedRole = parsed.privilege || 'user';
+                        fullNameVal = parsed.full_name || '';
+                        designationVal = parsed.designation || '';
                     } catch (e) {
                         console.error("Error parsing login role JSON", e);
                     }
                 }
                 
+                localStorage.setItem('snet_full_name', fullNameVal || data.username);
+                localStorage.setItem('snet_designation', designationVal || (resolvedRole === 'admin' ? 'Administrator' : 'Standard User'));
+                
+                setUserFullName(fullNameVal || data.username);
+                setUserDesignation(designationVal || (resolvedRole === 'admin' ? 'Administrator' : 'Standard User'));
                 setUserRole(resolvedRole);
                 setIsAuthenticated(true);
                 setAuthError('');
@@ -1400,6 +1463,15 @@ const App = () => {
                                 </button>
                             </div>
                         )}
+                    </div>
+                    {/* Logged-in User Profile Name & Designation Badge */}
+                    <div className="mt-3 select-none flex flex-col items-center">
+                        <div className="font-extrabold text-white text-xs tracking-wide truncate max-w-[200px]" title={userFullName || localStorage.getItem('snet_username')}>
+                            {userFullName || localStorage.getItem('snet_username') || 'Portal Member'}
+                        </div>
+                        <div className="text-[9px] text-teal-300 font-extrabold mt-1 truncate max-w-[200px] uppercase tracking-widest bg-teal-500/10 border border-teal-500/20 px-2.5 py-0.5 rounded-full" title={userDesignation}>
+                            {userDesignation || 'User'}
+                        </div>
                     </div>
                 </div>
                 <nav className="flex-1 overflow-y-auto py-2 space-y-1.5 px-3 text-left select-none">
