@@ -1210,7 +1210,7 @@ const App = () => {
                                                     className={`w-full flex items-center py-2 pl-[42px] pr-3 rounded-none text-[12.5px] font-semibold transition font-sans ${
                                                         isActive
                                                             ? 'bg-black/15 text-white font-extrabold border-l-4 border-white'
-                                                            : 'text-teal-100/90 hover:text-white hover:bg-white/5'
+                                                            : 'text-white hover:text-white hover:bg-white/5'
                                                     }`}
                                                 >
                                                     <span>{t.label}</span>
