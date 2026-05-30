@@ -30,9 +30,13 @@ const permissionMenus = [
     { id: 'profile-creation', label: 'Profile Creation', under: 'Profile Creation' }
 ];
 
-const ProfileCreation = ({ userRole, schools = [] }) => {
+const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onSubTabChange }) => {
     // Subsection toggle: 'create' | 'list' | 'permission'
-    const [activeSubTab, setActiveSubTab] = useState('create');
+    const [activeSubTab, setActiveSubTab] = useState(defaultSubTab);
+    
+    useEffect(() => {
+        setActiveSubTab(defaultSubTab);
+    }, [defaultSubTab]);
     
     // Core database state
     const [usersList, setUsersList] = useState([]);
@@ -691,7 +695,7 @@ const ProfileCreation = ({ userRole, schools = [] }) => {
                 {/* Sub Tab Switcher */}
                 <div className="flex items-center bg-gray-100 dark:bg-slate-800/80 p-1 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-inner">
                     <button
-                        onClick={() => { setActiveSubTab('create'); setManageError(''); setManageSuccess(''); }}
+                        onClick={() => { setActiveSubTab('create'); setManageError(''); setManageSuccess(''); if (onSubTabChange) onSubTabChange('create'); }}
                         className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition ${
                             activeSubTab === 'create'
                                 ? 'bg-white dark:bg-teal-600/90 text-teal-700 dark:text-white shadow-md'
@@ -702,7 +706,7 @@ const ProfileCreation = ({ userRole, schools = [] }) => {
                         <span>User Creation</span>
                     </button>
                     <button
-                        onClick={() => { setActiveSubTab('list'); setManageError(''); setManageSuccess(''); fetchUsers(); }}
+                        onClick={() => { setActiveSubTab('list'); setManageError(''); setManageSuccess(''); fetchUsers(); if (onSubTabChange) onSubTabChange('list'); }}
                         className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition ${
                             activeSubTab === 'list'
                                 ? 'bg-white dark:bg-teal-600/90 text-teal-700 dark:text-white shadow-md'
@@ -713,7 +717,7 @@ const ProfileCreation = ({ userRole, schools = [] }) => {
                         <span>User List Directory</span>
                     </button>
                     <button
-                        onClick={() => { setActiveSubTab('permission'); setManageError(''); setManageSuccess(''); fetchUsers(); }}
+                        onClick={() => { setActiveSubTab('permission'); setManageError(''); setManageSuccess(''); fetchUsers(); if (onSubTabChange) onSubTabChange('permission'); }}
                         className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition ${
                             activeSubTab === 'permission'
                                 ? 'bg-white dark:bg-teal-600/90 text-teal-700 dark:text-white shadow-md'

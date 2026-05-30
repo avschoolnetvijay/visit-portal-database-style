@@ -290,7 +290,9 @@ const App = () => {
                 title: 'Profile Creation',
                 icon: Icons.Profile,
                 items: [
-                    { id: 'profile-creation', label: 'Profile Creation', icon: Icons.Profile }
+                    { id: 'user-creation', label: 'User Creation', icon: Icons.Home },
+                    { id: 'user-list', label: 'User List Directory', icon: Icons.Users },
+                    { id: 'user-permissions', label: 'User Permissions', icon: Icons.Lock }
                 ]
             }
         ];
@@ -302,8 +304,8 @@ const App = () => {
         // Standard user filtering based on database permissions
         return rawGroups.map(group => {
             const filteredItems = group.items.filter(item => {
-                // Profile creation is strictly admin-only
-                if (item.id === 'profile-creation') return false;
+                // Profile creation submenus are strictly admin-only
+                if (['profile-creation', 'user-creation', 'user-list', 'user-permissions'].includes(item.id)) return false;
 
                 // Check custom permissions mapping
                 if (userPermissions && userPermissions.menu) {
@@ -1197,8 +1199,26 @@ const App = () => {
             );
         }
 
-        if (activeTab === 'profile-creation') {
-            return <ProfileCreation userRole={userRole} schools={schools} />;
+        if (activeTab === 'user-creation' || activeTab === 'user-list' || activeTab === 'user-permissions' || activeTab === 'profile-creation') {
+            const subTabMap = {
+                'user-creation': 'create',
+                'user-list': 'list',
+                'user-permissions': 'permission',
+                'profile-creation': 'create'
+            };
+            const reverseMap = {
+                'create': 'user-creation',
+                'list': 'user-list',
+                'permission': 'user-permissions'
+            };
+            return (
+                <ProfileCreation
+                    userRole={userRole}
+                    schools={schools}
+                    defaultSubTab={subTabMap[activeTab] || 'create'}
+                    onSubTabChange={(newSubTab) => setActiveTab(reverseMap[newSubTab])}
+                />
+            );
         }
 
         if (activeTab === 'dashboard') {
@@ -1746,7 +1766,7 @@ const App = () => {
             {/* Main Center Tab Panel */}
             <div className="flex-1 flex flex-col overflow-hidden relative m-3 md:my-3 md:mr-3 md:ml-3 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 shadow-xl">
                 <main className="flex-1 overflow-y-auto p-4 scroll-smooth">
-                    {activeTab !== 'search' && activeTab !== 'setup' && activeTab !== 'profile-creation' && (
+                    {activeTab !== 'search' && activeTab !== 'setup' && activeTab !== 'profile-creation' && activeTab !== 'user-creation' && activeTab !== 'user-list' && activeTab !== 'user-permissions' && (
                         <div className="portal-filter-bar z-10 mb-4 rounded-xl border border-white shadow-sm flex flex-col gap-2 no-print">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
                                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
