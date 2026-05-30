@@ -124,7 +124,19 @@ const App = () => {
     const [usernameInput, setUsernameInput] = useState('');
     const [password, setPassword] = useState('');
     const [authError, setAuthError] = useState('');
-    const [userRole, setUserRole] = useState(() => localStorage.getItem('snet_user_role') || 'user');
+    const [userRole, setUserRole] = useState(() => {
+        const storedRole = localStorage.getItem('snet_user_role') || 'user';
+        if (storedRole && storedRole.startsWith('{')) {
+            try {
+                const parsed = JSON.parse(storedRole);
+                return parsed.privilege || 'user';
+            } catch (e) {
+                console.error("Error parsing stored role", e);
+                return 'user';
+            }
+        }
+        return storedRole;
+    });
 
     const handleLogout = () => {
         sessionStorage.removeItem('snet_authenticated');
@@ -992,7 +1004,7 @@ const App = () => {
         }
 
         if (activeTab === 'profile-creation') {
-            return <ProfileCreation userRole={userRole} />;
+            return <ProfileCreation userRole={userRole} schools={schools} />;
         }
 
         if (activeTab === 'dashboard') {
@@ -1097,7 +1109,17 @@ const App = () => {
                 localStorage.setItem('snet_username', data.username);
                 localStorage.setItem('snet_user_role', data.role);
                 
-                setUserRole(data.role);
+                let resolvedRole = data.role;
+                if (data.role && data.role.startsWith('{')) {
+                    try {
+                        const parsed = JSON.parse(data.role);
+                        resolvedRole = parsed.privilege || 'user';
+                    } catch (e) {
+                        console.error("Error parsing login role JSON", e);
+                    }
+                }
+                
+                setUserRole(resolvedRole);
                 setIsAuthenticated(true);
                 setAuthError('');
                 
