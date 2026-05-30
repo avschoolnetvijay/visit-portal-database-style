@@ -237,6 +237,15 @@ body {
 }
 
 /* Glassmorphism Table Styling with 1.5px Teal-Grey Borders and Alternating Tints */
+.portal-table {
+    border: none !important;
+    border-collapse: collapse !important;
+}
+
+.portal-table tr {
+    border: none !important;
+}
+
 .portal-table th {
     background-color: #e8f5f4 !important;
     color: #333333 !important;
@@ -244,7 +253,10 @@ body {
     text-transform: uppercase;
     font-size: 11px;
     padding: 10px 12px;
-    border: 1.5px solid #7bbcb8 !important;
+    border-top: 1.5px solid #7bbcb8 !important;
+    border-bottom: 1.5px solid #7bbcb8 !important;
+    border-right: 1.5px solid #7bbcb8 !important;
+    border-left: none !important;
     font-family: var(--font-sans) !important;
     text-align: center !important;
     vertical-align: middle !important;
@@ -255,13 +267,18 @@ body {
     color: #1e293b !important;
     font-size: 11.5px;
     font-family: var(--font-sans) !important;
-    border: 1.5px solid #7bbcb8 !important;
+    border-top: 1.5px solid #7bbcb8 !important;
+    border-bottom: 1.5px solid #7bbcb8 !important;
+    border-right: 1.5px solid #7bbcb8 !important;
+    border-left: none !important;
     text-align: center !important;
     vertical-align: middle !important;
 }
 
-.portal-table tr {
-    border: 1.5px solid #7bbcb8 !important;
+/* Remove outer left/right vertical borders */
+.portal-table th:last-child,
+.portal-table td:last-child {
+    border-right: none !important;
 }
 
 .portal-table tr:nth-child(odd) td {
@@ -446,19 +463,20 @@ body.dark .metric-value {
     color: #f8fafc !important;
 }
 
-body.dark .portal-table th {
-    background-color: rgba(15, 23, 42, 0.7) !important;
-    color: #cbd5e1 !important;
-    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
-}
-
+body.dark .portal-table th,
 body.dark .portal-table td {
-    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+    border-top-color: rgba(255, 255, 255, 0.08) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+    border-right-color: rgba(255, 255, 255, 0.08) !important;
     color: #cbd5e1 !important;
 }
 
-body.dark .portal-table tr:hover {
-    background-color: rgba(13, 148, 136, 0.1) !important;
+body.dark .portal-table th {
+    background-color: rgba(15, 23, 42, 0.8) !important;
+}
+
+body.dark .portal-table tr:hover td {
+    background-color: rgba(13, 148, 136, 0.15) !important;
 }
 
 body.dark .custom-select-container {

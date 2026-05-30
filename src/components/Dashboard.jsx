@@ -43,24 +43,24 @@ const StatusCards = ({ buckets, onDrillDown }) => {
 
 const PortalCard = ({ title, icon: IconComponent, items, onDrillDown }) => {
   return (
-    <div className="portal-card flex flex-col border border-[#7bbcb8] rounded-xl overflow-hidden bg-white shadow-md font-sans">
-      {/* Upper Area: Icon on left, Table/Grid on right */}
-      <div className="flex-1 flex items-center p-3 gap-3 bg-white">
+    <div className="portal-card flex flex-col border border-[#7bbcb8] rounded-xl overflow-hidden bg-white shadow-sm font-sans h-full">
+      {/* Upper Area: Icon on left, Table/Grid on right - Unified soft teal background in light and dark mode */}
+      <div className="flex-1 flex items-center p-3 gap-3 bg-[#d5eae8] dark:bg-teal-950/40">
         {/* Left Icon Area */}
         {IconComponent && (
-          <div className="w-12 h-12 flex items-center justify-center bg-slate-50 border border-slate-100 rounded-lg shrink-0">
-            <IconComponent className="w-8 h-8 text-[#2d8b7e]" />
+          <div className="w-12 h-12 flex items-center justify-center bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg shrink-0">
+            <IconComponent className="w-8 h-8 text-[#2d8b7e] dark:text-[#38bdf8]" />
           </div>
         )}
-        {/* Right Table/Grid Area */}
-        <div className="flex-1 overflow-hidden rounded border border-[#7bbcb8]">
+        {/* Right Table/Grid Area - Open Border concept */}
+        <div className="flex-1 overflow-hidden">
           <table className="w-full text-center border-collapse">
             <thead>
-              <tr className="border-b border-[#7bbcb8] bg-slate-50/50">
+              <tr className="border-b border-[#7bbcb8] dark:border-teal-800">
                 {items.map((item, idx) => (
                   <th 
                     key={idx} 
-                    className="py-1 px-1 text-[10px] font-extrabold text-[#555] uppercase tracking-wide border-r border-[#7bbcb8] last:border-r-0 text-center"
+                    className="py-1 px-1 text-[10px] font-extrabold text-teal-800/90 dark:text-teal-300/80 uppercase tracking-wide border-r border-[#7bbcb8] dark:border-teal-800 last:border-r-0 text-center"
                     style={{ width: `${100 / items.length}%` }}
                   >
                     {item.label}
@@ -74,7 +74,7 @@ const PortalCard = ({ title, icon: IconComponent, items, onDrillDown }) => {
                   <td 
                     key={idx} 
                     onClick={() => item.drillData && onDrillDown(item.label + " - " + title, item.drillData)}
-                    className="py-1.5 px-1 font-black text-sm text-teal-950 bg-[#e8f5f4] cursor-pointer hover:bg-[#c5e6e4] transition-colors border-r border-[#7bbcb8] last:border-r-0 text-center"
+                    className="py-1.5 px-1 font-black text-sm text-teal-950 dark:text-teal-100 cursor-pointer hover:bg-teal-600/10 dark:hover:bg-teal-400/10 transition-colors border-r border-[#7bbcb8] dark:border-teal-800 last:border-r-0 text-center"
                   >
                     {item.value}
                   </td>
@@ -85,7 +85,7 @@ const PortalCard = ({ title, icon: IconComponent, items, onDrillDown }) => {
         </div>
       </div>
       {/* Bottom solid teal footer label */}
-      <div className="bg-[#2d8b7e] text-white font-bold text-xs py-1.5 text-center tracking-wider uppercase">
+      <div className="bg-[#2d8b7e] text-white font-bold text-xs py-1.5 text-center tracking-wider uppercase shrink-0">
         {title}
       </div>
     </div>
@@ -100,22 +100,22 @@ const TargetCard = ({ target, achieved, gap, onDrillDown, schools }) => {
   ];
   
   return (
-    <div className="portal-card flex flex-col border border-[#7bbcb8] rounded-xl overflow-hidden bg-white shadow-md font-sans">
-      {/* Upper Area: Icon on left, Table/Grid on right */}
-      <div className="flex-1 flex items-center p-3 gap-3 bg-white">
+    <div className="portal-card flex flex-col border border-[#7bbcb8] rounded-xl overflow-hidden bg-white shadow-sm font-sans h-full">
+      {/* Upper Area: Icon on left, Table/Grid on right - Unified soft teal background in light and dark mode */}
+      <div className="flex-1 flex items-center p-3 gap-3 bg-[#d5eae8] dark:bg-teal-950/40">
         {/* Left Icon Area */}
-        <div className="w-12 h-12 flex items-center justify-center bg-slate-50 border border-slate-100 rounded-lg shrink-0">
-          <Icons.Target className="w-8 h-8 text-[#2d8b7e]" />
+        <div className="w-12 h-12 flex items-center justify-center bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg shrink-0">
+          <Icons.Target className="w-8 h-8 text-[#2d8b7e] dark:text-[#38bdf8]" />
         </div>
-        {/* Right Table/Grid Area */}
-        <div className="flex-1 overflow-hidden rounded border border-[#7bbcb8]">
+        {/* Right Table/Grid Area - Open Border concept */}
+        <div className="flex-1 overflow-hidden">
           <table className="w-full text-center border-collapse">
             <thead>
-              <tr className="border-b border-[#7bbcb8] bg-slate-50/50">
+              <tr className="border-b border-[#7bbcb8] dark:border-teal-800">
                 {items.map((item, idx) => (
                   <th 
                     key={idx} 
-                    className="py-1 px-1 text-[10px] font-extrabold text-[#555] uppercase tracking-wide border-r border-[#7bbcb8] last:border-r-0 text-center"
+                    className="py-1 px-1 text-[10px] font-extrabold text-teal-800/90 dark:text-teal-300/80 uppercase tracking-wide border-r border-[#7bbcb8] dark:border-teal-800 last:border-r-0 text-center"
                     style={{ width: '33.33%' }}
                   >
                     {item.label}
@@ -129,7 +129,7 @@ const TargetCard = ({ target, achieved, gap, onDrillDown, schools }) => {
                   <td 
                     key={idx} 
                     onClick={() => item.drillData && onDrillDown(item.label + " - Target Analysis", item.drillData)}
-                    className="py-1.5 px-1 font-black text-sm text-teal-950 bg-[#e8f5f4] cursor-pointer hover:bg-[#c5e6e4] transition-colors border-r border-[#7bbcb8] last:border-r-0 text-center"
+                    className="py-1.5 px-1 font-black text-sm text-teal-950 dark:text-teal-100 cursor-pointer hover:bg-teal-600/10 dark:hover:bg-teal-400/10 transition-colors border-r border-[#7bbcb8] dark:border-teal-800 last:border-r-0 text-center"
                   >
                     {item.value}
                   </td>
@@ -140,7 +140,7 @@ const TargetCard = ({ target, achieved, gap, onDrillDown, schools }) => {
         </div>
       </div>
       {/* Bottom solid teal footer label */}
-      <div className="bg-[#2d8b7e] text-white font-bold text-xs py-1.5 text-center tracking-wider uppercase">
+      <div className="bg-[#2d8b7e] text-white font-bold text-xs py-1.5 text-center tracking-wider uppercase shrink-0">
         Target Analysis
       </div>
     </div>
@@ -210,19 +210,20 @@ const AIInsightsCard = ({ schools, visits, onDrillDown }) => {
 
   return (
     <div className="portal-card flex flex-col border border-[#7bbcb8] rounded-xl overflow-hidden bg-white shadow-md font-sans h-full">
-      <div className="flex-1 flex items-center p-3 gap-3 bg-white">
+      {/* Upper Area: Icon on left, Table/Grid on right - Unified soft teal background in light and dark mode */}
+      <div className="flex-1 flex items-center p-3 gap-3 bg-[#d5eae8] dark:bg-teal-950/40">
         {/* Left Icon Area */}
-        <div className="w-12 h-12 flex items-center justify-center bg-slate-50 border border-slate-100 rounded-lg shrink-0">
-          <Icons.Robot className="w-8 h-8 text-[#2d8b7e]" />
+        <div className="w-12 h-12 flex items-center justify-center bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg shrink-0">
+          <Icons.Robot className="w-8 h-8 text-[#2d8b7e] dark:text-[#38bdf8]" />
         </div>
-        {/* Right List Area */}
-        <div className="flex-1 overflow-y-auto max-h-[96px] rounded border border-[#7bbcb8] p-1.5 bg-[#e8f5f4]">
+        {/* Right List Area - Clean rounded list inside solid light-teal background */}
+        <div className="flex-1 overflow-y-auto max-h-[96px] p-1.5">
           <ul className="space-y-1">
             {insights.map((ins, i) => (
               <li
                 key={i}
                 onClick={() => onDrillDown(ins.title, ins.data)}
-                className="flex items-start gap-1 text-[11px] font-semibold text-teal-950 hover:bg-[#c5e6e4] p-1 rounded cursor-pointer transition-colors"
+                className="flex items-start gap-1 text-[11px] font-semibold text-[#1e293b] dark:text-[#e2e8f0] hover:bg-teal-600/10 dark:hover:bg-teal-400/10 p-1 rounded cursor-pointer transition-colors"
               >
                 <span className="leading-tight">{ins.text}</span>
               </li>
