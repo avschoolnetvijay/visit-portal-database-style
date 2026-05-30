@@ -85,6 +85,7 @@ const App = () => {
         sessionStorage.removeItem('snet_authenticated');
         localStorage.removeItem('snet_username');
         localStorage.removeItem('snet_user_role');
+        localStorage.removeItem('snet_profile_photo');
         window.location.reload();
     };
 
@@ -119,10 +120,15 @@ const App = () => {
                 return;
             }
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 const base64 = event.target.result;
                 localStorage.setItem('snet_profile_photo', base64);
                 setProfilePhoto(base64);
+                try {
+                    await set('profile_photo', base64);
+                } catch (err) {
+                    console.error("Error saving profile photo to Supabase:", err);
+                }
             };
             reader.readAsDataURL(file);
         }
@@ -412,6 +418,15 @@ const App = () => {
                 const e = await get('edustat');
                 const em = await get('edustat_master');
                 const m = await get('manpower');
+                
+                const p = await get('profile_photo');
+                if (p) {
+                    localStorage.setItem('snet_profile_photo', p);
+                    setProfilePhoto(p);
+                } else {
+                    localStorage.removeItem('snet_profile_photo');
+                    setProfilePhoto(null);
+                }
                 
                 if (s) setSchools(s);
                 if (v) setVisits(v);
@@ -1247,11 +1262,16 @@ const App = () => {
                         {/* Reset / Delete Photo Option */}
                         {profilePhoto && (
                             <button
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     localStorage.removeItem('snet_profile_photo');
                                     setProfilePhoto(null);
+                                    try {
+                                        await set('profile_photo', null);
+                                    } catch (err) {
+                                        console.error("Error clearing profile photo from Supabase:", err);
+                                    }
                                 }}
                                 className="absolute -top-1.5 -right-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full p-0.5 shadow-md transition-colors duration-150 border border-white/20 cursor-pointer"
                                 title="Remove Profile Photo"
