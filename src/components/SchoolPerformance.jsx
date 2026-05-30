@@ -334,8 +334,19 @@ const SchoolPerformance = ({
 
 
             // Group Edustat data
+            const parsedStart = parseDateRobust(startDate);
+            const parsedEnd = parseDateRobust(endDate);
+            if (parsedStart) parsedStart.setHours(0, 0, 0, 0);
+            if (parsedEnd) parsedEnd.setHours(23, 59, 59, 999);
+
             const filteredEdustat = (edustat || []).filter(e => {
-                return e.date && e.date >= startDate && e.date <= endDate;
+                const rawDate = e.date || getVal(e, 'date');
+                if (!rawDate) return false;
+                const d = parseDateRobust(rawDate);
+                if (d && !isNaN(d.getTime())) {
+                    return (!parsedStart || d >= parsedStart) && (!parsedEnd || d <= parsedEnd);
+                }
+                return false;
             });
 
             const edustatGroups = {};

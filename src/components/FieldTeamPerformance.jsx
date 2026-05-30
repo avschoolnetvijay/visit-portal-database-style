@@ -83,9 +83,20 @@ const FieldTeamPerformance = ({
         });
 
         // 3. Process Edustat (Dual-Layer Logic with Master Baseline & Daily utilisation logs)
-        // Filter daily logs to the selected date range
+        // Filter daily logs to the selected date range using parseDateRobust
+        const parsedStart = parseDateRobust(startDate);
+        const parsedEnd = parseDateRobust(endDate);
+        if (parsedStart) parsedStart.setHours(0, 0, 0, 0);
+        if (parsedEnd) parsedEnd.setHours(23, 59, 59, 999);
+
         const filteredEdustat = edustat.filter(row => {
-            return row.date && row.date >= startDate && row.date <= endDate;
+            const rawDate = row.date || getVal(row, 'date');
+            if (!rawDate) return false;
+            const rDate = parseDateRobust(rawDate);
+            if (rDate && !isNaN(rDate.getTime())) {
+                return (!parsedStart || rDate >= parsedStart) && (!parsedEnd || rDate <= parsedEnd);
+            }
+            return false;
         });
 
         // Create serial-to-device mapping from Master List
@@ -183,11 +194,7 @@ const FieldTeamPerformance = ({
             const d = parseDateRobust(rawDate);
             
             if (d && !isNaN(d.getTime())) {
-                const yyyy = d.getFullYear();
-                const mm = String(d.getMonth() + 1).padStart(2, '0');
-                const dd = String(d.getDate()).padStart(2, '0');
-                const dateStr = `${yyyy}-${mm}-${dd}`;
-                if (dateStr >= startDate && dateStr <= endDate) {
+                if ((!parsedStart || d >= parsedStart) && (!parsedEnd || d <= parsedEnd)) {
                     Object.values(ccMap).forEach(ccData => {
                         if (ccData.udises.has(udise)) {
                             if (labType.includes('ICT') && subject.includes('COMPUTER')) {
@@ -215,15 +222,12 @@ const FieldTeamPerformance = ({
         // 5. Process Visits (Total ICT Visit / Total Smart Visit)
         visits.forEach(v => {
             const udise = String(v.udise_code || '').trim();
-            const d = new Date(v.visit_date);
+            const rawDate = v.visit_date || getVal(v, 'date');
+            const d = parseDateRobust(rawDate);
             const type = (v.visit_type || '').toLowerCase();
             
-            if (!isNaN(d.getTime())) {
-                const yyyy = d.getFullYear();
-                const mm = String(d.getMonth() + 1).padStart(2, '0');
-                const dd = String(d.getDate()).padStart(2, '0');
-                const dateStr = `${yyyy}-${mm}-${dd}`;
-                if (dateStr >= startDate && dateStr <= endDate) {
+            if (d && !isNaN(d.getTime())) {
+                if ((!parsedStart || d >= parsedStart) && (!parsedEnd || d <= parsedEnd)) {
                     Object.values(ccMap).forEach(ccData => {
                         if (ccData.udises.has(udise)) {
                             if (type.includes('ict')) ccData.totalIctVisits++;
