@@ -1087,7 +1087,25 @@ const OverallAnalysis = ({
         rawPct: labPct,
         icon: '🖥️',
         isActive: isJhpmsActive,
-        mom: compareMode && prevKPIs ? getMoMChange(labPct, prevKPIs.labPct) : null
+        mom: compareMode && prevKPIs ? getMoMChange(labPct, prevKPIs.labPct) : null,
+        onClick: onDrillDown && isJhpmsActive ? () => {
+          const nonWorkingSchools = finalEnriched.filter(s => !(s.jhpmsClasses > 0));
+          const data = nonWorkingSchools.map((s, index) => ({
+            'Sl No': index + 1,
+            'School Name': s.schoolName,
+            'UDISE Code': s.udise,
+            'District': s.district,
+            'Block': s.block,
+            'CC / DEF Name': s.visitorName,
+            'Field Visits': s.fieldVisits,
+            'Last Visit Date': s.lastVisitDate || '-',
+            'JHPMS Classes': s.jhpmsClasses,
+            'EduStat Hours': Math.round(s.eduHours),
+            'Composite Score %': `${Math.round(s.compositeScore)}%`,
+            'Action Recommendation': s.recommendation
+          }));
+          onDrillDown('Non-Working Labs (0 Classes) - Working Labs KPI', data);
+        } : null
       },
       {
         label: 'Schools Actually Visited',
@@ -1095,7 +1113,26 @@ const OverallAnalysis = ({
         rawPct: visitPct,
         icon: '✅',
         isActive: isVisitActive,
-        mom: compareMode && prevKPIs ? getMoMChange(visitPct, prevKPIs.visitPct) : null
+        mom: compareMode && prevKPIs ? getMoMChange(visitPct, prevKPIs.visitPct) : null,
+        onClick: onDrillDown && isVisitActive ? () => {
+          const visitedSchools = finalEnriched.filter(s => s.fieldVisits >= s.targetVisits);
+          const data = visitedSchools.map((s, index) => ({
+            'Sl No': index + 1,
+            'School Name': s.schoolName,
+            'UDISE Code': s.udise,
+            'District': s.district,
+            'Block': s.block,
+            'CC / DEF Name': s.visitorName,
+            'Field Visits': s.fieldVisits,
+            'Target Visits': s.targetVisits,
+            'Last Visit Date': s.lastVisitDate || '-',
+            'JHPMS Classes': s.jhpmsClasses,
+            'EduStat Hours': Math.round(s.eduHours),
+            'Composite Score %': `${Math.round(s.compositeScore)}%`,
+            'Action Recommendation': s.recommendation
+          }));
+          onDrillDown('Visited Schools (Target Met) - Actually Visited KPI', data);
+        } : null
       },
       {
         label: 'Total Computer Usage Hours',
@@ -1111,10 +1148,29 @@ const OverallAnalysis = ({
         rawPct: total > 0 ? (100 - pct(criticalCount, total)) : 100,
         icon: '🚨',
         isActive: true,
-        mom: compareMode && prevKPIs ? getMoMChange(criticalCount, prevKPIs.criticalCount) : null
+        mom: compareMode && prevKPIs ? getMoMChange(criticalCount, prevKPIs.criticalCount) : null,
+        onClick: onDrillDown ? () => {
+          const criticalSchools = finalEnriched.filter(s => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0));
+          const data = criticalSchools.map((s, index) => ({
+            'Sl No': index + 1,
+            'School Name': s.schoolName,
+            'UDISE Code': s.udise,
+            'District': s.district,
+            'Block': s.block,
+            'CC / DEF Name': s.visitorName,
+            'Field Visits': s.fieldVisits,
+            'Last Visit Date': s.lastVisitDate || '-',
+            'JHPMS Classes': s.jhpmsClasses,
+            'EduStat Hours': Math.round(s.eduHours),
+            'Composite Score %': `${Math.round(s.compositeScore)}%`,
+            'Primary Root Cause': s.rootCause,
+            'Action Recommendation': s.recommendation
+          }));
+          onDrillDown('Schools Needing Urgent Help (Score < 30%) - Urgent Help KPI', data);
+        } : null
       }
     ];
-  }, [finalEnriched, currentKPIs, prevKPIs, compareMode, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, validWdays, healthData]);
+  }, [finalEnriched, currentKPIs, prevKPIs, compareMode, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, validWdays, healthData, onDrillDown]);
 
   // Movers & Shakers compilation
   const moversAndShakers = useMemo(() => {
@@ -2039,7 +2095,10 @@ const OverallAnalysis = ({
             {kpis.map((kpi, i) => (
               <div
                 key={i}
+                onClick={kpi.onClick || null}
                 className={`rounded-xl border p-3.5 transition hover:shadow-md font-sans ${
+                  kpi.onClick ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]' : ''
+                } ${
                   !kpi.isActive ? 'bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 opacity-60' :
                   kpi.rawPct >= 70 ? 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-teal-950/20 dark:to-emerald-950/20 border-teal-200 dark:border-teal-900/40 text-emerald-950 dark:text-teal-100' :
                   kpi.rawPct >= 40 ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/15 dark:to-orange-950/15 border-amber-200 dark:border-amber-900/40 text-amber-950 dark:text-amber-100' :
