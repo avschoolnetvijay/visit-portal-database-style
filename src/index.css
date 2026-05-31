@@ -648,40 +648,40 @@ body, body *, body .portal-sidebar, body .portal-card, body .portal-filter-bar {
 
 /* ==========================================================================
    ApexCharts Custom DataLabel Background series color mapping
+   ApexCharts encodes spaces in seriesName as "x20"
+   e.g. "ICT Class" → seriesName="ICTx20Class"
    ========================================================================== */
 
-/* ICT Class / ICT Visit: Series 1 (First Line) - Green color code #00df89 */
-.apexcharts-series[seriesName="ICT Class"] .apexcharts-datalabel-background,
-.apexcharts-series[seriesName="ICT Visit"] .apexcharts-datalabel-background,
-.apexcharts-series[data\-real\-name="ICT Class"] .apexcharts-datalabel-background,
-.apexcharts-series[data\-real\-name="ICT Visit"] .apexcharts-datalabel-background,
-.apexcharts-series:nth-child(1) .apexcharts-datalabel-background {
+/* ICT Class / ICT Visit: Series 1 (First Line) - Green #00df89 */
+.apexcharts-series[seriesName="ICTx20Class"] .apexcharts-datalabel-background,
+.apexcharts-series[seriesName="ICTx20Visit"] .apexcharts-datalabel-background,
+.apexcharts-series[rel="1"] .apexcharts-datalabel-background,
+.apexcharts-data-labels-group:nth-child(1) .apexcharts-datalabel-background {
   fill: #00df89 !important;
   stroke: #00df89 !important;
 }
 
-/* Smart Class / Smart Visit: Series 2 (Second Line) - Blue color code #0097ff */
-.apexcharts-series[seriesName="Smart Class"] .apexcharts-datalabel-background,
-.apexcharts-series[seriesName="Smart Visit"] .apexcharts-datalabel-background,
-.apexcharts-series[data\-real\-name="Smart Class"] .apexcharts-datalabel-background,
-.apexcharts-series[data\-real\-name="Smart Visit"] .apexcharts-datalabel-background,
-.apexcharts-series:nth-child(2) .apexcharts-datalabel-background {
+/* Smart Class / Smart Visit: Series 2 (Second Line) - Blue #0097ff */
+.apexcharts-series[seriesName="Smartx20Class"] .apexcharts-datalabel-background,
+.apexcharts-series[seriesName="Smartx20Visit"] .apexcharts-datalabel-background,
+.apexcharts-series[rel="2"] .apexcharts-datalabel-background,
+.apexcharts-data-labels-group:nth-child(2) .apexcharts-datalabel-background {
   fill: #0097ff !important;
   stroke: #0097ff !important;
 }
 
-/* MIS Work: Series 3 (Third Line) - Orange color code #ffb000 */
-.apexcharts-series[seriesName="MIS Work"] .apexcharts-datalabel-background,
-.apexcharts-series[data\-real\-name="MIS Work"] .apexcharts-datalabel-background,
-.apexcharts-series:nth-child(3) .apexcharts-datalabel-background {
+/* MIS Work: Series 3 (Third Line) - Orange #ffb000 */
+.apexcharts-series[seriesName="MISx20Work"] .apexcharts-datalabel-background,
+.apexcharts-series[rel="3"] .apexcharts-datalabel-background,
+.apexcharts-data-labels-group:nth-child(3) .apexcharts-datalabel-background {
   fill: #ffb000 !important;
   stroke: #ffb000 !important;
 }
 
 /* Enforce crisp styling for all custom rounded badges */
 .apexcharts-datalabel-background {
-  rx: 3px !important;
-  ry: 3px !important;
-  stroke-width: 1.5px !important;
+  rx: 4px !important;
+  ry: 4px !important;
+  stroke-width: 0px !important;
 }
 

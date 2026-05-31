@@ -457,18 +457,40 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
   const visitorChartSeries = useMemo(() => {
     if (!visitorData || !visitorData.monthlyStatusData) return [];
     return [
-      { name: 'ICT Visit', data: visitorData.monthlyStatusData.map(d => d['ICT Visit'] || 0) },
-      { name: 'Smart Visit', data: visitorData.monthlyStatusData.map(d => d['Smart Visit'] || 0) }
+      { name: 'Smart Visit', data: visitorData.monthlyStatusData.map(d => d['Smart Visit'] || 0) },
+      { name: 'ICT Visit', data: visitorData.monthlyStatusData.map(d => d['ICT Visit'] || 0) }
     ];
   }, [visitorData]);
 
   const visitorChartOptions = useMemo(() => {
     if (!visitorData || !visitorData.monthlyStatusData) return {};
+
+    // Programmatically color data label backgrounds per series
+    const colorLabels = (chartCtx) => {
+      try {
+        const el = chartCtx?.el || chartCtx;
+        if (!el) return;
+        const seriesColors = ['#0097ff', '#00df89']; // Smart=blue, ICT=green
+        const groups = el.querySelectorAll('.apexcharts-datalabels-group');
+        groups.forEach((group, idx) => {
+          const color = seriesColors[idx] || '#999';
+          const bgs = group.querySelectorAll('rect');
+          bgs.forEach(bg => {
+            bg.setAttribute('fill', color);
+            bg.setAttribute('stroke', color);
+            bg.setAttribute('rx', '4');
+            bg.setAttribute('ry', '4');
+            bg.setAttribute('stroke-width', '0');
+          });
+        });
+      } catch(e) { /* ignore */ }
+    };
+
     return {
       chart: {
         type: 'area',
         height: 320,
-        fontFamily: "'Times New Roman', Times, serif",
+        fontFamily: "'Inter', 'Segoe UI', sans-serif",
         toolbar: {
           show: true,
           tools: {
@@ -492,56 +514,64 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
         },
         background: 'transparent',
         dropShadow: { enabled: false },
+        events: {
+          mounted: function(chartContext) {
+            setTimeout(() => colorLabels(chartContext), 300);
+          },
+          updated: function(chartContext) {
+            setTimeout(() => colorLabels(chartContext), 300);
+          },
+        },
       },
       stroke: {
         curve: 'smooth',
-        width: [4, 4],
+        width: [3.5, 3.5],
         lineCap: 'round',
       },
       fill: {
-        type: ['gradient', 'solid'],
+        type: ['solid', 'gradient'],
         gradient: {
           shade: 'light',
           type: 'vertical',
           shadeIntensity: 0.1,
           opacityFrom: 0.28,
-          opacityTo: 0.05,
+          opacityTo: 0.02,
           stops: [0, 95, 100]
         },
-        opacity: [1, 0],
+        opacity: [0, 1],
       },
-      colors: ['#00df89', '#0097ff'],
+      colors: ['#0097ff', '#00df89'],
       markers: {
         size: [0, 0],
-        hover: { size: 6 }
+        hover: { size: 5 }
       },
       dataLabels: {
         enabled: true,
         style: {
-          fontSize: '11px',
-          fontWeight: 'bold',
+          fontSize: '10px',
+          fontWeight: 600,
           colors: ['#ffffff', '#ffffff'],
           fontFamily: "'Inter', sans-serif"
         },
         background: {
           enabled: true,
           foreColor: '#ffffff',
-          padding: 5,
-          borderRadius: 3,
-          borderWidth: 1.5,
-          borderColor: '#ffffff',
+          padding: 4,
+          borderRadius: 4,
+          borderWidth: 0,
+          borderColor: 'transparent',
           opacity: 1,
           dropShadow: {
             enabled: true,
             top: 1,
             left: 1,
-            blur: 2,
+            blur: 3,
             color: '#000000',
-            opacity: 0.25
+            opacity: 0.18
           }
         },
         formatter: (val) => val ? val.toLocaleString('en-IN') : '',
-        offsetY: -8,
+        offsetY: -6,
       },
       legend: {
         show: true,
@@ -558,7 +588,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
           height: 10,
           radius: 5,
         },
-        itemMargin: { horizontal: 12 },
+        itemMargin: { horizontal: 14 },
         onItemClick: { toggleDataSeries: true },
         onItemHover: { highlightDataSeries: true },
       },
@@ -575,13 +605,13 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
         min: 0,
         forceNiceScale: true,
         labels: {
-          formatter: (val) => Math.round(val).toLocaleString('en-IN'),
+          formatter: (val) => Math.round(val).toString(),
           style: { fontSize: '11px', colors: darkMode ? '#94a3b8' : '#6B7280', fontFamily: "'Inter', sans-serif" },
         },
       },
       grid: {
         show: true,
-        borderColor: darkMode ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
+        borderColor: darkMode ? 'rgba(255,255,255,0.06)' : '#f0f0f0',
         strokeDashArray: 0,
         xaxis: { lines: { show: false } },
         yaxis: { lines: { show: true  } },
