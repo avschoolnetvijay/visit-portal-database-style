@@ -1710,7 +1710,6 @@ const OverallAnalysis = ({
   // Geographic Heatmap Grid Matrix
   const districtsList = useMemo(() => [...new Set(finalEnriched.map(s => s.district))].sort(), [finalEnriched]);
   const blocksList = useMemo(() => [...new Set(finalEnriched.map(s => s.block))].sort(), [finalEnriched]);
-
   const heatmapMatrix = useMemo(() => {
     const matrix = {};
     districtsList.forEach(d => {
@@ -1727,6 +1726,34 @@ const OverallAnalysis = ({
     });
     return matrix;
   }, [finalEnriched, districtsList, blocksList]);
+
+  const visibleBlocksList = useMemo(() => {
+    return blocksList.filter(b => {
+      return districtsList.some(d => {
+        const val = heatmapMatrix[d][b];
+        if (!val) return heatmapLegends.na;
+        const score = val.score;
+        if (score >= 80) return heatmapLegends.excellent;
+        if (score >= 60) return heatmapLegends.ontrack;
+        if (score >= 40) return heatmapLegends.needsAttention;
+        return heatmapLegends.critical;
+      });
+    });
+  }, [blocksList, districtsList, heatmapMatrix, heatmapLegends]);
+
+  const visibleDistrictsList = useMemo(() => {
+    return districtsList.filter(d => {
+      return blocksList.some(b => {
+        const val = heatmapMatrix[d][b];
+        if (!val) return heatmapLegends.na;
+        const score = val.score;
+        if (score >= 80) return heatmapLegends.excellent;
+        if (score >= 60) return heatmapLegends.ontrack;
+        if (score >= 40) return heatmapLegends.needsAttention;
+        return heatmapLegends.critical;
+      });
+    });
+  }, [districtsList, blocksList, heatmapMatrix, heatmapLegends]);
 
   // 12. Deep Dive Data Collections
   const jhpmsActiveVsInactive = useMemo(() => {
@@ -2960,67 +2987,73 @@ const OverallAnalysis = ({
             </div>
 
             <div className="overflow-auto flex-1 max-h-72">
-              <table className="w-full text-xs text-center border-collapse">
-                <thead>
-                  <tr className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold">
-                    <th className="p-2 border dark:border-slate-800 text-left sticky left-0 bg-slate-100 dark:bg-slate-800 z-10">District</th>
-                    {blocksList.map((b, idx) => (
-                      <th key={idx} className="p-2 border dark:border-slate-800 whitespace-nowrap min-w-[70px]">{b}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {districtsList.map((d, dIdx) => (
-                    <tr key={dIdx} className="hover:bg-slate-50/50">
-                      <td className="p-2 border dark:border-slate-800 font-bold text-left sticky left-0 bg-white dark:bg-slate-900 shadow-sm z-10">{d}</td>
-                      {blocksList.map((b, bIdx) => {
-                        const val = heatmapMatrix[d][b];
-                        if (!val) {
-                          // Beautiful distinctly styled N/A cells!
-                          const isNaOn = heatmapLegends.na;
+              {visibleBlocksList.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 dark:text-slate-500 italic text-xs font-semibold">
+                  No data matching the active scale filters.
+                </div>
+              ) : (
+                <table className="w-full text-xs text-center border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold">
+                      <th className="p-2 border dark:border-slate-800 text-left sticky left-0 bg-slate-100 dark:bg-slate-800 z-10">District</th>
+                      {visibleBlocksList.map((b, idx) => (
+                        <th key={idx} className="p-2 border dark:border-slate-800 whitespace-nowrap min-w-[70px]">{b}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleDistrictsList.map((d, dIdx) => (
+                      <tr key={dIdx} className="hover:bg-slate-50/50">
+                        <td className="p-2 border dark:border-slate-800 font-bold text-left sticky left-0 bg-white dark:bg-slate-900 shadow-sm z-10">{d}</td>
+                        {visibleBlocksList.map((b, bIdx) => {
+                          const val = heatmapMatrix[d][b];
+                          if (!val) {
+                            // Beautiful distinctly styled N/A cells!
+                            const isNaOn = heatmapLegends.na;
+                            return (
+                              <td 
+                                key={bIdx} 
+                                className={`p-2 border dark:border-slate-800 font-mono transition-all duration-200 ${
+                                  isNaOn 
+                                    ? 'bg-slate-100/50 dark:bg-slate-800/40 text-slate-400 font-bold' 
+                                    : 'bg-transparent text-transparent select-none'
+                                }`} 
+                                title={isNaOn ? `No schools assigned in ${b} for District ${d}` : undefined}
+                              >
+                                {isNaOn ? 'N/A' : '–'}
+                              </td>
+                            );
+                          }
+                          const score = val.score;
+                          const group = score >= 80 ? 'excellent' :
+                                        score >= 60 ? 'ontrack' :
+                                        score >= 40 ? 'needsAttention' :
+                                        'critical';
+                          const isGroupOn = heatmapLegends[group];
+                          
+                          const bg = !isGroupOn ? 'bg-transparent text-transparent select-none border-slate-100 dark:border-slate-800/50' :
+                                     score >= 80 ? 'bg-emerald-100 text-emerald-950 font-extrabold border-emerald-200 hover:scale-[1.05]' :
+                                     score >= 60 ? 'bg-teal-50 text-teal-950 font-bold border-teal-150 hover:scale-[1.05]' :
+                                     score >= 40 ? 'bg-amber-100 text-amber-950 font-semibold border-amber-150 hover:scale-[1.05]' :
+                                     'bg-red-100 text-red-950 font-black border-red-200 hover:scale-[1.05]';
+                          
                           return (
-                            <td 
-                              key={bIdx} 
-                              className={`p-2 border dark:border-slate-800 font-mono transition-all duration-200 ${
-                                isNaOn 
-                                  ? 'bg-slate-100/50 dark:bg-slate-800/40 text-slate-400 font-bold' 
-                                  : 'bg-transparent text-transparent select-none'
-                              }`} 
-                              title={isNaOn ? `No schools assigned in ${b} for District ${d}` : undefined}
+                            <td
+                              key={bIdx}
+                              className={`p-2 border dark:border-slate-800 transition duration-75 ${
+                                isGroupOn ? 'cursor-pointer' : 'cursor-default'
+                              } ${bg}`}
+                              title={isGroupOn ? `District: ${d}\nBlock: ${b}\nAvg Score: ${score}%\nSchools Count: ${val.count}` : undefined}
                             >
-                              {isNaOn ? 'N/A' : '–'}
+                              {isGroupOn ? `${score}%` : '–'}
                             </td>
                           );
-                        }
-                        const score = val.score;
-                        const group = score >= 80 ? 'excellent' :
-                                      score >= 60 ? 'ontrack' :
-                                      score >= 40 ? 'needsAttention' :
-                                      'critical';
-                        const isGroupOn = heatmapLegends[group];
-                        
-                        const bg = !isGroupOn ? 'bg-transparent text-transparent select-none border-slate-100 dark:border-slate-800/50' :
-                                   score >= 80 ? 'bg-emerald-100 text-emerald-950 font-extrabold border-emerald-200 hover:scale-[1.05]' :
-                                   score >= 60 ? 'bg-teal-50 text-teal-950 font-bold border-teal-150 hover:scale-[1.05]' :
-                                   score >= 40 ? 'bg-amber-100 text-amber-950 font-semibold border-amber-150 hover:scale-[1.05]' :
-                                   'bg-red-100 text-red-950 font-black border-red-200 hover:scale-[1.05]';
-                        
-                        return (
-                          <td
-                            key={bIdx}
-                            className={`p-2 border dark:border-slate-800 transition duration-75 ${
-                              isGroupOn ? 'cursor-pointer' : 'cursor-default'
-                            } ${bg}`}
-                            title={isGroupOn ? `District: ${d}\nBlock: ${b}\nAvg Score: ${score}%\nSchools Count: ${val.count}` : undefined}
-                          >
-                            {isGroupOn ? `${score}%` : '–'}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>
