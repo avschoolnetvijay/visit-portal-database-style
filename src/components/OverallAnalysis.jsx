@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { Icons } from './Icons';
 import { parseDateRobust, formatDate } from '../utils';
+import ReactApexChart from 'react-apexcharts';
 
 /* ───────────────────────── Helpers & Utility Core ───────────────────────── */
 
@@ -278,36 +279,131 @@ const OverallAnalysis = ({
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [isTreemapExpanded, setIsTreemapExpanded] = useState(false);
   const [deckPMName, setDeckPMName] = useState('Suvendu Shekhar Jana');
-  const [hiddenKeys, setHiddenKeys] = useState({});
-  const [chartMenuOpen, setChartMenuOpen] = useState(false);
+  const classStatusSeries = useMemo(() => [
+    { name: 'ICT Class', data: monthlyClassStatusData.map(d => d['ICT Class'] || 0) },
+    { name: 'Smart Class', data: monthlyClassStatusData.map(d => d['Smart Class'] || 0) },
+    { name: 'MIS Work', data: monthlyClassStatusData.map(d => d['MIS Work'] || 0) }
+  ], [monthlyClassStatusData]);
 
-  const handleLegendClick = (dataKey) => {
-    setHiddenKeys(prev => ({ ...prev, [dataKey]: !prev[dataKey] }));
-  };
-
-  const handleExportCSV = () => {
-    if (!monthlyClassStatusData || monthlyClassStatusData.length === 0) return;
-    const headers = ['Month', 'Smart Class', 'ICT Class', 'MIS Work'];
-    const rows = monthlyClassStatusData.map(d => [
-      d.name,
-      d['Smart Class'] || 0,
-      d['ICT Class'] || 0,
-      d['MIS Work'] || 0
-    ]);
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `month_wise_class_status_${startDate || 'start'}_to_${endDate || 'end'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleExportPNG = () => {
-    alert("Exporting high-resolution PNG... Click OK to save standard chart image.");
-  };
+  const classStatusOptions = useMemo(() => ({
+    chart: {
+      type: 'area',
+      height: 320,
+      fontFamily: "'Times New Roman', Times, serif",
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          selection: false,
+          zoom: false,
+          zoomin: false,
+          zoomout: false,
+          pan: false,
+          reset: false,
+        },
+        export: {
+          csv: { filename: `class-status-${startDate ? formatDate(startDate) : 'Jun-2025'}-to-${endDate ? formatDate(endDate) : 'May-2026'}` },
+          png: { filename: `class-status-${startDate ? formatDate(startDate) : 'Jun-2025'}-to-${endDate ? formatDate(endDate) : 'May-2026'}` },
+        }
+      },
+      animations: {
+        enabled: true,
+        speed: 600,
+        animateGradually: { enabled: true, delay: 80 }
+      },
+      background: 'transparent',
+      dropShadow: { enabled: false },
+    },
+    stroke: {
+      curve: 'smooth',
+      width: [2.5, 2, 2],
+      lineCap: 'round',
+    },
+    fill: {
+      type: ['gradient', 'solid', 'solid'],
+      gradient: {
+        shade: 'light',
+        type: 'vertical',
+        shadeIntensity: 0.4,
+        opacityFrom: 0.35,
+        opacityTo: 0.02,
+        stops: [0, 90, 100]
+      },
+      opacity: [1, 0, 0],
+    },
+    colors: ['#1D9E75', '#378ADD', '#BA7517'],
+    markers: {
+      size: [4, 4, 4],
+      strokeColors: '#ffffff',
+      strokeWidth: 2,
+      hover: { size: 6, sizeOffset: 2 }
+    },
+    dataLabels: {
+      enabled: true,
+      style: {
+        fontSize: '11px',
+        fontWeight: '500',
+        colors: ['#1D9E75', '#378ADD', '#BA7517'],
+      },
+      background: {
+        enabled: false,
+      },
+      formatter: (val) => val ? val.toLocaleString('en-IN') : '',
+      offsetY: -6,
+    },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'center',
+      fontSize: '13px',
+      fontWeight: 500,
+      labels: {
+        colors: darkMode ? '#f1f5f9' : '#334155'
+      },
+      markers: {
+        width: 10,
+        height: 10,
+        radius: 5,
+      },
+      itemMargin: { horizontal: 12 },
+      onItemClick: { toggleDataSeries: true },
+      onItemHover: { highlightDataSeries: true },
+    },
+    xaxis: {
+      categories: monthlyClassStatusData.map(d => d.name),
+      labels: {
+        style: { fontSize: '12px', colors: darkMode ? '#94a3b8' : '#6B7280' },
+        rotate: 0,
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      min: 0,
+      forceNiceScale: true,
+      labels: {
+        formatter: (val) => Math.round(val).toLocaleString('en-IN'),
+        style: { fontSize: '12px', colors: darkMode ? '#94a3b8' : '#6B7280' },
+      },
+    },
+    grid: {
+      show: true,
+      borderColor: darkMode ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
+      strokeDashArray: 4,
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true  } },
+      padding: { top: 0, right: 20, bottom: 0, left: 10 },
+    },
+    tooltip: {
+      theme: darkMode ? 'dark' : 'light',
+      shared: true,
+      intersect: false,
+      y: {
+        formatter: (val) => val ? val.toLocaleString('en-IN') : '0',
+      },
+    },
+    title: { text: undefined },
+  }), [monthlyClassStatusData, darkMode, startDate, endDate]);
 
   const gridStroke = darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9';
   const axisStroke = darkMode ? 'rgba(255,255,255,0.1)' : '#e2e8f0';
@@ -2190,105 +2286,20 @@ const OverallAnalysis = ({
                   )}
                 </div>
 
-                <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border-none shadow-[0_1px_8px_rgba(0,0,0,0.08)] lg:col-span-2 relative">
-                  <div className="flex justify-between items-center mb-3 pl-2 pr-2 relative">
+                <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border-none shadow-[0_1px_8px_rgba(0,0,0,0.08)] lg:col-span-2">
+                  <div className="flex justify-between items-center mb-1 pl-2 pr-2">
                     <h4 className="text-slate-800 dark:text-slate-200 text-base md:text-lg font-semibold tracking-tight font-sans">
                       Month wise class status from {startDate ? formatDate(startDate) : 'Jun 2025'} to {endDate ? formatDate(endDate) : 'May 2026'}
                     </h4>
-                    <div className="relative z-20 no-print">
-                      <button
-                        onClick={() => setChartMenuOpen(prev => !prev)}
-                        className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-2xl font-bold p-1 leading-none rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        title="Chart options"
-                      >
-                        ≡
-                      </button>
-                      {chartMenuOpen && (
-                        <>
-                          <div 
-                            className="fixed inset-0 z-10" 
-                            onClick={() => setChartMenuOpen(false)}
-                          />
-                          <div className="absolute right-0 top-8 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl min-w-[150px] py-1.5 z-20 text-xs font-sans text-slate-700 dark:text-slate-300">
-                            <button 
-                              onClick={() => { handleExportCSV(); setChartMenuOpen(false); }} 
-                              className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-750 hover:text-slate-900 dark:hover:text-white transition-colors"
-                            >
-                              Download CSV
-                            </button>
-                            <button 
-                              onClick={() => { handleExportPNG(); setChartMenuOpen(false); }} 
-                              className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-750 hover:text-slate-900 dark:hover:text-white transition-colors"
-                            >
-                              Download PNG
-                            </button>
-                            <button 
-                              onClick={() => { window.print(); setChartMenuOpen(false); }} 
-                              className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-750 hover:text-slate-900 dark:hover:text-white transition-colors"
-                            >
-                              Print Chart
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
                   </div>
                   {isJhpmsActive ? (
-                    <div className="h-48">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={monthlyClassStatusData} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
-                          <defs>
-                            <linearGradient id="colorIctClass" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#1D9E75" stopOpacity={0.12}/>
-                              <stop offset="95%" stopColor="#1D9E75" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" strokeOpacity={0.4} />
-                          <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 'bold' }} />
-                          <YAxis 
-                            domain={[0, (dataMax) => Math.ceil((dataMax * 1.1) / 10000) * 10000]} 
-                            tick={{ fontSize: 9, fontWeight: 'bold' }} 
-                            tickFormatter={(v) => v.toLocaleString('en-IN')}
-                          />
-                          <Tooltip content={<ClassStatusTooltip />} cursor={{ stroke: '#94a3b8', strokeDasharray: '3 3' }} />
-                          <Legend verticalAlign="top" align="center" content={<ClickableLegend hiddenKeys={hiddenKeys} onLegendClick={handleLegendClick} />} />
-                          
-                          <Line
-                            type="monotone"
-                            dataKey="Smart Class"
-                            stroke="#378ADD"
-                            strokeWidth={2}
-                            dot={{ r: 4, fill: '#378ADD', strokeWidth: 0 }}
-                            activeDot={{ r: 6 }}
-                            hide={!!hiddenKeys['Smart Class']}
-                            label={<CustomizedLabel fill="#378ADD" offset={-12} />}
-                          />
-                          
-                          <Area 
-                            type="monotone" 
-                            dataKey="ICT Class" 
-                            stroke="#1D9E75" 
-                            strokeWidth={2.5} 
-                            fillOpacity={1} 
-                            fill="url(#colorIctClass)" 
-                            dot={{ r: 4, fill: '#1D9E75', strokeWidth: 0 }}
-                            activeDot={{ r: 6 }}
-                            hide={!!hiddenKeys['ICT Class']}
-                            label={<CustomizedLabel fill="#1D9E75" offset={-12} />} 
-                          />
-                          
-                          <Line
-                            type="monotone"
-                            dataKey="MIS Work"
-                            stroke="#BA7517"
-                            strokeWidth={2}
-                            dot={{ r: 4, fill: '#BA7517', strokeWidth: 0 }}
-                            activeDot={{ r: 6 }}
-                            hide={!!hiddenKeys['MIS Work']}
-                            label={<CustomizedLabel fill="#BA7517" offset={8} />}
-                          />
-                        </ComposedChart>
-                      </ResponsiveContainer>
+                    <div className="w-full text-slate-800 dark:text-slate-200">
+                      <ReactApexChart
+                        options={classStatusOptions}
+                        series={classStatusSeries}
+                        type="area"
+                        height={320}
+                      />
                     </div>
                   ) : (
                     <p className="text-slate-400 italic text-xs py-10 text-center">No JHPMS lab data available.</p>
