@@ -126,9 +126,12 @@ const normalizeManpowerStatus = (statusStr) => {
 
 /* ───── Dynamic SVG semi-circle gauge ───── */
 const SemiGauge = ({ value, size = 200, label, grade, gradeColor, isReporting = true }) => {
-  const r = (size - 24) / 2;
+  const strokeW = 16;
+  const pad = strokeW / 2 + 4;            // enough room for the thick stroke + linecap
+  const r = (size - 2 * pad) / 2;         // radius that leaves space on both sides
   const cx = size / 2;
-  const cy = size / 2 + 10;
+  const cy = pad + r;                      // vertical center pushed down so arc top = pad
+  const svgH = cy + 40;                    // height: arc-center + room for grade text below
   const startAngle = Math.PI;
   const sweepAngle = Math.PI;
   const v = isReporting ? clamp(value) / 100 : 0;
@@ -150,16 +153,16 @@ const SemiGauge = ({ value, size = 200, label, grade, gradeColor, isReporting = 
 
   return (
     <div className="flex flex-col items-center select-none font-sans">
-      <svg id="health-gauge-svg" width={size} height={size / 2 + 35} viewBox={`0 0 ${size} ${size / 2 + 35}`} style={{ overflow: 'visible' }}>
+      <svg id="health-gauge-svg" width={size} height={svgH} viewBox={`0 0 ${size} ${svgH}`}>
         {/* Background Arc */}
-        <path d={arcPath(0, 1)} fill="none" stroke="#e2e8f0" strokeWidth="16" strokeLinecap="round" />
+        <path d={arcPath(0, 1)} fill="none" stroke="#e2e8f0" strokeWidth={strokeW} strokeLinecap="round" />
         {/* Value Arc */}
         {isReporting && v > 0 && (
           <path
             d={arcPath(0, v)}
             fill="none"
             stroke={v >= 0.8 ? '#0f766e' : v >= 0.6 ? '#0d9488' : v >= 0.4 ? '#f59e0b' : '#ef4444'}
-            strokeWidth="16"
+            strokeWidth={strokeW}
             strokeLinecap="round"
           />
         )}
@@ -2142,7 +2145,7 @@ const OverallAnalysis = ({
         
         {/* Semi-Circle composite gauge */}
         {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.health) && (
-          <div className="portal-card lg:col-span-1 p-4 flex flex-col items-center justify-start bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative">
+          <div className="portal-card lg:col-span-1 p-4 flex flex-col items-center justify-start bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative overflow-hidden">
             <ChartToolbar
               chartId="health-gauge-svg"
               csvData={[
