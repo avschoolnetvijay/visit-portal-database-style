@@ -495,7 +495,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
       },
       stroke: {
         curve: 'smooth',
-        width: [2.5, 2],
+        width: [4, 4],
         lineCap: 'round',
       },
       fill: {
@@ -503,32 +503,45 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
         gradient: {
           shade: 'light',
           type: 'vertical',
-          shadeIntensity: 0.4,
-          opacityFrom: 0.35,
-          opacityTo: 0.02,
-          stops: [0, 90, 100]
+          shadeIntensity: 0.1,
+          opacityFrom: 0.28,
+          opacityTo: 0.05,
+          stops: [0, 95, 100]
         },
         opacity: [1, 0],
       },
-      colors: ['#1D9E75', '#378ADD'],
+      colors: ['#00df89', '#0097ff'],
       markers: {
-        size: [4, 4],
-        strokeColors: '#ffffff',
-        strokeWidth: 2,
-        hover: { size: 6, sizeOffset: 2 }
+        size: [0, 0],
+        hover: { size: 6 }
       },
       dataLabels: {
         enabled: true,
         style: {
           fontSize: '11px',
-          fontWeight: '500',
-          colors: ['#1D9E75', '#378ADD'],
+          fontWeight: 'bold',
+          colors: ['#ffffff', '#ffffff'],
+          fontFamily: "'Inter', sans-serif"
         },
         background: {
-          enabled: false,
+          enabled: true,
+          foreColor: '#ffffff',
+          padding: 5,
+          borderRadius: 3,
+          borderWidth: 1.5,
+          borderColor: '#ffffff',
+          opacity: 1,
+          dropShadow: {
+            enabled: true,
+            top: 1,
+            left: 1,
+            blur: 2,
+            color: '#000000',
+            opacity: 0.25
+          }
         },
         formatter: (val) => val ? val.toLocaleString('en-IN') : '',
-        offsetY: -6,
+        offsetY: -8,
       },
       legend: {
         show: true,
@@ -536,6 +549,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
         horizontalAlign: 'center',
         fontSize: '13px',
         fontWeight: 500,
+        fontFamily: "'Inter', sans-serif",
         labels: {
           colors: darkMode ? '#f1f5f9' : '#334155'
         },
@@ -551,7 +565,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
       xaxis: {
         categories: visitorData.monthlyStatusData.map(d => d.name),
         labels: {
-          style: { fontSize: '12px', colors: darkMode ? '#94a3b8' : '#6B7280' },
+          style: { fontSize: '11px', colors: darkMode ? '#94a3b8' : '#6B7280', fontFamily: "'Inter', sans-serif" },
           rotate: 0,
         },
         axisBorder: { show: false },
@@ -562,13 +576,13 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
         forceNiceScale: true,
         labels: {
           formatter: (val) => Math.round(val).toLocaleString('en-IN'),
-          style: { fontSize: '12px', colors: darkMode ? '#94a3b8' : '#6B7280' },
+          style: { fontSize: '11px', colors: darkMode ? '#94a3b8' : '#6B7280', fontFamily: "'Inter', sans-serif" },
         },
       },
       grid: {
         show: true,
         borderColor: darkMode ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
-        strokeDashArray: 4,
+        strokeDashArray: 0,
         xaxis: { lines: { show: false } },
         yaxis: { lines: { show: true  } },
         padding: { top: 0, right: 20, bottom: 0, left: 10 },
