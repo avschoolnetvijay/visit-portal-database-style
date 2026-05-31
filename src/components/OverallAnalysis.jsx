@@ -2514,7 +2514,7 @@ const OverallAnalysis = ({
             {/* TAB 1: JHPMS */}
             {activeDeepDiveTab === 'jhpms' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-[#edf6f7] dark:bg-slate-900 border border-[#cbdfe1] dark:border-slate-800 shadow-sm">
+                <div className="portal-card flex flex-col items-center justify-center p-4 bg-white dark:bg-slate-900 shadow-sm">
                   <h4 className="text-slate-800 dark:text-slate-200 text-xs md:text-sm font-semibold tracking-tight mb-3 text-center font-sans">Active vs Inactive JHPMS Labs</h4>
                   {isJhpmsActive ? (
                     <div className="h-44 w-full relative" id="jhpms-active-pie-container">
@@ -2548,7 +2548,7 @@ const OverallAnalysis = ({
                   )}
                 </div>
 
-                <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border-none shadow-[0_1px_8px_rgba(0,0,0,0.08)] lg:col-span-2">
+                <div className="portal-card p-5 bg-white dark:bg-slate-900 lg:col-span-2">
                   <div className="flex justify-between items-center mb-1 pl-2 pr-2">
                     <h4 className="text-slate-800 dark:text-slate-200 text-base md:text-lg font-semibold tracking-tight font-sans">
                       Month wise class status from {startDate ? formatDate(startDate) : 'Jun 2025'} to {endDate ? formatDate(endDate) : 'May 2026'}
@@ -2573,7 +2573,7 @@ const OverallAnalysis = ({
             {/* TAB 2: EDUSTAT */}
             {activeDeepDiveTab === 'edustat' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div className="flex flex-col items-center justify-center p-3 border rounded-xl dark:border-slate-800">
+                <div className="portal-card flex flex-col items-center justify-center p-3 bg-white dark:bg-slate-900">
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3 text-center">CPU vs Mini PC Hours Breakdown</h4>
                   {isEdustatActive ? (
                     <div className="h-44 w-full relative" id="edustat-cpu-pie-container">
@@ -2607,7 +2607,7 @@ const OverallAnalysis = ({
                   )}
                 </div>
 
-                <div className="p-3 border rounded-xl dark:border-slate-800 lg:col-span-2">
+                <div className="portal-card p-3 bg-white dark:bg-slate-900 lg:col-span-2">
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Weekly PC Utilization Trend (Hours)</h4>
                   {isEdustatActive ? (
                     <div className="h-44 relative" id="edustat-weekly-trend-container">
@@ -2649,7 +2649,7 @@ const OverallAnalysis = ({
             {/* TAB 3: VISIT REPORTS */}
             {activeDeepDiveTab === 'visit' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div className="p-3 border rounded-xl dark:border-slate-800">
+                <div className="portal-card p-3 bg-white dark:bg-slate-900">
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Field Visit Aging Status</h4>
                   <div className="h-44 relative" id="visit-aging-chart-container">
                     <ChartToolbar
@@ -2669,7 +2669,7 @@ const OverallAnalysis = ({
                   </div>
                 </div>
 
-                <div className="p-3 border rounded-xl dark:border-slate-800 lg:col-span-2">
+                <div className="portal-card p-3 bg-white dark:bg-slate-900 lg:col-span-2">
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Planned vs Completed Visits</h4>
                   {isVisitActive ? (
                     (() => {
@@ -2712,7 +2712,7 @@ const OverallAnalysis = ({
             {/* TAB 4: ROSTER & COORDINATORS */}
             {activeDeepDiveTab === 'performance' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div className="p-3 border rounded-xl dark:border-slate-800 lg:col-span-2">
+                <div className="portal-card p-3 bg-white dark:bg-slate-900 lg:col-span-2">
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Top Performing CC Leaderboard</h4>
                   {isManpowerActive ? (
                     <div className="h-44 relative" id="cc-leaderboard-chart-container">
@@ -2736,7 +2736,7 @@ const OverallAnalysis = ({
                   )}
                 </div>
 
-                <div className="p-3 border rounded-xl dark:border-slate-800">
+                <div className="portal-card p-3 bg-white dark:bg-slate-900">
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Instructor Status Roster</h4>
                   <div className="space-y-2 mt-4 font-mono text-xs">
                     <div className="flex justify-between p-2 rounded bg-green-50 dark:bg-emerald-950/20 text-green-800 dark:text-emerald-300">
