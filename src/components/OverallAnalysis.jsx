@@ -5,8 +5,78 @@ import {
   ComposedChart
 } from 'recharts';
 import { Icons } from './Icons';
-import { parseDateRobust, formatDate } from '../utils';
+import { parseDateRobust, formatDate, downloadSVG, downloadPNG, downloadCSV } from '../utils';
 import ReactApexChart from 'react-apexcharts';
+
+/* ───── Standard Chart Download Toolbar Dropdown ───── */
+const ChartToolbar = ({ chartId, csvData, filename }) => {
+  const [showMenu, setShowMenu] = useState(false);
+
+  // Close menu on click outside
+  React.useEffect(() => {
+    if (!showMenu) return;
+    const handleOutsideClick = () => setShowMenu(false);
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [showMenu]);
+
+  const handleMenuClick = (e) => {
+    e.stopPropagation();
+    setShowMenu(!showMenu);
+  };
+
+  return (
+    <div className="absolute top-3 right-3 z-30 no-print" style={{ pointerEvents: 'auto' }}>
+      <div className="relative inline-block text-left">
+        <button
+          onClick={handleMenuClick}
+          type="button"
+          className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-md shadow-sm border border-slate-200 dark:border-slate-700 transition-colors focus:outline-none"
+          title="Download Options"
+        >
+          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+            <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+          </svg>
+        </button>
+        {showMenu && (
+          <div className="origin-top-right absolute right-0 mt-1.5 w-36 rounded-lg shadow-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 ring-1 ring-black ring-opacity-5 focus:outline-none py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 font-sans">
+            <button
+              onClick={() => {
+                const el = document.getElementById(chartId);
+                const svgEl = el?.tagName?.toLowerCase() === 'svg' ? el : el?.querySelector('svg');
+                if (svgEl) downloadSVG(svgEl, `${filename}.svg`);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors"
+            >
+              Download SVG
+            </button>
+            <button
+              onClick={() => {
+                const el = document.getElementById(chartId);
+                const svgEl = el?.tagName?.toLowerCase() === 'svg' ? el : el?.querySelector('svg');
+                if (svgEl) downloadPNG(svgEl, `${filename}.png`);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors"
+            >
+              Download PNG
+            </button>
+            {csvData && (
+              <button
+                onClick={() => {
+                  downloadCSV(csvData, `${filename}.csv`);
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors"
+              >
+                Download CSV
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 
 /* ───────────────────────── Helpers & Utility Core ───────────────────────── */
 
@@ -55,7 +125,7 @@ const normalizeManpowerStatus = (statusStr) => {
 };
 
 /* ───── Dynamic SVG semi-circle gauge ───── */
-const SemiGauge = ({ value, size = 220, label, grade, gradeColor, isReporting = true }) => {
+const SemiGauge = ({ value, size = 200, label, grade, gradeColor, isReporting = true }) => {
   const r = (size - 24) / 2;
   const cx = size / 2;
   const cy = size / 2 + 10;
@@ -80,7 +150,7 @@ const SemiGauge = ({ value, size = 220, label, grade, gradeColor, isReporting = 
 
   return (
     <div className="flex flex-col items-center select-none font-sans">
-      <svg width={size} height={size / 2 + 40} viewBox={`0 0 ${size} ${size / 2 + 40}`}>
+      <svg id="health-gauge-svg" width={size} height={size / 2 + 35} viewBox={`0 0 ${size} ${size / 2 + 35}`} style={{ overflow: 'visible' }}>
         {/* Background Arc */}
         <path d={arcPath(0, 1)} fill="none" stroke="#e2e8f0" strokeWidth="16" strokeLinecap="round" />
         {/* Value Arc */}
@@ -2015,22 +2085,33 @@ const OverallAnalysis = ({
         
         {/* Semi-Circle composite gauge */}
         {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.health) && (
-          <div className="portal-card lg:col-span-1 p-5 flex flex-col items-center justify-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+          <div className="portal-card lg:col-span-1 p-4 flex flex-col items-center justify-start bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative">
+            <ChartToolbar
+              chartId="health-gauge-svg"
+              csvData={[
+                { Metric: 'Overall Health Score', Value: `${Math.round(healthData.composite)}%` },
+                { Metric: 'JHPMS Labs', Value: `${Math.round(healthData.jhpmsGlobal)}%` },
+                { Metric: 'EduStat Hours', Value: `${Math.round(healthData.edustatGlobal)}%` },
+                { Metric: 'Visit Coverage', Value: `${Math.round(healthData.visitGlobal)}%` },
+                { Metric: 'CC Manpower', Value: `${Math.round(healthData.manpowerGlobal)}%` }
+              ]}
+              filename="overall_health_score"
+            />
             <SemiGauge
               value={healthData.composite}
-              size={220}
+              size={180}
               label="Overall Health Score"
               grade={healthData.grade}
               gradeColor={healthData.gradeColor}
               isReporting={isJhpmsActive || isEdustatActive || isVisitActive || isManpowerActive}
             />
-            <div className="w-full space-y-2.5 mt-5">
+            <div className="w-full space-y-1.5 mt-3">
               <MiniBar label="JHPMS Labs" value={healthData.jhpmsGlobal} weight={weights.jhpms} color="#0f766e" isReporting={isJhpmsActive} />
               <MiniBar label="EduStat Hours" value={healthData.edustatGlobal} weight={weights.edustat} color="#2563eb" isReporting={isEdustatActive} />
               <MiniBar label="Visit Coverage" value={healthData.visitGlobal} weight={weights.visit} color="#7c3aed" isReporting={isVisitActive} />
               <MiniBar label="CC Manpower" value={healthData.manpowerGlobal} weight={weights.manpower} color="#d97706" isReporting={isManpowerActive} />
             </div>
-            <p className="text-[9px] text-slate-400 mt-4 italic text-center leading-normal font-sans">
+            <p className="text-[9px] text-slate-400 mt-3 italic text-center leading-normal font-sans">
               *Composite is computed using dynamically redistributed active weights to match exactly 100% logic.
             </p>
           </div>
@@ -2105,7 +2186,17 @@ const OverallAnalysis = ({
             {/* Compare Bar Chart */}
             <div className="lg:col-span-2">
               <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Key KPI MoM Matrix</h4>
-              <div className="h-56">
+              <div className="h-56 relative" id="mom-kpi-chart-container">
+                <ChartToolbar
+                  chartId="mom-kpi-chart-container"
+                  csvData={[
+                    { Metric: 'Composite', Current: `${currentKPIs.avgScore}%`, Previous: `${prevKPIs.avgScore}%` },
+                    { Metric: 'JHPMS Labs', Current: `${currentKPIs.labPct}%`, Previous: `${prevKPIs.labPct}%` },
+                    { Metric: 'Visits %', Current: `${currentKPIs.visitPct}%`, Previous: `${prevKPIs.visitPct}%` },
+                    { Metric: 'Active CCs', Current: currentKPIs.activeCCs, Previous: prevKPIs.activeCCs }
+                  ]}
+                  filename="mom_key_kpis"
+                />
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={[
@@ -2166,7 +2257,12 @@ const OverallAnalysis = ({
             {/* Band migrations stacked bar */}
             <div>
               <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Performance Band Migration Shift</h4>
-              <div className="h-48">
+              <div className="h-48 relative" id="band-migration-chart-container">
+                <ChartToolbar
+                  chartId="band-migration-chart-container"
+                  csvData={bandMigrationData}
+                  filename="performance_band_migration"
+                />
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={bandMigrationData} margin={{ top: 10, right: 10, left: -25, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
@@ -2184,7 +2280,19 @@ const OverallAnalysis = ({
             {/* Historical composite scores line graph */}
             <div>
               <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Historical Composite Score Trend (Last 6 Periods)</h4>
-              <div className="h-48">
+              <div className="h-48 relative" id="historical-trend-chart-container">
+                <ChartToolbar
+                  chartId="historical-trend-chart-container"
+                  csvData={[
+                    { month: 'Period 1', score: Math.round(currentKPIs.avgScore * 0.9) },
+                    { month: 'Period 2', score: Math.round(currentKPIs.avgScore * 0.94) },
+                    { month: 'Period 3', score: Math.round(currentKPIs.avgScore * 0.92) },
+                    { month: 'Period 4', score: Math.round(currentKPIs.avgScore * 0.96) },
+                    { month: 'Period 5', score: Math.round(currentKPIs.avgScore * 0.98) },
+                    { month: 'Current', score: Math.round(currentKPIs.avgScore) }
+                  ]}
+                  filename="historical_composite_trend"
+                />
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={[
@@ -2306,7 +2414,12 @@ const OverallAnalysis = ({
                 <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-[#edf6f7] dark:bg-slate-900 border border-[#cbdfe1] dark:border-slate-800 shadow-sm">
                   <h4 className="text-slate-800 dark:text-slate-200 text-xs md:text-sm font-semibold tracking-tight mb-3 text-center font-sans">Active vs Inactive JHPMS Labs</h4>
                   {isJhpmsActive ? (
-                    <div className="h-44 w-full">
+                    <div className="h-44 w-full relative" id="jhpms-active-pie-container">
+                      <ChartToolbar
+                        chartId="jhpms-active-pie-container"
+                        csvData={jhpmsActiveVsInactive}
+                        filename="jhpms_active_vs_inactive_labs"
+                      />
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -2360,7 +2473,12 @@ const OverallAnalysis = ({
                 <div className="flex flex-col items-center justify-center p-3 border rounded-xl dark:border-slate-800">
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3 text-center">CPU vs Mini PC Hours Breakdown</h4>
                   {isEdustatActive ? (
-                    <div className="h-44 w-full">
+                    <div className="h-44 w-full relative" id="edustat-cpu-pie-container">
+                      <ChartToolbar
+                        chartId="edustat-cpu-pie-container"
+                        csvData={edustatCpuVsMiniPc}
+                        filename="edustat_cpu_vs_minipc"
+                      />
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -2389,7 +2507,17 @@ const OverallAnalysis = ({
                 <div className="p-3 border rounded-xl dark:border-slate-800 lg:col-span-2">
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Weekly PC Utilization Trend (Hours)</h4>
                   {isEdustatActive ? (
-                    <div className="h-44">
+                    <div className="h-44 relative" id="edustat-weekly-trend-container">
+                      <ChartToolbar
+                        chartId="edustat-weekly-trend-container"
+                        csvData={[
+                          { Week: 'Wk 1', Hours: Math.round(currentKPIs.deviceHours * 0.22) },
+                          { Week: 'Wk 2', Hours: Math.round(currentKPIs.deviceHours * 0.25) },
+                          { Week: 'Wk 3', Hours: Math.round(currentKPIs.deviceHours * 0.28) },
+                          { Week: 'Wk 4', Hours: Math.round(currentKPIs.deviceHours * 0.25) }
+                        ]}
+                        filename="edustat_weekly_utilization"
+                      />
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart
                           data={[
@@ -2420,7 +2548,12 @@ const OverallAnalysis = ({
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <div className="p-3 border rounded-xl dark:border-slate-800">
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Field Visit Aging Status</h4>
-                  <div className="h-44">
+                  <div className="h-44 relative" id="visit-aging-chart-container">
+                    <ChartToolbar
+                      chartId="visit-aging-chart-container"
+                      csvData={visitAgingGroups}
+                      filename="visit_aging_status"
+                    />
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={visitAgingGroups} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -2436,26 +2569,36 @@ const OverallAnalysis = ({
                 <div className="p-3 border rounded-xl dark:border-slate-800 lg:col-span-2">
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Planned vs Completed Visits</h4>
                   {isVisitActive ? (
-                    <div className="h-44">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={treemapData.map(t => ({
-                            name: t.name,
-                            Planned: Math.max(1, t.size * 2),
-                            Completed: Math.round(t.size * 1.8)
-                          }))}
-                          margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                          <YAxis tick={{ fontSize: 9 }} />
-                          <Tooltip content={<CustomTooltip />} />
-                          <Legend wrapperStyle={{ fontSize: 9 }} />
-                          <Bar dataKey="Planned" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="Completed" fill="#7c3aed" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
+                    (() => {
+                      const plannedVsCompletedData = treemapData.map(t => ({
+                        name: t.name,
+                        Planned: Math.max(1, t.size * 2),
+                        Completed: Math.round(t.size * 1.8)
+                      }));
+                      return (
+                        <div className="h-44 relative" id="planned-vs-completed-chart-container">
+                          <ChartToolbar
+                            chartId="planned-vs-completed-chart-container"
+                            csvData={plannedVsCompletedData}
+                            filename="planned_vs_completed_visits"
+                          />
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={plannedVsCompletedData}
+                              margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                              <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                              <YAxis tick={{ fontSize: 9 }} />
+                              <Tooltip content={<CustomTooltip />} />
+                              <Legend wrapperStyle={{ fontSize: 9 }} />
+                              <Bar dataKey="Planned" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="Completed" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      );
+                    })()
                   ) : (
                     <p className="text-slate-400 italic text-xs py-10 text-center">No field visits reported.</p>
                   )}
@@ -2469,7 +2612,12 @@ const OverallAnalysis = ({
                 <div className="p-3 border rounded-xl dark:border-slate-800 lg:col-span-2">
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Top Performing CC Leaderboard</h4>
                   {isManpowerActive ? (
-                    <div className="h-44">
+                    <div className="h-44 relative" id="cc-leaderboard-chart-container">
+                      <ChartToolbar
+                        chartId="cc-leaderboard-chart-container"
+                        csvData={ccLeaderboard}
+                        filename="cc_leaderboard"
+                      />
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={ccLeaderboard} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
@@ -2676,19 +2824,26 @@ const OverallAnalysis = ({
               <span className="text-[10px] bg-red-100 text-red-800 px-2 py-0.5 rounded font-black font-sans">PARETO CHART</span>
             </div>
 
-            <div className="h-64 flex-1">
+            <div className="h-64 flex-1 relative" id="pareto-bottlenecks-chart-container">
               {paretoData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={paretoData} margin={{ top: 15, right: 20, left: -20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                    <YAxis yAxisId="left" tick={{ fontSize: 9 }} />
-                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 9 }} />
-                    <Tooltip cursor={{ fill: 'transparent' }} content={<CustomTooltip />} />
-                    <Bar yAxisId="left" dataKey="count" name="Schools (Count)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={24} />
-                    <Line yAxisId="right" type="monotone" dataKey="cumulativePercentage" name="Cumulative %" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, stroke: '#ef4444', strokeWidth: 2, fill: '#fff' }} />
-                  </ComposedChart>
-                </ResponsiveContainer>
+                <>
+                  <ChartToolbar
+                    chartId="pareto-bottlenecks-chart-container"
+                    csvData={paretoData}
+                    filename="pareto_bottlenecks"
+                  />
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={paretoData} margin={{ top: 15, right: 20, left: -20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                      <YAxis yAxisId="left" tick={{ fontSize: 9 }} />
+                      <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 9 }} />
+                      <Tooltip cursor={{ fill: 'transparent' }} content={<CustomTooltip />} />
+                      <Bar yAxisId="left" dataKey="count" name="Schools (Count)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={24} />
+                      <Line yAxisId="right" type="monotone" dataKey="cumulativePercentage" name="Cumulative %" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, stroke: '#ef4444', strokeWidth: 2, fill: '#fff' }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </>
               ) : (
                 <p className="text-slate-400 italic text-xs py-10 text-center">No systemic bottleneck anomalies detected.</p>
               )}

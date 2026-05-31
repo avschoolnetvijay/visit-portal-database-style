@@ -191,3 +191,99 @@ export const exportToExcel = (data, fileName) => {
   XLSX.utils.book_append_sheet(wb, ws, "Data");
   XLSX.writeFile(wb, `${fileName}.xlsx`);
 };
+
+export const downloadSVG = (svgElement, filename) => {
+  if (!svgElement) return;
+  try {
+    // Clone and ensure the standard namespace is present
+    const clonedSvg = svgElement.cloneNode(true);
+    if (!clonedSvg.getAttribute('xmlns')) {
+      clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    }
+    const svgString = new XMLSerializer().serializeToString(clonedSvg);
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Error exporting SVG', err);
+  }
+};
+
+export const downloadPNG = (svgElement, filename) => {
+  if (!svgElement) return;
+  try {
+    const clonedSvg = svgElement.cloneNode(true);
+    if (!clonedSvg.getAttribute('xmlns')) {
+      clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    }
+    const svgString = new XMLSerializer().serializeToString(clonedSvg);
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      const rect = svgElement.getBoundingClientRect();
+      const width = rect.width || svgElement.viewBox?.baseVal?.width || svgElement.clientWidth || 300;
+      const height = rect.height || svgElement.viewBox?.baseVal?.height || svgElement.clientHeight || 200;
+      
+      // Support high DPI screens
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      
+      const context = canvas.getContext('2d');
+      context.scale(scale, scale);
+      context.fillStyle = '#ffffff'; // white background so png is readable
+      context.fillRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+      
+      const png = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = png;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+    image.src = url;
+  } catch (err) {
+    console.error('Error exporting PNG', err);
+  }
+};
+
+export const downloadCSV = (data, filename) => {
+  if (!data || !data.length) return;
+  try {
+    const headers = Object.keys(data[0]);
+    const csvRows = [];
+    csvRows.push(headers.join(','));
+    for (const row of data) {
+      const values = headers.map(header => {
+        const val = row[header];
+        const escaped = (val === null || val === undefined) ? '' : ('' + val).replace(/"/g, '""');
+        return `"${escaped}"`;
+      });
+      csvRows.push(values.join(','));
+    }
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Error exporting CSV', err);
+  }
+};
+

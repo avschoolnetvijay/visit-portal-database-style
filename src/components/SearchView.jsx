@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, Legend, ComposedChart, Line } from 'recharts';
 import { Icons } from './Icons';
 import { formatDate } from '../utils';
 import ReactApexChart from 'react-apexcharts';
@@ -632,6 +631,75 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
     };
   }, [visitorData, darkMode, startDate, endDate]);
 
+  const dailyActivitySeries = useMemo(() => {
+    if (!visitorData || !visitorData.chartData) return [];
+    return [
+      { name: 'Total', data: visitorData.chartData.map(d => d.Total || 0) },
+      { name: 'Smart', data: visitorData.chartData.map(d => d.Smart || 0) },
+      { name: 'ICT', data: visitorData.chartData.map(d => d.ICT || 0) }
+    ];
+  }, [visitorData]);
+
+  const dailyActivityOptions = useMemo(() => {
+    if (!visitorData || !visitorData.chartData) return {};
+    return {
+      chart: {
+        type: 'bar',
+        height: 160,
+        toolbar: {
+          show: true,
+          tools: {
+            download: true,
+            zoom: false,
+            pan: false,
+            reset: false,
+            selection: false,
+            zoomin: false,
+            zoomout: false,
+          }
+        },
+        events: {
+          dataPointSelection: (event, chartContext, config) => {
+            const dpIndex = config.dataPointIndex;
+            if (dpIndex !== undefined && dpIndex >= 0 && visitorData.chartData[dpIndex]) {
+              const selectedData = visitorData.chartData[dpIndex];
+              handleChartClick({
+                activePayload: [{ payload: selectedData }]
+              });
+            }
+          }
+        }
+      },
+      plotOptions: {
+        bar: {
+          horizontal: false,
+          columnWidth: '55%',
+          borderRadius: 2,
+        },
+      },
+      colors: ['#8b5cf6', '#14b8a6', '#3b82f6'],
+      xaxis: {
+        categories: visitorData.chartData.map(d => d.date),
+        labels: { show: false },
+        axisBorder: { show: false },
+        axisTicks: { show: false }
+      },
+      yaxis: {
+        labels: { show: false }
+      },
+      grid: {
+        show: false,
+        padding: { top: 0, right: 0, bottom: 0, left: 0 }
+      },
+      legend: { show: false },
+      tooltip: {
+        theme: darkMode ? 'dark' : 'light',
+        shared: true,
+        intersect: false
+      }
+    };
+  }, [visitorData, darkMode]);
+
   const handleChartClick = (data) => {
     if (data && data.activePayload && data.activePayload.length > 0) {
       const payload = data.activePayload[0].payload;
@@ -899,16 +967,13 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
 
               <div className="bg-white rounded-lg shadow p-3 border border-gray-200">
                 <div className="text-xs font-bold text-gray-500 uppercase mb-2">Daily Activity Trend</div>
-                <div className="h-40">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={visitorData.chartData} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
-                      <XAxis dataKey="date" hide />
-                      <Tooltip content={<PremiumChartTooltip />} />
-                      <Bar dataKey="Total" fill="#8b5cf6" radius={[2, 2, 0, 0]} stackId="a" />
-                      <Bar dataKey="Smart" fill="#14b8a6" radius={[2, 2, 0, 0]} stackId="b" />
-                      <Bar dataKey="ICT" fill="#3b82f6" radius={[2, 2, 0, 0]} stackId="b" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="h-40 w-full text-slate-800">
+                  <ReactApexChart
+                    options={dailyActivityOptions}
+                    series={dailyActivitySeries}
+                    type="bar"
+                    height={140}
+                  />
                   <div className="flex justify-center gap-2 mt-1 text-[9px] text-gray-500">
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span> Total</span>
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-teal-500"></span> Smart</span>

@@ -1,7 +1,76 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, Cell, PieChart, Pie, Legend } from 'recharts';
-import { exportToExcel, parseDateRobust } from '../utils';
+import { exportToExcel, parseDateRobust, downloadSVG, downloadPNG, downloadCSV } from '../utils';
 import { Icons } from './Icons';
+
+/* ───── Standard Chart Download Toolbar Dropdown ───── */
+const ChartToolbar = ({ chartId, csvData, filename }) => {
+  const [showMenu, setShowMenu] = useState(false);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleOutsideClick = () => setShowMenu(false);
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [showMenu]);
+
+  const handleMenuClick = (e) => {
+    e.stopPropagation();
+    setShowMenu(!showMenu);
+  };
+
+  return (
+    <div className="absolute top-3 right-3 z-30 no-print" style={{ pointerEvents: 'auto' }}>
+      <div className="relative inline-block text-left">
+        <button
+          onClick={handleMenuClick}
+          type="button"
+          className="p-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-md shadow-sm border border-slate-200 dark:border-slate-700 transition-colors focus:outline-none"
+          title="Download Options"
+        >
+          <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+            <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+          </svg>
+        </button>
+        {showMenu && (
+          <div className="origin-top-right absolute right-0 mt-1.5 w-36 rounded-lg shadow-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 ring-1 ring-black ring-opacity-5 focus:outline-none py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 font-sans">
+            <button
+              onClick={() => {
+                const el = document.getElementById(chartId);
+                const svgEl = el?.tagName?.toLowerCase() === 'svg' ? el : el?.querySelector('svg');
+                if (svgEl) downloadSVG(svgEl, `${filename}.svg`);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors"
+            >
+              Download SVG
+            </button>
+            <button
+              onClick={() => {
+                const el = document.getElementById(chartId);
+                const svgEl = el?.tagName?.toLowerCase() === 'svg' ? el : el?.querySelector('svg');
+                if (svgEl) downloadPNG(svgEl, `${filename}.png`);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors"
+            >
+              Download PNG
+            </button>
+            {csvData && (
+              <button
+                onClick={() => {
+                  downloadCSV(csvData, `${filename}.csv`);
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors"
+              >
+                Download CSV
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 
 // Robust helper to extract cell value from a row regardless of exact key casing or spacing
 const getVal = (row, keyMatch) => {
@@ -855,7 +924,12 @@ const SchoolPerformance = ({
             {performanceData.results.length > 0 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 shrink-0">
                     {/* Top 10 Performers Horizontal Bar Chart */}
-                    <div className="bg-white/70 backdrop-blur-md border border-teal-100 p-3 rounded-2xl shadow-sm">
+                    <div className="bg-white/70 backdrop-blur-md border border-teal-100 p-3 rounded-2xl shadow-sm relative" id="top-performers-chart-container">
+                        <ChartToolbar
+                            chartId="top-performers-chart-container"
+                            csvData={barChartData}
+                            filename="top_performers_scores"
+                        />
                         <div className="text-xs font-black uppercase text-teal-800 tracking-wider mb-2.5 flex items-center gap-1.5">
                             📊 Top 10 Performer Scores
                         </div>
@@ -881,7 +955,12 @@ const SchoolPerformance = ({
                     </div>
 
                     {/* Classes Split Donut Chart */}
-                    <div className="bg-white/70 backdrop-blur-md border border-teal-100 p-3 rounded-2xl shadow-sm relative">
+                    <div className="bg-white/70 backdrop-blur-md border border-teal-100 p-3 rounded-2xl shadow-sm relative" id="donut-classes-chart-container">
+                        <ChartToolbar
+                            chartId="donut-classes-chart-container"
+                            csvData={pieChartData}
+                            filename="classes_split_distribution"
+                        />
                         <div className="text-xs font-black uppercase text-teal-800 tracking-wider mb-2.5 flex items-center gap-1.5">
                             🍩 ICT vs Smart Class Distribution
                         </div>

@@ -1,8 +1,5 @@
 import React, { useMemo } from 'react';
-import { 
-  LineChart, Line, Cell, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar 
-} from 'recharts';
+import ReactApexChart from 'react-apexcharts';
 import { Icons } from './Icons';
 import { formatDate, calculateEngagement, calculateStatus, parseDateRobust } from '../utils';
 
@@ -787,6 +784,158 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
       .slice(0, 5);
   }, [schools]);
 
+  const velocityChartSeries = useMemo(() => [
+    { name: 'Target Goal', data: velocityData.map(d => d.Target) },
+    { name: 'Actual Visits', data: velocityData.map(d => d.Actual) }
+  ], [velocityData]);
+
+  const velocityChartOptions = useMemo(() => ({
+    chart: {
+      type: 'line',
+      height: 240,
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          zoom: false,
+          pan: false,
+          reset: false,
+          selection: false,
+          zoomin: false,
+          zoomout: false,
+        }
+      },
+      zoom: { enabled: false },
+      fontFamily: 'inherit',
+      background: 'transparent',
+    },
+    stroke: {
+      curve: 'smooth',
+      width: [2, 3],
+      dashArray: [5, 0],
+    },
+    colors: ['#ffbb28', '#00c49f'],
+    markers: {
+      size: [0, 4],
+      strokeColors: '#ffffff',
+      strokeWidth: 2,
+      hover: { size: 6 }
+    },
+    xaxis: {
+      categories: velocityData.map(d => d.name),
+      labels: {
+        style: {
+          fontSize: '10px',
+          colors: darkMode ? '#94a3b8' : '#6B7280',
+        },
+        rotate: -30,
+        rotateAlways: false,
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      labels: {
+        style: {
+          fontSize: '10px',
+          colors: darkMode ? '#94a3b8' : '#6B7280',
+        },
+        formatter: (val) => Math.round(val).toLocaleString('en-IN'),
+      },
+    },
+    grid: {
+      show: true,
+      borderColor: darkMode ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
+      strokeDashArray: 4,
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } },
+      padding: { top: 0, right: 10, bottom: 0, left: 45 },
+    },
+    legend: { show: false },
+    tooltip: {
+      theme: darkMode ? 'dark' : 'light',
+      shared: true,
+      intersect: false,
+    }
+  }), [velocityData, darkMode]);
+
+  const trendChartSeries = useMemo(() => [
+    { name: 'Smart', data: lineChartData.map(d => d.Smart) },
+    { name: 'ICT', data: lineChartData.map(d => d.ICT) }
+  ], [lineChartData]);
+
+  const trendChartOptions = useMemo(() => ({
+    chart: {
+      type: 'area',
+      height: 210,
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          zoom: false,
+          pan: false,
+          reset: false,
+          selection: false,
+          zoomin: false,
+          zoomout: false,
+        }
+      },
+      zoom: { enabled: false },
+      fontFamily: 'inherit',
+      background: 'transparent',
+    },
+    stroke: {
+      curve: 'smooth',
+      width: 2,
+    },
+    colors: ['#0d9488', '#0891b2'],
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.45,
+        opacityTo: 0.05,
+        stops: [0, 90, 100]
+      }
+    },
+    xaxis: {
+      categories: lineChartData.map(d => d.name),
+      labels: {
+        style: {
+          fontSize: '10px',
+          colors: darkMode ? '#94a3b8' : '#6B7280',
+        },
+        rotate: -30,
+        rotateAlways: false,
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      labels: {
+        style: {
+          fontSize: '10px',
+          colors: darkMode ? '#94a3b8' : '#6B7280',
+        },
+        formatter: (val) => Math.round(val).toLocaleString('en-IN'),
+      },
+    },
+    grid: {
+      show: true,
+      borderColor: darkMode ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
+      strokeDashArray: 4,
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } },
+      padding: { top: 0, right: 10, bottom: 0, left: 45 },
+    },
+    legend: { show: false },
+    tooltip: {
+      theme: darkMode ? 'dark' : 'light',
+      shared: true,
+      intersect: false,
+    }
+  }), [lineChartData, darkMode]);
+
   return (
     <div className="space-y-4 animate-fade-in">
       <StatusCards buckets={statusBuckets} onDrillDown={onDrillDown} />
@@ -861,22 +1010,12 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
           </div>
           <div className="p-4 flex-1">
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={velocityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9'} />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }}
-                    axisLine={{ stroke: darkMode ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }}
-                    tickLine={false}
-                    minTickGap={30}
-                  />
-                  <YAxis tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<PremiumChartTooltip />} />
-                  <Line name="Target Goal" type="monotone" dataKey="Target" stroke="#ffbb28" strokeDasharray="4 4" dot={false} strokeWidth={2} activeDot={false} />
-                  <Line name="Actual Visits" type="monotone" dataKey="Actual" stroke="#00c49f" strokeWidth={3} dot={{ r: 3, fill: '#00c49f', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              <ReactApexChart
+                options={velocityChartOptions}
+                series={velocityChartSeries}
+                type="line"
+                height={240}
+              />
             </div>
           </div>
         </div>
@@ -921,25 +1060,13 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
             </div>
           </div>
           <div className="p-4 flex-1">
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={lineChartData}>
-                  <defs>
-                    <linearGradient id="colorSmart" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.8} /><stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorICT" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8} /><stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9'} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} minTickGap={30} />
-                  <YAxis tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<PremiumChartTooltip />} />
-                  <Area type="monotone" dataKey="Smart" stroke="#0d9488" fillOpacity={1} fill="url(#colorSmart)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="ICT" stroke="#0891b2" fillOpacity={1} fill="url(#colorICT)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="h-56 w-full text-slate-800">
+              <ReactApexChart
+                options={trendChartOptions}
+                series={trendChartSeries}
+                type="area"
+                height={210}
+              />
             </div>
           </div>
         </div>
