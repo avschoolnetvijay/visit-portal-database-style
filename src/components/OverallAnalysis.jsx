@@ -901,7 +901,7 @@ const OverallAnalysis = ({
       const fVisits = visitLocalMap[udise]?.count || 0;
 
       const jScore = isJhpmsActive ? clamp((jClasses / maxJhpms) * 100) : 0;
-      const eScore = isEdustatActive ? clamp((eHours / maxEdustat) * 100) : 0;
+      const eScore = isEdustatActive ? clamp((eHours / maxEdustat) * 105) : 0;
       const monthlyTarget = s.monthly_target || 1;
       const dTarget = monthlyTarget * durationMonths;
       const vScore = isVisitActive ? (dTarget > 0 ? clamp((fVisits / dTarget) * 100) : (fVisits > 0 ? 50 : 0)) : 0;
@@ -1018,8 +1018,32 @@ const OverallAnalysis = ({
 
   // Compile current and previous KPIs
   const currentKPIs = useMemo(() => {
-    return calculateKpiSet(fSchools, currentJhpms, edustat, manpower, currentVisits);
-  }, [fSchools, currentJhpms, edustat, manpower, currentVisits]);
+    const total = enriched.length || 1;
+    const labPct = pct(enriched.filter(s => s.jhpmsClasses > 0).length, total);
+    const visitPct = pct(enriched.filter(s => s.fieldVisits >= s.targetVisits).length, total);
+    const deviceHours = enriched.reduce((acc, s) => acc + s.eduHours, 0);
+    const criticalCount = enriched.filter(s => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0)).length;
+    
+    // Count distinct assigned visitor/coordinator CC names in filtered scope (using mapping)
+    const activeCCs = [...new Set(enriched.map(s => s.visitorName).filter(name => name && name !== '-' && name.trim() !== '' && name.toLowerCase() !== 'unassigned'))].length;
+
+    const edustatPct = pct(enriched.filter(s => s.eduHours > 0).length, total);
+    const manpowerPct = pct(enriched.filter(s => s.staffStatus === 'Active').length, total);
+
+    const composite = (labPct * (weights.jhpms / 100)) +
+                      (edustatPct * (weights.edustat / 100)) +
+                      (visitPct * (weights.visit / 100)) +
+                      (manpowerPct * (weights.manpower / 100));
+
+    return {
+      avgScore: composite,
+      labPct,
+      visitPct,
+      deviceHours,
+      criticalCount,
+      activeCCs
+    };
+  }, [enriched, weights]);
 
   const prevKPIs = useMemo(() => {
     if (!compareMode) return null;
