@@ -1000,7 +1000,7 @@ const OverallAnalysis = ({
       
       const jClasses = jhpmsLocalMap[udise] || 0;
       const eHours = edustatLocalMap[udise] || 0;
-      const fVisits = visitLocalMap[udise] || 0;
+      const fVisits = visitLocalMap[udise]?.count || 0;
       
       const isNoData = jClasses === 0 && eHours === 0 && fVisits === 0;
       return score < 30 && !isNoData;
