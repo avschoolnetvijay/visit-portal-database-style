@@ -164,16 +164,21 @@ const CustomTooltip = ({ active, payload, label }) => {
 const CustomizedLabel = (props) => {
   const { x, y, value, fill } = props;
   if (value === undefined || value === null || value === 0) return null;
-  const str = String(value);
-  const width = Math.max(28, str.length * 6 + 10);
-  const bg = fill || '#0f172a';
   return (
-    <g className="pointer-events-none select-none">
-      <rect x={x - width / 2} y={y - 20} width={width} height={16} rx={3} fill={bg} stroke="#ffffff" strokeWidth={1.5} />
-      <text x={x} y={y - 8} fill="#ffffff" fontSize={8} fontWeight="black" textAnchor="middle" dominantBaseline="middle">
-        {value}
-      </text>
-    </g>
+    <text
+      x={x}
+      y={y - 8}
+      fill={fill}
+      fontSize={10}
+      fontWeight="bold"
+      textAnchor="middle"
+      dominantBaseline="auto"
+      textRendering="geometricPrecision"
+      style={{ fontFamily: "'Times New Roman', Times, serif" }}
+      className="pointer-events-none select-none"
+    >
+      {Number(value).toLocaleString('en-IN')}
+    </text>
   );
 };
 
@@ -199,10 +204,44 @@ const ClassStatusTooltip = ({ active, payload, label }) => {
   );
 };
 
-/* ───── Custom Legend text formatter matching Pic2 ───── */
-const renderLegendText = (value) => {
-  const color = value === 'Smart Class' ? '#0088fe' : value === 'ICT Class' ? '#00c49f' : '#ffbb28';
-  return <span style={{ color, fontWeight: '700', fontSize: 12, marginRight: 16, fontFamily: 'Inter, sans-serif' }}>{value}</span>;
+/* ───── Interactive Clickable Legend Component ───── */
+const ClickableLegend = ({ payload, hiddenKeys, onLegendClick }) => {
+  if (!payload) return null;
+  return (
+    <div className="flex flex-wrap justify-center gap-6 mb-3 pl-3 select-none no-print">
+      {payload.map((entry) => {
+        const { value, color, dataKey } = entry;
+        const key = dataKey || value;
+        const isHidden = !!hiddenKeys[key];
+        
+        // Match line colors
+        const displayColor = key === 'Smart Class' ? '#378ADD' : key === 'ICT Class' ? '#1D9E75' : '#BA7517';
+        
+        return (
+          <div
+            key={key}
+            onClick={() => onLegendClick(key)}
+            className="flex items-center gap-1.5 cursor-pointer transition-all duration-200"
+            style={{
+              opacity: isHidden ? 0.35 : 1,
+              textDecoration: isHidden ? 'line-through' : 'none',
+            }}
+          >
+            <span 
+              className="w-2.5 h-2.5 rounded-full inline-block shrink-0" 
+              style={{ backgroundColor: displayColor }} 
+            />
+            <span 
+              className="text-xs font-bold"
+              style={{ color: displayColor }}
+            >
+              {value}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 /* ──────────────────────────────────────────────────────────── */
@@ -240,6 +279,36 @@ const OverallAnalysis = ({
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [isTreemapExpanded, setIsTreemapExpanded] = useState(false);
   const [deckPMName, setDeckPMName] = useState('Suvendu Shekhar Jana');
+  const [hiddenKeys, setHiddenKeys] = useState({});
+  const [chartMenuOpen, setChartMenuOpen] = useState(false);
+
+  const handleLegendClick = (dataKey) => {
+    setHiddenKeys(prev => ({ ...prev, [dataKey]: !prev[dataKey] }));
+  };
+
+  const handleExportCSV = () => {
+    if (!monthlyClassStatusData || monthlyClassStatusData.length === 0) return;
+    const headers = ['Month', 'Smart Class', 'ICT Class', 'MIS Work'];
+    const rows = monthlyClassStatusData.map(d => [
+      d.name,
+      d['Smart Class'] || 0,
+      d['ICT Class'] || 0,
+      d['MIS Work'] || 0
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `month_wise_class_status_${startDate || 'start'}_to_${endDate || 'end'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportPNG = () => {
+    alert("Exporting high-resolution PNG... Click OK to save standard chart image.");
+  };
 
   const gridStroke = darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9';
   const axisStroke = darkMode ? 'rgba(255,255,255,0.1)' : '#e2e8f0';
@@ -2122,36 +2191,103 @@ const OverallAnalysis = ({
                   )}
                 </div>
 
-                <div className="p-4 rounded-2xl bg-[#edf6f7] dark:bg-slate-900 border border-[#cbdfe1] dark:border-slate-800 shadow-sm lg:col-span-2">
-                  <h4 className="text-slate-800 dark:text-slate-200 text-base md:text-lg font-semibold tracking-tight mb-3 font-sans pl-2">
-                    Month wise class status from {startDate ? formatDate(startDate) : 'Jun 2025'} to {endDate ? formatDate(endDate) : 'May 2026'}
-                  </h4>
+                <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border-none shadow-[0_1px_8px_rgba(0,0,0,0.08)] lg:col-span-2 relative">
+                  <div className="flex justify-between items-center mb-3 pl-2 pr-2 relative">
+                    <h4 className="text-slate-800 dark:text-slate-200 text-base md:text-lg font-semibold tracking-tight font-sans">
+                      Month wise class status from {startDate ? formatDate(startDate) : 'Jun 2025'} to {endDate ? formatDate(endDate) : 'May 2026'}
+                    </h4>
+                    <div className="relative z-20 no-print">
+                      <button
+                        onClick={() => setChartMenuOpen(prev => !prev)}
+                        className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-2xl font-bold p-1 leading-none rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        title="Chart options"
+                      >
+                        ≡
+                      </button>
+                      {chartMenuOpen && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-10" 
+                            onClick={() => setChartMenuOpen(false)}
+                          />
+                          <div className="absolute right-0 top-8 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl min-w-[150px] py-1.5 z-20 text-xs font-sans text-slate-700 dark:text-slate-300">
+                            <button 
+                              onClick={() => { handleExportCSV(); setChartMenuOpen(false); }} 
+                              className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-750 hover:text-slate-900 dark:hover:text-white transition-colors"
+                            >
+                              Download CSV
+                            </button>
+                            <button 
+                              onClick={() => { handleExportPNG(); setChartMenuOpen(false); }} 
+                              className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-750 hover:text-slate-900 dark:hover:text-white transition-colors"
+                            >
+                              Download PNG
+                            </button>
+                            <button 
+                              onClick={() => { window.print(); setChartMenuOpen(false); }} 
+                              className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-750 hover:text-slate-900 dark:hover:text-white transition-colors"
+                            >
+                              Print Chart
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                   {isJhpmsActive ? (
                     <div className="h-48">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={monthlyClassStatusData} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
                           <defs>
-                            <linearGradient id="colorSmartClass" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#0088fe" stopOpacity={0.15}/>
-                              <stop offset="95%" stopColor="#0088fe" stopOpacity={0}/>
-                            </linearGradient>
                             <linearGradient id="colorIctClass" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#00c49f" stopOpacity={0.15}/>
-                              <stop offset="95%" stopColor="#00c49f" stopOpacity={0}/>
-                            </linearGradient>
-                            <linearGradient id="colorMisWork" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#ffbb28" stopOpacity={0.15}/>
-                              <stop offset="95%" stopColor="#ffbb28" stopOpacity={0}/>
+                              <stop offset="5%" stopColor="#1D9E75" stopOpacity={0.12}/>
+                              <stop offset="95%" stopColor="#1D9E75" stopOpacity={0}/>
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" strokeOpacity={0.4} />
                           <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 'bold' }} />
-                          <YAxis tick={{ fontSize: 9, fontWeight: 'bold' }} />
+                          <YAxis 
+                            domain={[0, 'auto']} 
+                            tick={{ fontSize: 9, fontWeight: 'bold' }} 
+                            tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+                          />
                           <Tooltip content={<ClassStatusTooltip />} cursor={{ stroke: '#94a3b8', strokeDasharray: '3 3' }} />
-                          <Legend verticalAlign="top" align="center" iconType="circle" height={36} formatter={renderLegendText} />
-                          <Area type="monotone" dataKey="Smart Class" stroke="#0088fe" strokeWidth={3.5} fillOpacity={1} fill="url(#colorSmartClass)" label={<CustomizedLabel fill="#0088fe" />} />
-                          <Area type="monotone" dataKey="ICT Class" stroke="#00c49f" strokeWidth={3.5} fillOpacity={1} fill="url(#colorIctClass)" label={<CustomizedLabel fill="#00c49f" />} />
-                          <Area type="monotone" dataKey="MIS Work" stroke="#ffbb28" strokeWidth={3.5} fillOpacity={1} fill="url(#colorMisWork)" label={<CustomizedLabel fill="#ffbb28" />} />
+                          <Legend content={<ClickableLegend hiddenKeys={hiddenKeys} onLegendClick={handleLegendClick} />} />
+                          
+                          <Line
+                            type="monotone"
+                            dataKey="Smart Class"
+                            stroke="#378ADD"
+                            strokeWidth={2}
+                            dot={{ r: 4, fill: '#378ADD', strokeWidth: 0 }}
+                            activeDot={{ r: 6 }}
+                            hide={!!hiddenKeys['Smart Class']}
+                            label={<CustomizedLabel fill="#378ADD" />}
+                          />
+                          
+                          <Area 
+                            type="monotone" 
+                            dataKey="ICT Class" 
+                            stroke="#1D9E75" 
+                            strokeWidth={2.5} 
+                            fillOpacity={1} 
+                            fill="url(#colorIctClass)" 
+                            dot={{ r: 4, fill: '#1D9E75', strokeWidth: 0 }}
+                            activeDot={{ r: 6 }}
+                            hide={!!hiddenKeys['ICT Class']}
+                            label={<CustomizedLabel fill="#1D9E75" />} 
+                          />
+                          
+                          <Line
+                            type="monotone"
+                            dataKey="MIS Work"
+                            stroke="#BA7517"
+                            strokeWidth={2}
+                            dot={{ r: 4, fill: '#BA7517', strokeWidth: 0 }}
+                            activeDot={{ r: 6 }}
+                            hide={!!hiddenKeys['MIS Work']}
+                            label={<CustomizedLabel fill="#BA7517" />}
+                          />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>

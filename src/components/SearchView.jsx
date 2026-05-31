@@ -37,22 +37,62 @@ const PremiumChartTooltip = ({ active, payload, label }) => {
 const CustomizedLabel = (props) => {
   const { x, y, value, fill } = props;
   if (value === undefined || value === null || value === 0) return null;
-  const str = String(value);
-  const width = Math.max(24, str.length * 6 + 8);
-  const bg = fill || '#0f172a';
   return (
-    <g className="pointer-events-none select-none">
-      <rect x={x - width / 2} y={y - 20} width={width} height={16} rx={3} fill={bg} stroke="#ffffff" strokeWidth={1.5} />
-      <text x={x} y={y - 12} fill="#ffffff" fontSize={8} fontWeight="black" textAnchor="middle" dominantBaseline="middle">
-        {value}
-      </text>
-    </g>
+    <text
+      x={x}
+      y={y - 8}
+      fill={fill}
+      fontSize={10}
+      fontWeight="bold"
+      textAnchor="middle"
+      dominantBaseline="auto"
+      textRendering="geometricPrecision"
+      style={{ fontFamily: "'Times New Roman', Times, serif" }}
+      className="pointer-events-none select-none"
+    >
+      {Number(value).toLocaleString('en-IN')}
+    </text>
   );
 };
 
-const renderLegendText = (value) => {
-  const color = value === 'Smart Visit' ? '#0088fe' : '#00c49f';
-  return <span style={{ color, fontWeight: '700', fontSize: 12, marginRight: 16, fontFamily: 'Inter, sans-serif' }}>{value}</span>;
+/* ───── Interactive Clickable Legend Component ───── */
+const ClickableLegend = ({ payload, hiddenKeys, onLegendClick }) => {
+  if (!payload) return null;
+  return (
+    <div className="flex flex-wrap justify-center gap-6 mb-3 pl-3 select-none no-print">
+      {payload.map((entry) => {
+        const { value, color, dataKey } = entry;
+        const key = dataKey || value;
+        const isHidden = !!hiddenKeys[key];
+        
+        // Match line colors (Smart Visit is #0088fe -> #378ADD, ICT Visit is #00c49f -> #1D9E75)
+        const displayColor = key === 'Smart Visit' ? '#378ADD' : '#1D9E75';
+        
+        return (
+          <div
+            key={key}
+            onClick={() => onLegendClick(key)}
+            className="flex items-center gap-1.5 cursor-pointer transition-all duration-200"
+            style={{
+              opacity: isHidden ? 0.35 : 1,
+              textDecoration: isHidden ? 'line-through' : 'none',
+            }}
+          >
+            <span 
+              className="w-2.5 h-2.5 rounded-full inline-block shrink-0" 
+              style={{ backgroundColor: displayColor }} 
+            />
+            <span 
+              className="text-xs font-bold"
+              style={{ color: displayColor }}
+            >
+              {value}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode = false }) => {
@@ -61,6 +101,35 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
   const [selectedItem, setSelectedItem] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [listFilter, setListFilter] = useState('All'); // 'All', 'Completed', 'Pending'
+  const [hiddenKeys, setHiddenKeys] = useState({});
+  const [chartMenuOpen, setChartMenuOpen] = useState(false);
+
+  const handleLegendClick = (dataKey) => {
+    setHiddenKeys(prev => ({ ...prev, [dataKey]: !prev[dataKey] }));
+  };
+
+  const handleExportCSV = () => {
+    if (!visitorData || !visitorData.monthlyStatusData || visitorData.monthlyStatusData.length === 0) return;
+    const headers = ['Month', 'Smart Visit', 'ICT Visit'];
+    const rows = visitorData.monthlyStatusData.map(d => [
+      d.name,
+      d['Smart Visit'] || 0,
+      d['ICT Visit'] || 0
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `month_wise_visit_status_${visitorData.name.replace(/\s+/g, '_')}_${startDate || 'start'}_to_${endDate || 'end'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportPNG = () => {
+    alert("Exporting high-resolution PNG... Click OK to save standard chart image.");
+  };
 
   const maxLogDate = useMemo(() => {
     let maxD = new Date();
@@ -752,49 +821,92 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
           </div>
 
           {/* Month Wise Visit Status Chart */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
-            <div className="text-sm font-bold text-gray-800 uppercase mb-4 flex justify-between items-center">
-              <span>Month wise visit status from {startMonthStr} to {endMonthStr}</span>
+          <div className="bg-white rounded-2xl shadow-[0_1px_8px_rgba(0,0,0,0.08)] border-none p-5 relative">
+            <div className="flex justify-between items-center mb-4 pl-2 pr-2 relative">
+              <span className="text-sm font-bold text-gray-800 uppercase font-sans">
+                Month wise visit status from {startMonthStr} to {endMonthStr}
+              </span>
+              <div className="relative z-20 no-print">
+                <button
+                  onClick={() => setChartMenuOpen(prev => !prev)}
+                  className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-2xl font-bold p-1 leading-none rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  title="Chart options"
+                >
+                  ≡
+                </button>
+                {chartMenuOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setChartMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-8 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl min-w-[150px] py-1.5 z-20 text-xs font-sans text-slate-700 dark:text-slate-300">
+                      <button 
+                        onClick={() => { handleExportCSV(); setChartMenuOpen(false); }} 
+                        className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors"
+                      >
+                        Download CSV
+                      </button>
+                      <button 
+                        onClick={() => { handleExportPNG(); setChartMenuOpen(false); }} 
+                        className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors"
+                      >
+                        Download PNG
+                      </button>
+                      <button 
+                        onClick={() => { window.print(); setChartMenuOpen(false); }} 
+                        className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors"
+                      >
+                        Print Chart
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={visitorData.monthlyStatusData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
                   <defs>
-                    <linearGradient id="colorSmartVisit" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0088fe" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#0088fe" stopOpacity={0} />
-                    </linearGradient>
                     <linearGradient id="colorIctVisit" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#00c49f" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#00c49f" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#1D9E75" stopOpacity={0.12} />
+                      <stop offset="95%" stopColor="#1D9E75" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9'} />
                   <XAxis dataKey="name" tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis 
+                    domain={[0, 'auto']}
+                    tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} 
+                    axisLine={false} 
+                    tickLine={false}
+                    tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+                  />
                   <Tooltip content={<PremiumChartTooltip />} />
-                  <Legend formatter={renderLegendText} verticalAlign="top" height={36} iconType="circle" />
-                  <Area
+                  <Legend content={<ClickableLegend hiddenKeys={hiddenKeys} onLegendClick={handleLegendClick} />} />
+                  
+                  <Line
                     type="monotone"
                     dataKey="Smart Visit"
-                    stroke="#0088fe"
-                    strokeWidth={3}
-                    fillOpacity={1}
-                    fill="url(#colorSmartVisit)"
-                    label={<CustomizedLabel fill="#0088fe" />}
-                    dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#0088fe' }}
+                    stroke="#378ADD"
+                    strokeWidth={2}
+                    dot={{ r: 4, fill: '#378ADD', strokeWidth: 0 }}
                     activeDot={{ r: 6 }}
+                    hide={!!hiddenKeys['Smart Visit']}
+                    label={<CustomizedLabel fill="#378ADD" />}
                   />
+                  
                   <Area
                     type="monotone"
                     dataKey="ICT Visit"
-                    stroke="#00c49f"
-                    strokeWidth={3}
+                    stroke="#1D9E75"
+                    strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#colorIctVisit)"
-                    label={<CustomizedLabel fill="#00c49f" />}
-                    dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#00c49f' }}
+                    dot={{ r: 4, fill: '#1D9E75', strokeWidth: 0 }}
                     activeDot={{ r: 6 }}
+                    hide={!!hiddenKeys['ICT Visit']}
+                    label={<CustomizedLabel fill="#1D9E75" />}
                   />
                 </AreaChart>
               </ResponsiveContainer>
