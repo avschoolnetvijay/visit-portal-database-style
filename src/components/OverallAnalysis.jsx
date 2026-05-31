@@ -677,17 +677,14 @@ const OverallAnalysis = ({
         rootCause = 'Power Failure';
         recommendation = 'Investigate device/power issues at school';
       } else if (isJhpmsActive && isEdustatActive && jhpmsClasses === 0 && eduHours === 0 && (mp.status === 'Vacant' || mp.status === 'Pending')) {
-        rootCause = 'Staff Vacancy';
+        rootCause = 'Manpower Vacant';
         recommendation = 'Assign instructor immediately';
-      } else if (isVisitActive && fieldVisits > 3 && compositeScore < 30) {
-        rootCause = 'Training Gap';
-        recommendation = 'Schedule CC capacity-building workshop';
+      } else if (isVisitActive && fieldVisits > 2 && compositeScore < 30) {
+        rootCause = 'Visitor Ineffectiveness';
+        recommendation = 'Review visit quality & follow-up mechanism';
       } else if (isVisitActive && fieldVisits === 0 && compositeScore >= 80) {
         rootCause = 'Self-Sustaining';
         recommendation = 'Acknowledge & replicate best practices';
-      } else if (isVisitActive && fieldVisits > 3 && compositeScore < 30) {
-        rootCause = 'Visitor Ineffectiveness';
-        recommendation = 'Review visit quality & follow-up mechanism';
       } else if (isEdustatActive && installedDevices > 0 && syncingDevices === 0) {
         rootCause = 'Not Syncing';
         recommendation = 'Check device internet & power status';
@@ -780,7 +777,7 @@ const OverallAnalysis = ({
       blockFindings[s.block].schools.push(s);
       if (s.rootCause === 'Not Visited') blockFindings[s.block].notVisited++;
       else if (s.rootCause === 'Power Failure') blockFindings[s.block].powerFailure++;
-      else if (s.rootCause === 'Staff Vacancy') blockFindings[s.block].vacancy++;
+      else if (s.rootCause === 'Manpower Vacant') blockFindings[s.block].vacancy++;
       if (s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0)) blockFindings[s.block].critical++;
     });
 
