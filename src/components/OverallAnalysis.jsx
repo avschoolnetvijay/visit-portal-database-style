@@ -5,7 +5,7 @@ import {
   ComposedChart, LabelList
 } from 'recharts';
 import { Icons } from './Icons';
-import { parseDateRobust, formatDate, downloadSVG, downloadPNG, downloadCSV, getMonthsInRange } from '../utils';
+import { parseDateRobust, formatDate, downloadSVG, downloadPNG, downloadCSV, getMonthsInRange, exportToExcel } from '../utils';
 import ReactApexChart from 'react-apexcharts';
 
 /* ───── Standard Chart Download Toolbar Dropdown ───── */
@@ -367,6 +367,28 @@ const OverallAnalysis = ({
     rankings: true,
     geographic: true
   });
+
+  const handleExportUrgentSchools = () => {
+    const list = finalEnriched
+      .filter((s) => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0))
+      .sort((a, b) => a.compositeScore - b.compositeScore);
+      
+    const exportFormat = list.map((s, idx) => ({
+      'Sl No': idx + 1,
+      'School Name': s.schoolName,
+      'UDISE Code': s.udise,
+      'District': s.district,
+      'Block': s.block,
+      'Project': s.project,
+      'CC / DEF Name': s.visitorName,
+      'Score %': `${Math.round(s.compositeScore)}%`,
+      'Primary Bottleneck': s.rootCause,
+      'Recommendation': s.recommendation,
+      'Last Visit Date': formatDate(s.lastVisitDate) === '-' ? 'No Visits' : formatDate(s.lastVisitDate)
+    }));
+    
+    exportToExcel(exportFormat, 'Schools_Needing_Urgent_Help');
+  };
 
   // PM Assignable Recommended Actions workbench state
   const [actionItems, setActionItems] = useState([]);
@@ -3148,10 +3170,10 @@ const OverallAnalysis = ({
 
       {/* ═══════ SECTION 5: CRITICAL PARETO BOTTLENECKS PANEL ═══════ */}
       {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.bottlenecks) && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 page-break-after font-sans">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 page-break-after font-sans">
           
           {/* Pareto bottlenecks engine */}
-          <div className="portal-card lg:col-span-2 p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800">
+          <div className="portal-card p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800">
             <div className="border-b pb-3 mb-4 flex items-center justify-between">
               <div>
                 <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Biggest Problems — Fix These First</h3>
@@ -3228,16 +3250,26 @@ const OverallAnalysis = ({
 
           {/* Critical schools table list */}
           <div className="portal-card p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800">
-            <div className="border-b pb-3 mb-4">
-              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Schools Needing Urgent Help</h3>
-              <p className="text-[10px] text-slate-400 font-sans">Immediate action plans required for these institutions needing urgent help (Score &lt; 30%).</p>
+            <div className="border-b pb-3 mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Schools Needing Urgent Help</h3>
+                <p className="text-[10px] text-slate-400 font-sans">Immediate action plans required for these institutions needing urgent help (Score &lt; 30%).</p>
+              </div>
+              <button
+                onClick={handleExportUrgentSchools}
+                className="text-xs flex items-center gap-1.5 text-teal-750 dark:text-teal-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-teal-200 dark:border-slate-800 shadow-sm transition-all no-print"
+                title="Export to Excel"
+              >
+                <Icons.Export className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                <span className="hidden sm:inline">Excel</span>
+              </button>
             </div>
 
             <div className="overflow-y-auto flex-1 max-h-64">
               <table className="w-full text-xs text-left portal-table text-[11px]">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800 font-bold text-slate-600">
-                    <th className="py-2 px-1">School Name</th>
+                    <th className="py-2 px-1 !text-left">School Name</th>
                     <th className="py-2 px-1 text-center">Score</th>
                     <th className="py-2 px-1 text-center">Primary Bottleneck</th>
                   </tr>
@@ -3248,7 +3280,7 @@ const OverallAnalysis = ({
                     .sort((a, b) => a.compositeScore - b.compositeScore)
                     .map((s, idx) => (
                       <tr key={idx} className="hover:bg-red-50/40">
-                        <td className="py-2 px-1 font-bold text-slate-700 dark:text-slate-300 truncate w-32 md:w-44" title={s.schoolName}>{s.schoolName}</td>
+                        <td className="py-2 px-1 font-bold text-slate-700 dark:text-slate-300 !text-left whitespace-normal break-words" title={s.schoolName}>{s.schoolName}</td>
                         <td className="py-2 px-1 text-center font-extrabold text-rose-600">{Math.round(s.compositeScore)}%</td>
                         <td className="py-2 px-1 text-center">
                           <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-50 border border-rose-100 text-rose-700">
