@@ -2237,7 +2237,7 @@ const OverallAnalysis = ({
                   {isJhpmsActive ? (
                     <div className="h-48">
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={monthlyClassStatusData} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
+                        <ComposedChart data={monthlyClassStatusData} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
                           <defs>
                             <linearGradient id="colorIctClass" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#1D9E75" stopOpacity={0.12}/>
@@ -2288,7 +2288,7 @@ const OverallAnalysis = ({
                             hide={!!hiddenKeys['MIS Work']}
                             label={<CustomizedLabel fill="#BA7517" />}
                           />
-                        </AreaChart>
+                        </ComposedChart>
                       </ResponsiveContainer>
                     </div>
                   ) : (

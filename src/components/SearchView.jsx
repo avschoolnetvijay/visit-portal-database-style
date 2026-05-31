@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, Legend, ComposedChart, Line } from 'recharts';
 import { Icons } from './Icons';
 import { formatDate } from '../utils';
 
@@ -866,7 +866,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
             </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={visitorData.monthlyStatusData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+                <ComposedChart data={visitorData.monthlyStatusData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
                   <defs>
                     <linearGradient id="colorIctVisit" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#1D9E75" stopOpacity={0.12} />
@@ -908,7 +908,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
                     hide={!!hiddenKeys['ICT Visit']}
                     label={<CustomizedLabel fill="#1D9E75" />}
                   />
-                </AreaChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
