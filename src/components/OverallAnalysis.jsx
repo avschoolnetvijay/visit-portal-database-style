@@ -2622,7 +2622,7 @@ const OverallAnalysis = ({
                         filename="edustat_weekly_utilization"
                       />
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
+                        <BarChart
                           data={[
                             { name: 'Wk 1', hours: currentKPIs.deviceHours * 0.22 },
                             { name: 'Wk 2', hours: currentKPIs.deviceHours * 0.25 },
@@ -2631,12 +2631,18 @@ const OverallAnalysis = ({
                           ]}
                           margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
                         >
+                          <defs>
+                            <linearGradient id="weeklyUtilGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.95}/>
+                              <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0.8}/>
+                            </linearGradient>
+                          </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                           <XAxis dataKey="name" tick={{ fontSize: 9 }} />
                           <YAxis tick={{ fontSize: 9 }} />
                           <Tooltip content={<CustomTooltip />} />
-                          <Line type="monotone" dataKey="hours" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4 }} />
-                        </LineChart>
+                          <Bar dataKey="hours" name="Usage Hours" fill="url(#weeklyUtilGrad)" radius={[6, 6, 0, 0]} barSize={40} />
+                        </BarChart>
                       </ResponsiveContainer>
                     </div>
                   ) : (
