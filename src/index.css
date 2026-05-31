@@ -649,31 +649,40 @@ body, body *, body .portal-sidebar, body .portal-card, body .portal-filter-bar {
 /* ==========================================================================
    ApexCharts Custom DataLabel Background series color mapping
    Official portal colors: ICT=#00C49F, Smart=#3B82F6, MIS=#F59E0B
-   ApexCharts encodes spaces in seriesName as "x20"
    ========================================================================== */
 
 /* ICT Class / ICT Visit: Series 1 - Teal #00C49F */
-.apexcharts-series[seriesName="ICTx20Class"] .apexcharts-datalabels-background,
-.apexcharts-series[seriesName="ICTx20Visit"] .apexcharts-datalabels-background,
-.apexcharts-series[rel="1"] .apexcharts-datalabels-background,
-.apexcharts-data-labels-group:nth-child(1) .apexcharts-datalabels-background {
+.apexcharts-datalabels-group[rel="0"] rect,
+.apexcharts-datalabels-group[rel="0"] .apexcharts-datalabel-bg,
+.apexcharts-datalabels-group[rel="0"] .apexcharts-datalabel-background,
+.apexcharts-datalabels-group[rel="0"] .apexcharts-datalabels-background,
+.apexcharts-datalabels-group:nth-child(1) rect,
+.apexcharts-datalabels-group:nth-child(1) .apexcharts-datalabel-bg,
+.apexcharts-datalabels-group:nth-child(1) .apexcharts-datalabel-background {
   fill: #00C49F !important;
   stroke: #00C49F !important;
 }
 
 /* Smart Class / Smart Visit: Series 2 - Blue #3B82F6 */
-.apexcharts-series[seriesName="Smartx20Class"] .apexcharts-datalabels-background,
-.apexcharts-series[seriesName="Smartx20Visit"] .apexcharts-datalabels-background,
-.apexcharts-series[rel="2"] .apexcharts-datalabels-background,
-.apexcharts-data-labels-group:nth-child(2) .apexcharts-datalabels-background {
+.apexcharts-datalabels-group[rel="1"] rect,
+.apexcharts-datalabels-group[rel="1"] .apexcharts-datalabel-bg,
+.apexcharts-datalabels-group[rel="1"] .apexcharts-datalabel-background,
+.apexcharts-datalabels-group[rel="1"] .apexcharts-datalabels-background,
+.apexcharts-datalabels-group:nth-child(2) rect,
+.apexcharts-datalabels-group:nth-child(2) .apexcharts-datalabel-bg,
+.apexcharts-datalabels-group:nth-child(2) .apexcharts-datalabel-background {
   fill: #3B82F6 !important;
   stroke: #3B82F6 !important;
 }
 
 /* MIS Work: Series 3 - Amber #F59E0B */
-.apexcharts-series[seriesName="MISx20Work"] .apexcharts-datalabels-background,
-.apexcharts-series[rel="3"] .apexcharts-datalabels-background,
-.apexcharts-data-labels-group:nth-child(3) .apexcharts-datalabels-background {
+.apexcharts-datalabels-group[rel="2"] rect,
+.apexcharts-datalabels-group[rel="2"] .apexcharts-datalabel-bg,
+.apexcharts-datalabels-group[rel="2"] .apexcharts-datalabel-background,
+.apexcharts-datalabels-group[rel="2"] .apexcharts-datalabels-background,
+.apexcharts-datalabels-group:nth-child(3) rect,
+.apexcharts-datalabels-group:nth-child(3) .apexcharts-datalabel-bg,
+.apexcharts-datalabels-group:nth-child(3) .apexcharts-datalabel-background {
   fill: #F59E0B !important;
   stroke: #F59E0B !important;
 }

@@ -605,7 +605,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
         strokeDashArray: 4,
         xaxis: { lines: { show: false } },
         yaxis: { lines: { show: true  } },
-        padding: { top: 0, right: 16, bottom: 0, left: 8 },
+        padding: { top: 0, right: 20, bottom: 0, left: 55 },
       },
       tooltip: {
         theme: darkMode ? 'dark' : 'light',
