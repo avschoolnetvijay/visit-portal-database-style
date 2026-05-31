@@ -162,17 +162,16 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 /* ───── Safe Recharts Customized Label for Line/Area chart ───── */
 const CustomizedLabel = (props) => {
-  const { x, y, value, fill } = props;
+  const { x, y, value, fill, offset = -8 } = props;
   if (value === undefined || value === null || value === 0) return null;
   return (
     <text
       x={x}
-      y={y - 8}
+      y={y + offset}
       fill={fill}
       fontSize={10}
       fontWeight="bold"
       textAnchor="middle"
-      dominantBaseline="auto"
       textRendering="geometricPrecision"
       style={{ fontFamily: "'Times New Roman', Times, serif" }}
       className="pointer-events-none select-none"
@@ -2247,12 +2246,12 @@ const OverallAnalysis = ({
                           <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" strokeOpacity={0.4} />
                           <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 'bold' }} />
                           <YAxis 
-                            domain={[0, 'auto']} 
+                            domain={[0, (dataMax) => Math.ceil((dataMax * 1.1) / 10000) * 10000]} 
                             tick={{ fontSize: 9, fontWeight: 'bold' }} 
-                            tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+                            tickFormatter={(v) => v.toLocaleString('en-IN')}
                           />
                           <Tooltip content={<ClassStatusTooltip />} cursor={{ stroke: '#94a3b8', strokeDasharray: '3 3' }} />
-                          <Legend content={<ClickableLegend hiddenKeys={hiddenKeys} onLegendClick={handleLegendClick} />} />
+                          <Legend verticalAlign="top" align="center" content={<ClickableLegend hiddenKeys={hiddenKeys} onLegendClick={handleLegendClick} />} />
                           
                           <Line
                             type="monotone"
@@ -2262,7 +2261,7 @@ const OverallAnalysis = ({
                             dot={{ r: 4, fill: '#378ADD', strokeWidth: 0 }}
                             activeDot={{ r: 6 }}
                             hide={!!hiddenKeys['Smart Class']}
-                            label={<CustomizedLabel fill="#378ADD" />}
+                            label={<CustomizedLabel fill="#378ADD" offset={-12} />}
                           />
                           
                           <Area 
@@ -2275,7 +2274,7 @@ const OverallAnalysis = ({
                             dot={{ r: 4, fill: '#1D9E75', strokeWidth: 0 }}
                             activeDot={{ r: 6 }}
                             hide={!!hiddenKeys['ICT Class']}
-                            label={<CustomizedLabel fill="#1D9E75" />} 
+                            label={<CustomizedLabel fill="#1D9E75" offset={-12} />} 
                           />
                           
                           <Line
@@ -2286,7 +2285,7 @@ const OverallAnalysis = ({
                             dot={{ r: 4, fill: '#BA7517', strokeWidth: 0 }}
                             activeDot={{ r: 6 }}
                             hide={!!hiddenKeys['MIS Work']}
-                            label={<CustomizedLabel fill="#BA7517" />}
+                            label={<CustomizedLabel fill="#BA7517" offset={8} />}
                           />
                         </ComposedChart>
                       </ResponsiveContainer>

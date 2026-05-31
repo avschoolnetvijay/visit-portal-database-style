@@ -35,17 +35,16 @@ const PremiumChartTooltip = ({ active, payload, label }) => {
 };
 
 const CustomizedLabel = (props) => {
-  const { x, y, value, fill } = props;
+  const { x, y, value, fill, offset = -8 } = props;
   if (value === undefined || value === null || value === 0) return null;
   return (
     <text
       x={x}
-      y={y - 8}
+      y={y + offset}
       fill={fill}
       fontSize={10}
       fontWeight="bold"
       textAnchor="middle"
-      dominantBaseline="auto"
       textRendering="geometricPrecision"
       style={{ fontFamily: "'Times New Roman', Times, serif" }}
       className="pointer-events-none select-none"
@@ -876,14 +875,14 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9'} />
                   <XAxis dataKey="name" tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} />
                   <YAxis 
-                    domain={[0, 'auto']}
+                    domain={[0, (dataMax) => Math.ceil((dataMax * 1.1) / 10000) * 10000]}
                     tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} 
                     axisLine={false} 
                     tickLine={false}
-                    tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+                    tickFormatter={(v) => v.toLocaleString('en-IN')}
                   />
                   <Tooltip content={<PremiumChartTooltip />} />
-                  <Legend content={<ClickableLegend hiddenKeys={hiddenKeys} onLegendClick={handleLegendClick} />} />
+                  <Legend verticalAlign="top" align="center" content={<ClickableLegend hiddenKeys={hiddenKeys} onLegendClick={handleLegendClick} />} />
                   
                   <Line
                     type="monotone"
@@ -893,7 +892,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
                     dot={{ r: 4, fill: '#378ADD', strokeWidth: 0 }}
                     activeDot={{ r: 6 }}
                     hide={!!hiddenKeys['Smart Visit']}
-                    label={<CustomizedLabel fill="#378ADD" />}
+                    label={<CustomizedLabel fill="#378ADD" offset={8} />}
                   />
                   
                   <Area
@@ -906,7 +905,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
                     dot={{ r: 4, fill: '#1D9E75', strokeWidth: 0 }}
                     activeDot={{ r: 6 }}
                     hide={!!hiddenKeys['ICT Visit']}
-                    label={<CustomizedLabel fill="#1D9E75" />}
+                    label={<CustomizedLabel fill="#1D9E75" offset={-12} />}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
