@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Cell, PieChart, Pie, LineChart, Line, AreaChart, Area, Treemap, Legend,
-  ComposedChart
+  ComposedChart, LabelList
 } from 'recharts';
 import { Icons } from './Icons';
 import { parseDateRobust, formatDate, downloadSVG, downloadPNG, downloadCSV } from '../utils';
@@ -339,7 +339,8 @@ const OverallAnalysis = ({
   setLocalCompareMode,
   handleApplyFilters,
   ccNameMapping = {},
-  darkMode = false
+  darkMode = false,
+  onDrillDown
 }) => {
   const [sortKey, setSortKey] = useState('compositeScore');
   const [sortDir, setSortDir] = useState('desc');
@@ -2830,13 +2831,48 @@ const OverallAnalysis = ({
                     filename="pareto_bottlenecks"
                   />
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={paretoData} margin={{ top: 15, right: 20, left: -20, bottom: 5 }}>
+                    <ComposedChart data={paretoData} margin={{ top: 25, right: 20, left: -20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                      <YAxis yAxisId="left" tick={{ fontSize: 9 }} />
+                      <YAxis yAxisId="left" domain={[0, (dataMax) => Math.ceil(dataMax * 1.15)]} tick={{ fontSize: 9 }} />
                       <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 9 }} />
                       <Tooltip cursor={{ fill: 'transparent' }} content={<CustomTooltip />} />
-                      <Bar yAxisId="left" dataKey="count" name="Schools (Count)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={24} />
+                      <Bar 
+                        yAxisId="left" 
+                        dataKey="count" 
+                        name="Schools (Count)" 
+                        fill="#3b82f6" 
+                        radius={[4, 4, 0, 0]} 
+                        barSize={24}
+                        style={{ cursor: 'pointer' }}
+                        onClick={(data) => {
+                          if (data && data.name && onDrillDown) {
+                            const matchingSchools = finalEnriched.filter(s => s.rootCause === data.name);
+                            const formattedData = matchingSchools.map((s, index) => ({
+                              'Sl No': index + 1,
+                              'School Name': s.schoolName,
+                              'UDISE Code': s.udise,
+                              'District': s.district,
+                              'Block': s.block,
+                              'CC / DEF Name': s.visitorName,
+                              'Field Visits': s.fieldVisits,
+                              'Last Visit Date': s.lastVisitDate || '-',
+                              'JHPMS Classes': s.jhpmsClasses,
+                              'EduStat Hours': Math.round(s.eduHours),
+                              'Composite Score %': `${Math.round(s.compositeScore)}%`,
+                              'Action Recommendation': s.recommendation
+                            }));
+                            onDrillDown(`Schools with Bottleneck: ${data.name}`, formattedData);
+                          }
+                        }}
+                      >
+                        <LabelList 
+                          dataKey="percentage" 
+                          position="top" 
+                          formatter={(val) => `${val}%`} 
+                          style={{ fontSize: 10, fontWeight: 'bold', fill: darkMode ? '#f8fafc' : '#374151' }} 
+                        />
+                      </Bar>
                       <Line yAxisId="right" type="monotone" dataKey="cumulativePercentage" name="Cumulative %" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, stroke: '#ef4444', strokeWidth: 2, fill: '#fff' }} />
                     </ComposedChart>
                   </ResponsiveContainer>

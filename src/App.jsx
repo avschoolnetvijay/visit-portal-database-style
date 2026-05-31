@@ -1354,6 +1354,7 @@ const App = () => {
                 handleApplyFilters={handleApplyFilters}
                 ccNameMapping={ccNameMapping}
                 darkMode={darkMode}
+                onDrillDown={(t, d) => setDrillDownData({ title: t, data: d })}
             />
         );
 
