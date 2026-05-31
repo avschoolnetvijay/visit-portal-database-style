@@ -2667,12 +2667,46 @@ const OverallAnalysis = ({
                       filename="visit_aging_status"
                     />
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={visitAgingGroups} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                      <BarChart data={visitAgingGroups} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                         <XAxis dataKey="name" tick={{ fontSize: 8 }} />
                         <YAxis tick={{ fontSize: 9 }} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                        <Bar 
+                          dataKey="count" 
+                          fill="#8b5cf6" 
+                          radius={[4, 4, 0, 0]}
+                          style={{ cursor: 'pointer' }}
+                          onClick={(data) => {
+                            if (data && data.name && onDrillDown) {
+                              const groupName = data.name;
+                              const matchingSchools = finalEnriched.filter(s => {
+                                if (groupName === '0-30 Days') return s.daysSinceVisit <= 30;
+                                if (groupName === '31-60 Days') return s.daysSinceVisit > 30 && s.daysSinceVisit <= 60;
+                                if (groupName === '61-90 Days') return s.daysSinceVisit > 60 && s.daysSinceVisit <= 90;
+                                if (groupName === '91-120 Days') return s.daysSinceVisit > 90 && s.daysSinceVisit <= 120;
+                                if (groupName === '120+ Days') return s.daysSinceVisit > 120;
+                                return false;
+                              });
+                              const drillDownData = matchingSchools.map((s, index) => ({
+                                'Sl No': index + 1,
+                                'School Name': s.schoolName,
+                                'UDISE Code': s.udise,
+                                'District': s.district,
+                                'Block': s.block,
+                                'Coordinator Name': s.visitorName,
+                                'Last Visit Date': formatDate(s.lastVisitDate) === '-' ? 'No Visits' : formatDate(s.lastVisitDate)
+                              }));
+                              onDrillDown(`${groupName} - Field Visit Aging Status`, drillDownData);
+                            }
+                          }}
+                        >
+                          <LabelList 
+                            dataKey="count" 
+                            position="top" 
+                            style={{ fontSize: 10, fontWeight: 'bold', fill: darkMode ? '#cbd5e1' : '#1e293b' }} 
+                          />
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
