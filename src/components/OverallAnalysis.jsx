@@ -2790,6 +2790,38 @@ const OverallAnalysis = ({
                           Completed: totalCompleted
                         };
                       });
+
+                      const handleBarClick = (data) => {
+                        if (data && data.name && onDrillDown) {
+                          const blockName = data.name;
+                          const blockSchools = finalEnriched.filter(s => s.block === blockName);
+                          const drillDownData = blockSchools.map((s, index) => {
+                            const schoolUdise = s.udise;
+                            const schoolVisits = currentVisits.filter(v => cleanUdise(v.udise_code) === schoolUdise);
+                            const uniqueDates = new Set();
+                            schoolVisits.forEach(v => {
+                              const dateStr = (v.visit_date || '').split('T')[0];
+                              if (dateStr) {
+                                uniqueDates.add(dateStr);
+                              }
+                            });
+                            return {
+                              'Sl No': index + 1,
+                              'schoolName': s.schoolName,
+                              'udise': s.udise,
+                              'district': s.district,
+                              'block': s.block,
+                              'projectName': s.project,
+                              'visitorName': s.visitorName,
+                              'targetVisits': s.targetVisits,
+                              'completedVisits': uniqueDates.size,
+                              'lastVisitDate': s.lastVisitDate
+                            };
+                          });
+                          onDrillDown(`${blockName} - Planned vs Completed Visits Detail`, drillDownData);
+                        }
+                      };
+
                       return (
                         <div className="h-44 relative" id="planned-vs-completed-chart-container">
                           <ChartToolbar
@@ -2807,14 +2839,26 @@ const OverallAnalysis = ({
                               <YAxis tick={{ fontSize: 9 }} />
                               <Tooltip content={<CustomTooltip />} />
                               <Legend wrapperStyle={{ fontSize: 9 }} />
-                              <Bar dataKey="Planned" fill="#cbd5e1" radius={[4, 4, 0, 0]}>
+                              <Bar 
+                                dataKey="Planned" 
+                                fill="#cbd5e1" 
+                                radius={[4, 4, 0, 0]}
+                                style={{ cursor: 'pointer' }}
+                                onClick={handleBarClick}
+                              >
                                 <LabelList 
                                   dataKey="Planned" 
                                   position="top" 
                                   style={{ fontSize: 9, fontWeight: 'bold', fill: darkMode ? '#cbd5e1' : '#1e293b' }} 
                                 />
                               </Bar>
-                              <Bar dataKey="Completed" fill="#7c3aed" radius={[4, 4, 0, 0]}>
+                              <Bar 
+                                dataKey="Completed" 
+                                fill="#7c3aed" 
+                                radius={[4, 4, 0, 0]}
+                                style={{ cursor: 'pointer' }}
+                                onClick={handleBarClick}
+                              >
                                 <LabelList 
                                   dataKey="Completed" 
                                   position="top" 
