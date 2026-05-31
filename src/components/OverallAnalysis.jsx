@@ -368,6 +368,15 @@ const OverallAnalysis = ({
     geographic: true
   });
 
+  const [isReady, setIsReady] = useState(false);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleExportUrgentSchools = () => {
     const list = finalEnriched
       .filter((s) => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0))
@@ -2086,6 +2095,15 @@ const OverallAnalysis = ({
       </svg>
     );
   };
+
+  if (!isReady) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[450px] text-slate-500 bg-white/80 dark:bg-slate-900 rounded-2xl m-4 shadow-sm border border-slate-200 font-sans select-none">
+        <div className="w-10 h-10 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Assembling Dashboard Engine...</p>
+      </div>
+    );
+  }
 
   if (!finalEnriched.length) {
     return (

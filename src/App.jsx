@@ -684,15 +684,16 @@ const App = () => {
                     }
                 }
 
-                // 2. Load baseline datasets from storage
-                const s = await get('schools');
-                const v = await get('visits');
-                const jl = await get('jhpms_lab');
-                const e = await get('edustat');
-                const em = await get('edustat_master');
-                const m = await get('manpower');
-                
-                const p = await get('profile_photo');
+                // 2. Load baseline datasets from storage in parallel to eliminate waterfall latency
+                const [s, v, jl, e, em, m, p] = await Promise.all([
+                    get('schools'),
+                    get('visits'),
+                    get('jhpms_lab'),
+                    get('edustat'),
+                    get('edustat_master'),
+                    get('manpower'),
+                    get('profile_photo')
+                ]);
                 if (p) {
                     localStorage.setItem('snet_profile_photo', p);
                     setProfilePhoto(p);
