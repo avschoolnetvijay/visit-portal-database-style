@@ -1237,11 +1237,29 @@ const OverallAnalysis = ({
     return monthList;
   }, [jhpmsLab, parsedStartDate, parsedEndDate, isJhpmsActive, validUdises]);
 
-  // Treemap Custom Card Renderer
+  // Treemap Custom Card Renderer with Smart Auto-Scaling and Contrast
   const TreemapContent = (props) => {
     const { x, y, width, height, name, score } = props;
     if (!width || !height) return null;
+
+    // Harmonious colors matching the dashboard
     const color = score >= 80 ? '#0f766e' : score >= 60 ? '#0d9488' : score >= 40 ? '#f59e0b' : '#ef4444';
+
+    // Lower the threshold so smaller blocks also show their names when space allows
+    const minWidth = 45;
+    const minHeight = 28;
+    const showText = width >= minWidth && height >= minHeight;
+
+    // Calculate dynamic font sizes based on the box dimensions
+    const nameFontSize = Math.min(12, Math.max(7.5, Math.floor(width / 9)));
+    const scoreFontSize = Math.min(10, Math.max(6.5, nameFontSize - 1.5));
+
+    // Dynamic truncation to prevent text overflow or clipping
+    const maxChars = Math.max(5, Math.floor(width / (nameFontSize * 0.6)));
+    const displayName = name && name.length > maxChars 
+      ? name.substring(0, Math.max(3, maxChars - 2)) + '..' 
+      : name;
+
     return (
       <g>
         <rect
@@ -1256,27 +1274,28 @@ const OverallAnalysis = ({
             strokeOpacity: 1,
           }}
         />
-        {width > 60 && height > 35 && (
+        {showText && (
           <>
             <text
               x={x + width / 2}
-              y={y + height / 2 - 3}
+              y={y + height / 2 - 2}
               textAnchor="middle"
               fill="#ffffff"
-              fontSize={11}
-              fontWeight="bold"
-              className="select-none pointer-events-none"
+              fontSize={nameFontSize}
+              fontWeight="black"
+              className="select-none pointer-events-none uppercase tracking-wide font-sans"
+              style={{ letterSpacing: '0.025em' }}
             >
-              {name}
+              {displayName}
             </text>
             <text
               x={x + width / 2}
-              y={y + height / 2 + 10}
+              y={y + height / 2 + nameFontSize - 1}
               textAnchor="middle"
-              fill="#e2e8f0"
-              fontSize={9}
+              fill="#f1f5f9"
+              fontSize={scoreFontSize}
               fontWeight="bold"
-              className="select-none pointer-events-none"
+              className="select-none pointer-events-none font-sans"
             >
               {score}% Avg
             </text>
