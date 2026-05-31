@@ -2765,11 +2765,31 @@ const OverallAnalysis = ({
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Planned vs Completed Visits</h4>
                   {isVisitActive ? (
                     (() => {
-                      const plannedVsCompletedData = treemapData.map(t => ({
-                        name: t.name,
-                        Planned: Math.max(1, t.size * 2),
-                        Completed: Math.round(t.size * 1.8)
-                      }));
+                      const plannedVsCompletedData = treemapData.map(t => {
+                        const blockName = t.name;
+                        const blockSchools = finalEnriched.filter(s => s.block === blockName);
+                        
+                        let totalCompleted = 0;
+                        blockSchools.forEach(s => {
+                          const schoolUdise = s.udise;
+                          const schoolVisits = currentVisits.filter(v => cleanUdise(v.udise_code) === schoolUdise);
+                          
+                          const uniqueDates = new Set();
+                          schoolVisits.forEach(v => {
+                            const dateStr = (v.visit_date || '').split('T')[0];
+                            if (dateStr) {
+                              uniqueDates.add(dateStr);
+                            }
+                          });
+                          totalCompleted += uniqueDates.size;
+                        });
+                        
+                        return {
+                          name: blockName,
+                          Planned: Math.max(1, t.size * 2),
+                          Completed: totalCompleted
+                        };
+                      });
                       return (
                         <div className="h-44 relative" id="planned-vs-completed-chart-container">
                           <ChartToolbar
