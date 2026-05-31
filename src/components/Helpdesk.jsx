@@ -5,175 +5,386 @@ export default function Helpdesk({ darkMode = false }) {
   const [lang, setLang] = useState('en'); // 'en' or 'hi'
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Multi-language Text Content dictionary
+  // Bilingual Content Database
   const content = {
     en: {
       title: 'Portal Helpdesk & Standard Operating Procedure (SOP)',
-      subtitle: 'Complete technical reference guide, calculations, logic, and graph interpretations.',
+      subtitle: 'Complete technical reference guide, formulas, logic, file schemas, and visual guides.',
       toggleLang: 'हिंदी में देखें',
       tabs: {
-        overview: '1. Overview & Navigation',
-        kpi: '2. KPIs & Health Score Logic',
-        charts: '3. Chart & Graph Interpretations',
-        rankings: '4. Best Performers & Rankings',
-        checker: '5. Anomalies & Sync Checker'
+        overview: '1. Menu Navigation & Architecture',
+        kpi: '2. KPIs & Health Score Weights',
+        dataImport: '3. Data Ingestion & Self-Healing',
+        photoExport: '4. Profile Photos & Styled Exports',
+        anomalies: '5. Anomalies & Mismatch Checker'
       },
-      kpiSection: {
-        title: 'Key Performance Indicators (KPIs) Explained',
-        desc: 'KPI Summary Cards provide a high-level view of filtered school networks. Each card represents a distinct data dimension.',
-        formulaTitle: 'Calculation Formula',
-        logicTitle: 'Business Logic & Impact',
+      common: {
+        formula: 'Mathematical Formula',
+        logic: 'Business Logic & Impact',
+        visualMockup: 'Visual Guide / Snapshot',
+        activeFilter: 'Active Project, District, Block, CC Filters applied.',
+        trigger: 'Trigger Criteria',
+        tableSopHeader: 'Table SOP & Scope',
+        exportOptionHeader: 'Export Option',
+        uploadOptionHeader: 'Data Upload Requirements',
+        profilePhotoHeader: 'Profile Photo Details'
+      },
+      overviewTab: {
+        title: 'Sidebar Navigation & Tab Components',
+        desc: 'The portal is structured into modules to separate executive insights, data ingestion, and security gating.',
+        menus: [
+          {
+            icon: '🏠',
+            name: 'Home / Dashboard',
+            desc: 'Geographical and summary console of coordinator visits. Displays interactive district map, progress charts, and school visit coverage buckets.',
+            tableSop: 'Displays school visit lists categorized into buckets: Critical (0 visits), Risk (<50% target met), In Progress (50-99% met), Completed (≥100% met). Metrics are filtered by date range and selected districts/blocks/projects. Target is defined as: Target Visits = monthly_target * duration_months.',
+            uploadOption: 'Requires School Master (for baseline targets) and Visit Reports (for tracking actual visits). Auto-updates dynamically based on uploaded data.',
+            profilePhoto: 'Displays active coordinator profile photo avatar in the top-left sidebar header for identity verification.',
+            exportOption: 'Browser print function enabled (PDF Export) with specific @media styles to hide navigation bars and action buttons.'
+          },
+          {
+            icon: '📈',
+            name: 'Lab Visit / Performance Matrix',
+            desc: 'Tracks coverage velocity trends, daily area charts, best coordinators leaderboard, and district heatmap gauges.',
+            tableSop: 'Displays cards for school coverage targets, unique visit records, classes conducted (ICT vs Smart vs MIS), and AI strategic insights lists.',
+            uploadOption: 'Depends on JHPMS Lab logs and Visit Reports.',
+            profilePhoto: 'Displays coordinator avatars in leaderboard grids to represent high-performing personnel.',
+            exportOption: 'Browser print function enabled for PDF saving.'
+          },
+          {
+            icon: '🔍',
+            name: 'Lab Visit / Search & Insights',
+            desc: 'Enables quick search of individual schools or CC visitors. Displays plans, last visit details, and planning gaps.',
+            tableSop: 'Displays school list with UDISE code, district, block, assigned visitor, target vs completed visits, and days since last visit.',
+            uploadOption: 'Requires School Master and Visit Reports logs.',
+            profilePhoto: 'N/A',
+            exportOption: 'Browser printing function supports clean document prints.'
+          },
+          {
+            icon: '✅',
+            name: 'Lab Visit / Compliance Check',
+            desc: 'Audits visit reports to ensure both ICT Lab and Smart Class facilities are covered during coordinator visits. Flags missing facility logs.',
+            tableSop: 'Identifies schools visited but missing one or both facilities. Columns: Date of Visit, School Name, District, Visitor Name, Recorded Facilities, and Compliance Gap (Missed ICT, Missed Smart, or Missed Both). Compliance Gap Logic: Gap = !(hasSmart && hasICT) where hasSmart indicates a visit of type "Smart Class" and hasICT indicates "ICT Lab".',
+            uploadOption: 'Requires Visit Reports spreadsheet stream.',
+            profilePhoto: 'N/A',
+            exportOption: 'Includes direct Export to Excel button, downloading a styled spreadsheet of non-compliant records.'
+          },
+          {
+            icon: '📋',
+            name: 'Lab Visit / Visit Planning',
+            desc: 'Auto-suggests priority schools to visit next using a weighted scheduling priority score model.',
+            tableSop: 'Sortable priority band list (Critical/High/Medium), school name, UDISE, block, assigned visitor, target gap, and recommended action. Priority Score formula: Priority Score = (1 - (Unique Visits / Target Visits)) * 100, plus recency penalty of +15 pts if last visit was >45 days ago, +10 pts if >30 days, or +5 pts if >15 days. Zero-visit schools are hardcoded to maximum priority score of 100.',
+            uploadOption: 'Requires School Master (for target visits baseline) and Visit Reports (for actual unique visits count).',
+            profilePhoto: 'N/A',
+            exportOption: 'Includes Export Excel List button, generating a prioritized list of visit targets.'
+          },
+          {
+            icon: '👥',
+            name: 'Performance Analysis / Field Team Performance',
+            desc: 'Aggregates coordinator performance rankings based on 6 core indices: setup usage, logged hours, JHPMS classes, and visit coverage.',
+            tableSop: 'Interactive coordinator performance grid: CC Name, District, total schools assigned, instructor working count, CPU/Mini-PC installed and used counts, total active hours, JHPMS classes, visit totals, and weighted score. Performance Score (100 Marks Max) = Infrastructure Utilization (25 Marks) + Usage Efficiency (20 Marks) + Academic Delivery (20 Marks) + Smart Class Delivery (10 Marks) + Monitoring & Visit Score (15 Marks) + Instructor Availability (10 Marks). Infrastructure Util weight: 25 * ((cpuUsed/cpuInst) + (miniUsed/miniInst))/2. Usage weight: 20 * (avgCC_Hours/maxCC_Hours). Academic: 20 * (ccClasses/maxClasses). Smart: 10 * (ccSmart/maxSmart). Monitoring: 15 * (ccVisits/maxVisits). Availability: 10 * (ccInstructors/ccSchools).',
+            uploadOption: 'Requires all 6 data streams (School Master, Visit Reports, JHPMS Logs, EduStat Daily, EduStat Master, and Manpower Roster) to compute detailed ratings.',
+            profilePhoto: 'Displays active coordinator profile photo avatar next to statistics in detailed drilldown panel.',
+            exportOption: 'Export Excel button downloads the complete coordinator rankings table. Modals support downloading CSV/Excel sheets of school, device, instructor, usage, class, and visit records.'
+          },
+          {
+            icon: '🏆',
+            name: 'Performance Analysis / School Performance',
+            desc: 'Compares and ranks schools, ICT instructors, and subject teachers. Integrates Recharts graphs.',
+            tableSop: 'Interactive school/teacher rankings. School JHPMS Score: (Avg Classes/day for School) / (Max School Avg Classes/day) * 100. School Edustat Score: (Avg Hours/day for School) / (Max School Avg Hours/day) * 100. Combined Score: 0.6 * JHPMS Score + 0.4 * Edustat Score. ICT Instructor Score: (Instructor JHPMS ICT Classes) / (Max Instructor JHPMS ICT Classes) * 100. Subject Teacher Score: (Teacher JHPMS Smart Classes) / (Max Teacher JHPMS Smart Classes) * 100. Ranks are recalculated dynamically.',
+            uploadOption: 'Depends on JHPMS Lab logs, EduStat Daily hours, EduStat Device Inventory, and Manpower Roster.',
+            profilePhoto: 'N/A',
+            exportOption: 'Export Excel downloads active rankings list. Integrated Chart Toolbar allows direct downloads of SVG, PNG, or CSV data for Recharts charts.'
+          },
+          {
+            icon: '📤',
+            name: 'Reports / Reports & Export',
+            desc: 'Administration view to download raw filtered records in styled Microsoft Excel layout.',
+            tableSop: 'Filter parameter table. Defines active projects, districts, blocks, and selected date range before executing XLSX serialization.',
+            uploadOption: 'Uses cached data streams from browser storage.',
+            profilePhoto: 'N/A',
+            exportOption: 'Styled XLSX export using xlsx-js-style. Custom styles include auto column widths, solid Teal headers (#0F766E), rank highlights (Gold/Silver/Bronze), and status colors (Green for Active, Red for Vacant).'
+          },
+          {
+            icon: '📊',
+            name: 'Reports / Overall Analysis',
+            desc: 'Executive summary view compiling composite health gauges, MoM changes, achievements, bottlenecks, and review grids.',
+            tableSop: 'PM Review Grid: School Name, UDISE, Location, Field Visits count, Last Visit Date, staffing status (Active/Vacant), JHPMS classes, EduStat hours, composite performance score, inferred root cause, and recommendations. Composite Score weighting: JHPMS 30%, EduStat 25%, Visit Coverage 25%, Manpower 20%. Formula: (JHPMS Score * 30%) + (EduStat Score * 25%) + (Visit Score * 25%) + (Manpower Score * 20%). Weights redistribute dynamically to equal 100% if any stream is not uploaded.',
+            uploadOption: 'Requires JHPMS Lab logs, EduStat Daily hours, Visit logs, and Manpower roster.',
+            profilePhoto: 'N/A',
+            exportOption: 'Browser print PDF saving, Export PDF button, and PPTX presentation template download.'
+          },
+          {
+            icon: '⚙️',
+            name: 'System Setup / Data Upload',
+            desc: 'Admin workspace to ingest monthly spreadsheets to Central cloud database (Supabase).',
+            tableSop: 'Displays database sync status: Table Name, Sync State, File Name, Row Count, and Last Sync Date.',
+            uploadOption: 'Allows uploading School Master, Visit Reports, JHPMS Lab logs, EduStat Daily hours, EduStat Master Inventory, and Manpower Roster.',
+            profilePhoto: 'N/A',
+            exportOption: 'Clear Cloud Data button resets and flushes all local IDB and localStorage cache variables after user confirmation.'
+          },
+          {
+            icon: '👤',
+            name: 'Profile Creation / User Creation',
+            desc: 'Gated admin console to register new portal accounts, credentials, and privilege roles.',
+            tableSop: 'Form fields: Name of User, User ID, Email, Contact Number, Primary Assigned District, Designation, and Cryptographic Password.',
+            uploadOption: 'User inputs mapped details directly. Database inserts username, cryptographically hashed passwords, and assigned scopes.',
+            profilePhoto: 'Supports uploading coordinator avatar photo, synchronizing to Supabase Storage.',
+            exportOption: 'N/A'
+          },
+          {
+            icon: '👥',
+            name: 'Profile Creation / User List Directory',
+            desc: 'Lists registered user credentials, login privilege role, and user profiles.',
+            tableSop: 'Fully sortable table showing Username, Role, Full Name, Email, Mobile Number, Assigned District, and Designation.',
+            uploadOption: 'N/A',
+            profilePhoto: 'Allows changing or clearing the profile photo of any user using Base64 upload.',
+            exportOption: 'Allows deleting accounts with double safety confirmation checks.'
+          },
+          {
+            icon: '🔒',
+            name: 'Profile Creation / User Permissions',
+            desc: 'Admin panel to assign menu routes and allowed districts (District Gating) to standard users.',
+            tableSop: 'Permission Matrix: allowed operations (View, Edit, Add, Delete, Show) per menu path, and multi-district filter list.',
+            uploadOption: 'N/A',
+            profilePhoto: 'N/A',
+            exportOption: 'Save Permissions action saves updated accessibility matrix JSON payloads to user record.'
+          },
+          {
+            icon: 'ℹ️',
+            name: 'Helpdesk & SOP',
+            desc: 'Bilingual support console containing standard operating procedures (SOP), formulas, and technical reference guides.',
+            tableSop: 'Interactive bilingual reference view. Language toggle at header translates documentation instantly between English and Hindi.',
+            uploadOption: 'N/A',
+            profilePhoto: 'N/A',
+            exportOption: 'N/A'
+          }
+        ]
+      },
+      kpiTab: {
+        title: 'KPI Summary Cards & Composite Score Logic',
+        desc: 'Metrics are calculated using filtered school baselines. If some database feeds are not uploaded, weights redistribute dynamically.',
         cards: [
           {
             name: 'Schools Covered',
             metric: '🏫 125 Schools',
-            formula: 'Total count of unique schools matching active project, district, block, and coordinator filters.',
-            logic: 'Establishes the denominator/baseline size for all other percentages. If a school has no records in any uploaded file, it is still included in this baseline.',
-            visualType: 'card',
+            formula: 'Count = |{udise_code ∈ School_Master}|',
+            logic: 'Determines the baseline size. If a school exists in the master but has no classes/visits in the uploaded files, it is still counted to avoid denominator inflation.',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
             name: 'Active CC/DEF',
             metric: '👤 12 Coordinators',
-            formula: 'Distinct count of CC/DEF visitor names assigned to the filtered schools.',
-            logic: 'Helps track supervisory resources. Visitor names are mapped and normalized using spelling correction lists to resolve personnel spelling duplicates.',
-            visualType: 'card',
+            formula: 'Count = |{visitor_name ∈ School_Master (mapped & corrected)}|',
+            logic: 'Tracks human resources. Raw names are corrected using personnel spelling mapping to resolve spelling duplicate errors.',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
             name: 'Avg Performance',
             metric: '📊 72.4%',
-            formula: 'Weighted average of JHPMS (30%), EduStat (25%), Visit Coverage (25%), and Manpower (20%) scores across schools.',
+            formula: '(JHPMS Score * 30%) + (EduStat Score * 25%) + (Visit Score * 25%) + (Manpower Score * 20%)',
             logic: 'The overall health rating of the network. If any database stream is excluded in the filters, weights are dynamically redistributed to equal 100%.',
-            visualType: 'card',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
             name: 'Working Labs',
             metric: '🖥️ 88.0%',
             formula: '(Schools with at least 1 JHPMS class logged / Total Schools) * 100',
-            logic: 'Calculates the ratio of active labs. If a school has 0 classes logged in JHPMS during the date range, the lab is flagged as Inactive/Non-Functional.',
-            visualType: 'card',
+            logic: 'Measures active labs. If a school logs 0 JHPMS classes during the selected range, its lab is marked non-functional.',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
             name: 'Schools Actually Visited',
             metric: '✅ 74.0%',
-            formula: '(Schools meeting visit targets / Total Schools) * 100. Target = monthly_target * evaluation_duration_in_months.',
-            logic: 'Measures physical visitor compliance. For targets, only unique visit dates representing actual visits are counted. Multiple visits on a single day to the same school count as 1.',
-            visualType: 'card',
+            formula: '(Schools meeting visit targets / Total Schools) * 100. Target = monthly_target * duration_months.',
+            logic: 'Measures visitor compliance. Only unique visit dates are counted. Multiple visits to the same school on one day count as 1.',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
             name: 'Total Computer Usage Hours',
             metric: '⏱️ 4,250 Hrs',
-            formula: 'Sum of all device usage hours extracted from filtered EduStat daily log sheets.',
-            logic: 'Measures hardware utilization intensity. Robust parsing maps H:MM strings into decimal hours. Values are capped at 6 hours/day per school to ignore logs anomaly.',
-            visualType: 'card',
+            formula: 'Sum = ∑ min(daily_hours, 6.0) across all filtered schools.',
+            logic: 'Measures hardware utilization. Daily hours are capped at 6 hours/day per school to ignore logging anomalies.',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
             name: 'Schools Needing Urgent Help',
             metric: '🚨 14 Schools',
             formula: 'Count of schools with Composite Performance Score < 30% (excluding pure zero-data schools).',
-            logic: 'Highlights critical bottleneck locations requiring technical operations or administrative deployment.',
-            visualType: 'card',
+            logic: 'Flags critical schools for technical operations or administrative deployment.',
             color: 'border-red-200 bg-rose-50/20'
+          },
+          {
+            name: 'Composite School Health Score',
+            metric: '🏥 0 - 100% Score',
+            formula: 'Composite = w_JHPMS * JHPMS_Score + w_EduStat * EduStat_Score + w_Visit * Visit_Score + w_Manpower * Manpower_Score. Weights scale to 100% if any stream is absent.',
+            logic: 'Grades individual schools: Excellent (>=80), On-Track (60-80), Needs Attention (40-60), and Critical (<40). JHPMS score is relative to max classes; EduStat is relative to max hours * 105%.',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'Infrastructure Utilization Score',
+            metric: '🛠️ Max 25 Marks',
+            formula: 'Score = 25 * ((cpuUsed / cpuInstalled) + (miniUsed / miniInstalled)) / 2',
+            logic: 'Evaluates the ratio of active (used) CPU and Mini-PC devices to total installed hardware, averaged and scaled out of 25 marks.',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'Usage Efficiency Score',
+            metric: '⏱️ Max 20 Marks',
+            formula: 'Score = 20 * ((CC_avgCpu / maxAvgCpu) + (CC_avgMini / maxAvgMini)) / 2, where CC_avgCpu = totalCpuHours / (workingDays * cpuInstalled)',
+            logic: 'Evaluates computer usage logs per device per working day for each coordinator, normalized against the highest active CC average.',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'Academic Delivery Score',
+            metric: '📖 Max 20 Marks',
+            formula: 'Score = 20 * (AcademicRaw / maxAcademic), where AcademicRaw = ICTClasses / totalSchools',
+            logic: 'Evaluates curriculum delivery. Computes average ICT classes conducted per assigned school, normalized against the highest average in the field team.',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'Smart Class Delivery Score',
+            metric: '📺 Max 10 Marks',
+            formula: 'Score = 10 * (SmartRaw / maxSmart), where SmartRaw = SmartClasses / totalSchools',
+            logic: 'Measures smart class adoption. Computes average Smart Classes conducted per assigned school, normalized against the highest CC average.',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'Monitoring & Visit Score',
+            metric: '🚗 Max 15 Marks',
+            formula: 'Score = 15 * ((totalIctVisits + totalSmartVisits) / totalSchools) / maxMonitoring',
+            logic: 'Evaluates physical visit frequency. Computes average school visits conducted per assigned school, normalized against the network maximum.',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'Instructor Availability Score',
+            metric: '👥 Max 10 Marks',
+            formula: 'Score = 10 * (instructorWorking / totalSchools) / maxAvailability',
+            logic: 'Evaluates staffing percentage. Tracks the staffing ratio (Active instructors / assigned schools) normalized against the best staffing CC.',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'School Combined Score',
+            metric: '🏆 Combined Rank',
+            formula: 'Combined = 0.6 * School_JHPMS_Score + 0.4 * School_EduStat_Score',
+            logic: 'Used for school rankings. School JHPMS Score is school_avg / max_avg_classes * 100. School EduStat Score is school_avg_hrs / max_avg_hrs * 100.',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'ICT Instructor & Subject Teacher Scores',
+            metric: '👩‍🏫 0-100% score',
+            formula: 'ICT Instructor: (ICTClasses / maxICTClasses) * 100 | Subject Teacher: (SmartClasses / maxSmartClasses) * 100',
+            logic: 'Ranks teachers based on actual logs. ICT instructors are graded on computer JHPMS classes; Subject teachers are graded on Smart Class logs.',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'Visit Planning Priority Score',
+            metric: '🎯 Priority (0-100)',
+            formula: 'Priority = (1 - (Unique Visits / Target Visits)) * 100 + Recency Penalty (Capped at 99. Enforced 100 for 0-visit schools)',
+            logic: 'Suggests next visit targets. Priority increases as visit coverage falls short of target, plus a penalty of +5 (15+ days), +10 (30+ days), or +15 (45+ days) since the last visit.',
+            color: 'border-teal-200 bg-emerald-50/20'
           }
         ]
       },
-      healthSection: {
-        title: 'Composite Health Score & Grading System',
-        desc: 'The portal aggregates JHPMS, EduStat, Visits, and Manpower inputs into a single performance percentage.',
-        weightsTitle: 'Canonical Component Weights',
-        weights: [
-          { name: 'JHPMS Labs', weight: 30, desc: 'Evaluates classes conducted. Measured as ratio of schools logging any classes.' },
-          { name: 'EduStat Hours', weight: 25, desc: 'Evaluates machine sync and CPU hours. Capped based on max hours.' },
-          { name: 'Visit Coverage', weight: 25, desc: 'Evaluates physical oversight checks. Unique visit dates vs scaled target.' },
-          { name: 'CC Manpower', weight: 20, desc: 'Evaluates instructor stability. Active = 100%, Pending = 40%, Vacant = 0%.' }
+      dataImportTab: {
+        title: 'Data Ingestion, Schemas, & Self-Healing Engine',
+        desc: 'Files uploaded by Admin are parsed asynchronously using a background Web Worker and validated against strict schemas.',
+        schemas: [
+          {
+            name: 'Schools Master (स्कूल मास्टर)',
+            cols: 'udise_code (UDISE), school_name, district, block, project_name, visitor_name, monthly_target',
+            val: 'Ensures each school has a unique UDISE code and monthly visit target (default: 1).'
+          },
+          {
+            name: 'Visit Reports (विजिट रिपोर्ट)',
+            cols: 'udise_code, visit_date, visitor_name, visit_type, remarks',
+            val: 'Unique visit dates are compiled. Duplicate visits to the same school on the same day are automatically removed.'
+          },
+          {
+            name: 'JHPMS Lab (क्लास लॉग)',
+            cols: 'udise, date, labType (Smart/ICT), subject, subjectTeacher, no_of_classes',
+            val: 'Class types are categorized: ICT Class if subject contains "Computer" and lab is ICT; Smart Class if lab is Smart; MIS Work if subject is MIS.'
+          },
+          {
+            name: 'EduStat Daily (कंप्यूटर उपयोग)',
+            cols: 'udise, serial, date, hours (H:MM or decimal)',
+            val: 'Daily hours are parsed. Strings containing colons (like 2:30) are converted to decimals (2.5).'
+          },
+          {
+            name: 'EduStat Master (डिवाइस इन्वेंटरी)',
+            cols: 'udise, device, serial, installed (Yes/No)',
+            val: 'Maps serial numbers to device types (Traditional CPU vs Thin Client) to evaluate sync rates.'
+          },
+          {
+            name: 'Manpower Roster (शिक्षक प्रोफाइल)',
+            cols: 'udise, status (Active/Pending/Vacant), instructorName',
+            val: 'Normalizes instructor statuses. Active/Working is treated as Active. Resign/Terminate/Vacant is treated as Vacant.'
+          }
         ],
-        gradingTitle: 'Overall Health Grading System',
-        grades: [
-          { label: 'Excellent', range: '≥ 80%', color: 'text-emerald-700 bg-emerald-100/50', action: 'Highly stable. Replicate teaching best practices to other zones.' },
-          { label: 'On-Track', range: '60% - 79%', color: 'text-teal-700 bg-teal-100/50', action: 'Stable operations. Focus on improving device sync hours.' },
-          { label: 'Needs Attention', range: '40% - 59%', color: 'text-amber-700 bg-amber-100/50', action: 'At-risk. Schedule physical inspection by CCs/DEFs immediately.' },
-          { label: 'Critical', range: '< 40%', color: 'text-red-700 bg-red-100/50', action: 'Dysfunctional. Immediate technical dispatch and manpower deployment required.' }
-        ]
-      },
-      overviewSection: {
-        introTitle: 'Portal Standard Operating Procedure (SOP)',
-        introDesc: 'This portal serves as an executive decision system for monitoring Jharkhand Government ICT labs and Smart Classes. It integrates diverse operational streams into a unified analytics cockpit.',
-        menuTitle: 'Sidebar Menu Navigation & Capabilities',
-        menus: [
-          { name: 'Home', desc: 'Welcome landing pad. Displays user details, roles, district jurisdiction details, and general portal information.' },
-          { name: 'Dashboard', desc: 'High-level maps and KPI cards. Aggregates data by district and displays touch targets vs actual visits.' },
-          { name: 'Lab Visit', desc: 'Deep dive into visit logs. Includes search views, visit trends, planned vs completed charts, and data quality check indices.' },
-          { name: 'Reports & Export', desc: 'Enables downloading raw, filtered records in Microsoft Excel format for further audit.' },
-          { name: 'Overall Analysis', desc: 'The executive cockpit dashboard. Contains KPI summary cards, composite health radial gauges, auto-compiled narrative text, achievements, and data anomalies tables.' },
-          { name: 'System Setup / Data Upload', desc: 'Admin upload area. Allows loading monthly Excel data files (JHPMS, EduStat, Visits, Manpower) into the cloud. Performs automated duplicate check and self-healing.' },
-          { name: 'Profile Creation', desc: 'Access control area. Admin can create user profiles, manage roles (Admin vs Standard User), and apply district-level access gating.' }
-        ]
-      },
-      chartsSection: {
-        title: 'Chart & Graph Interpretations',
-        desc: 'Guidelines on how to read and interpret the trend visualizations in the portal.',
-        items: [
+        selfHealingTitle: 'Self-Healing & Validation Engine Details',
+        healingRules: [
           {
-            name: 'Overall Health Radial Gauge (ApexCharts)',
-            detail: 'Displays the average composite health score as a semi-circle gauge. Colors transition dynamically from green (excellent) to amber (warning) to red (critical) based on the score tier.',
-            howToRead: 'Look at the central percentage and grade. Tap or hover on the gauge to inspect individual weights and constituent scores.'
+            name: 'Header Normalization',
+            desc: 'Converts header spaces to underscores, removes special characters, and converts them to lowercase. For example, "UDISE Code" is resolved to "udise_code".'
           },
           {
-            name: 'Month-wise Class Status (Area Chart)',
-            detail: 'Stacked area chart showing Smart Classes, ICT Classes, and MIS work counts month-by-month.',
-            howToRead: 'Hover over points to see exact monthly counts. Legends are interactive: tap on any legend (e.g. MIS Work) to hide it from the view and analyze purely academic classes.'
+            name: 'Robust Date Parsing',
+            desc: 'Supports Excel numeric dates (e.g. 45626) and formats them back to standard ISO dates without shifting timezones.'
           },
           {
-            name: 'MoM KPI Comparison (Bar Chart)',
-            detail: 'Compares current metrics against the previous equal date range. Green upward arrow (▲) shows gain, and red downward arrow (▼) shows decline.',
-            howToRead: 'Tells you if the school network is improving or degrading. Used for reviewing monthly performance velocity.'
+            name: 'Zebra Deduplication',
+            desc: 'Deduplicates raw visit sheets. Only 1 unique visit per school per day is retained. Duplicate entries are logged and self-healed in the database.'
           },
           {
-            name: 'Planned vs Completed Visits (Grouped Bar)',
-            detail: 'Compares the target visit count (based on school targets) against completed unique visits grouped by Block.',
-            howToRead: 'Grey bars represent Planned targets. Purple bars represent Completed visits. Large gaps represent visitor neglect blocks.'
-          },
-          {
-            name: 'Field Visit Aging Status (Bar Chart)',
-            detail: 'Groups schools based on how many days have passed since their last physical CC visit (e.g. 0-30 days, 31-60 days, etc.).',
-            howToRead: 'Ideally, all bars should cluster in the "0-30 Days" column. Tall bars in "90+ Days" show severe neglect and require scheduling CC visits.'
-          },
-          {
-            name: 'Geographic Treemap (Block Map)',
-            detail: 'Interactive box-map. Size of each box represents the number of schools in that block. Color represents the average health score.',
-            howToRead: 'Red boxes are priority areas. Hover over boxes to see block averages. Click the expand button to view a fullscreen map.'
+            name: 'Asynchronous Web Worker',
+            desc: 'Offloads parsing to `ExcelWorker` running in a separate thread. Prevents browser UI freezes when uploading large sheets (10,000+ rows).'
           }
         ]
       },
-      rankingsSection: {
-        title: 'Achievements & Rankings Logic',
-        desc: 'How the portal automatically calculates the rankings and awards badges under the "What\'s Going Well" panel.',
-        rules: [
-          {
-            name: 'Top Performing District',
-            logic: 'The district having the highest mathematical average of composite scores across all its schools.',
-            detail: 'Requires at least 2 active schools in the district. Displays total classes and hours logged by the entire district.'
-          },
-          {
-            name: 'Star Utilization School',
-            logic: 'Calculated as the sum of JHPMS ICT classes, Smart classes, and EduStat device hours.',
-            detail: 'Highest total sum wins. Highlights the school getting maximum utility out of their hardware investment.'
-          },
-          {
-            name: 'Top Performing CC/DEF/Instructor',
-            logic: 'Evaluates the performance of manpower. Schools are grouped by instructor name, and their average score is compared.',
-            detail: 'The CC/Instructor with the highest average score is highlighted. Note: CC leaderboard lists the top 10 CCs.'
-          }
-        ]
+      photoTab: {
+        title: 'Profile Photo Storage & Styled Exports',
+        desc: 'Technical implementation details of profile photo upload and formatted Excel sheet generation.',
+        photoFlow: {
+          title: 'Profile Photo Upload & Storage Workflow',
+          desc: 'Coordinators can upload profile photos to represent themselves in the portal.',
+          steps: [
+            'User uploads image via hidden file input (`accept="image/*"`).',
+            'Image file size is validated to ensure it is smaller than 2MB.',
+            'FileReader converts the image into a Base64 encoded string.',
+            'The Base64 string is saved locally in `localStorage` (`snet_profile_photo`) for instant loading.',
+            'The Base64 string is uploaded to Supabase Storage inside the `app-data` bucket under the key `profile_photo` for cloud sync.'
+          ]
+        },
+        exportFlow: {
+          title: 'Styled Excel Export System (xlsx-js-style)',
+          desc: 'Generates formatted spreadsheets with corporate styling instead of raw unstyled CSVs.',
+          features: [
+            {
+              name: 'Auto Column Widths',
+              desc: 'Loops through all cells in a column, calculates the length of the longest value, and sets the column width dynamically with a padding of 4 characters.'
+            },
+            {
+              name: 'Teal Header Theme',
+              desc: 'Applies a solid Teal background fill (`#0F766E`) to the header row, with bold white Segoe UI font (size 11), centered alignment, and thin border grids.'
+            },
+            {
+              name: 'Rank Color Highlights',
+              desc: 'Applies cell background colors to top rank rows: Gold background (`#FEF3C7`) for Rank 1, Silver background (`#F1F5F9`) for Rank 2, and Bronze background (`#FFEDD5`) for Rank 3.'
+            },
+            {
+              name: 'Status Color Coding',
+              desc: 'Highlights text cells: Green background (`#DCFCE7`) for "Active" or "Working" status, Red background (`#FEE2E2`) for "Resigned" or "Terminated" status.'
+            },
+            {
+              name: 'Print & PDF Layout Overrides',
+              desc: 'Uses CSS `@media print` rules to hide sidebars, filter panels, and buttons. Restructures charts and tables to fit pages without vertical or horizontal cropping.'
+            }
+          ]
+        }
       },
-      checkerSection: {
-        title: 'Mismatched-Data Checker & Sync Warnings',
-        desc: 'The portal performs cross-source data triangulation. If two database files contradict each other, an anomaly is flagged.',
+      anomaliesTab: {
+        title: 'Mismatched-Data Checker & Critical Gaps',
+        desc: 'The portal triangulates data from JHPMS, EduStat, and Visits to flag anomalies.',
         warnings: [
           {
             name: 'Hardware Sync Mismatch',
@@ -184,7 +395,7 @@ export default function Helpdesk({ darkMode = false }) {
           {
             name: 'Visit Inefficacy',
             trigger: 'CC visited a school >4 times in 30 days, but the school composite score remains <20%.',
-            meaning: 'Despite multiple supervisory visits, the school\'s performance is not improving. Indicates that visits are not resolving local bottlenecks.',
+            meaning: 'Despite multiple visits, performance is not improving. Indicates that CC visits are not resolving local bottlenecks.',
             level: 'High'
           },
           {
@@ -194,9 +405,21 @@ export default function Helpdesk({ darkMode = false }) {
             level: 'Medium'
           },
           {
-            name: 'Device Sync Warning (Sync Gap)',
-            trigger: 'Count of schools with JHPMS > 0 and EduStat hours = 0.',
-            meaning: 'Sync gap flag showing the count of schools whose monitoring data is offline or not syncing to the central server.',
+            name: 'Locked Lab Hardware',
+            trigger: 'Manpower status is Active, but EduStat logs 0 device hours.',
+            meaning: 'An instructor is assigned, but computers are completely unused. Indicates locked hardware, power failure, or missing monitoring setup.',
+            level: 'High'
+          },
+          {
+            name: 'Prolonged Manpower Vacancies',
+            trigger: 'Manpower status is Vacant for more than 30 days.',
+            meaning: 'The school has had no instructor assigned for a long period, causing a complete halt to computer classes.',
+            level: 'High'
+          },
+          {
+            name: 'Device Sync Warning',
+            trigger: 'Count of schools with JHPMS classes > 0 and EduStat hours = 0.',
+            meaning: 'Alert showing the count of schools whose computer monitoring system is offline or failing to sync data to the central server.',
             level: 'Sync Gap'
           }
         ]
@@ -204,194 +427,417 @@ export default function Helpdesk({ darkMode = false }) {
     },
     hi: {
       title: 'पोर्टल हेल्पडेस्क और मानक संचालन प्रक्रिया (SOP)',
-      subtitle: 'संपूर्ण तकनीकी संदर्भ गाइड, गणना, तर्क, और ग्राफ का अर्थ कैसे समझें।',
-      toggleLang: 'View in English',
+      subtitle: 'संपूर्ण तकनीकी संदर्भ गाइड, फ़ार्मुलों, फ़ाइल स्कीमा और विज़ुअल विवरण।',
+      toggleLang: 'English in View',
       tabs: {
-        overview: '1. अवलोकन और नेविगेशन',
-        kpi: '2. KPI और स्वास्थ्य स्कोर लॉजिक',
-        charts: '3. चार्ट और ग्राफ का अर्थ',
-        rankings: '4. रैंकिंग और श्रेष्ठ प्रदर्शन लॉजिक',
-        checker: '5. विसंगतियां और सिंक चेकर'
+        overview: '1. मेनू नेविगेशन और संरचना',
+        kpi: '2. KPI और स्वास्थ्य स्कोर वेटेज',
+        dataImport: '3. डेटा अंतर्ग्रहण और सुधार इंजन',
+        photoExport: '4. प्रोफ़ाइल फ़ोटो और स्टाइल निर्यात',
+        anomalies: '5. विसंगतियां और सिंक चेकर'
       },
-      kpiSection: {
-        title: 'कुंजी प्रदर्शन संकेतक (KPIs) का विवरण',
-        desc: 'KPI कार्ड आपके नेटवर्क का समग्र विवरण देते हैं। हर कार्ड एक विशेष माप को दर्शाता है।',
-        formulaTitle: 'गणना का सूत्र (Formula)',
-        logicTitle: 'तर्क और महत्व (Logic)',
+      common: {
+        formula: 'कैलकुलेशन फ़ॉर्मूला',
+        logic: 'व्यावसायिक तर्क और प्रभाव',
+        visualMockup: 'विज़ुअल गाइड / स्नैपशॉट',
+        activeFilter: 'सक्रिय प्रोजेक्ट, जिला, ब्लॉक, सीसी फ़िल्टर लागू हैं।',
+        trigger: 'ट्रिगर मानदंड',
+        tableSopHeader: 'तालिका SOP और कार्यक्षेत्र (Scope)',
+        exportOptionHeader: 'एक्सेल/रिपोर्ट निर्यात विकल्प (Export)',
+        uploadOptionHeader: 'डेटा अपलोड और स्रोत आवश्यकताएं',
+        profilePhotoHeader: 'प्रोफ़ाइल फ़ोटो विवरण'
+      },
+      overviewTab: {
+        title: 'साइडबार नेविगेशन और टैब घटक विवरण',
+        desc: 'पोर्टल को विभिन्न मॉड्यूल में संरचित किया गया है ताकि निर्णय, डेटा अपलोड और सुरक्षा को अलग किया जा सके।',
+        menus: [
+          {
+            icon: '🏠',
+            name: 'होम / डैशबोर्ड',
+            desc: 'समन्वयक विजिट का भौगोलिक और सारांश विश्लेषण कंसोल। इसमें इंटरैक्टिव जिला मानचित्र, प्रगति चार्ट और स्कूल विजिट कवरेज श्रेणियां शामिल हैं।',
+            tableSop: 'स्कूल विजिट श्रेणियों के आधार पर: गंभीर (0 विजिट), जोखिम (<50% लक्ष्य), प्रगति पर (50-99%), पूर्ण (≥100% लक्ष्य)। गणना गतिशील समय सीमा पर आधारित है। लक्ष्य = मासिक लक्ष्य * अवधि (महीनों में)।',
+            uploadOption: 'लक्ष्यों और विज़िट डेटा को सिंक करने के लिए स्कूल मास्टर और विजिट रिपोर्ट डेटा स्ट्रीम आवश्यक हैं।',
+            profilePhoto: 'सुरक्षा पहचान के लिए ऊपर-बाएं साइडबार हेडर में सक्रिय समन्वयक प्रोफ़ाइल फ़ोटो प्रदर्शित करता है।',
+            exportOption: 'ब्राउज़र प्रिंट फ़ंक्शन (पीडीएफ निर्यात) के माध्यम से प्रिंट-रेडी लेआउट, जिसमें नेविगेशन बार और बटनों को स्वचालित रूप से छिपाने की व्यवस्था है।'
+          },
+          {
+            icon: '📈',
+            name: 'लैब विजिट / परफॉरमेंस मैट्रिक्स',
+            desc: 'विजिट गति रुझान, दैनिक चार्ट, सर्वश्रेष्ठ समन्वयक लीडरबोर्ड और जिला हीटमैप गेज प्रदर्शित करता है।',
+            tableSop: 'स्कूल कवरेज लक्ष्य, अद्वितीय विजिट रिकॉर्ड, संचालित कक्षाएं (ICT बनाम स्मार्ट), और AI रणनीतिक अंतर्दृष्टि कार्ड दिखाता है।',
+            uploadOption: 'JHPMS लैब लॉग और विजिट रिपोर्ट पर निर्भर करता है।',
+            profilePhoto: 'उच्च प्रदर्शन करने वाले समन्वयकों को दर्शाने के लिए लीडरबोर्ड ग्रिड में समन्वयक प्रोफाइल चित्र दिखाता है।',
+            exportOption: 'ब्राउज़र प्रिंट फ़ंक्शन का समर्थन करता है।'
+          },
+          {
+            icon: '🔍',
+            name: 'लैब विजिट / सर्च और अंतर्दृष्टि',
+            desc: 'स्कूलों, यूडीआईएस कोड, ब्लॉक और समन्वयकों द्वारा खोज की अनुमति देता है। विजिट विवरण और योजना अंतराल दिखाता है।',
+            tableSop: 'यूडीआईएस कोड, जिला, ब्लॉक, आगंतुक, लक्ष्य बनाम पूर्ण विजिट, और अंतिम विजिट के बीत चुके दिनों के साथ स्कूलों की सूची।',
+            uploadOption: 'स्कूल मास्टर और विजिट रिपोर्ट लॉग आवश्यक हैं।',
+            profilePhoto: 'लागू नहीं',
+            exportOption: 'खोज परिणामों को ब्राउज़र प्रिंट फ़ंक्शन का उपयोग करके साफ़ प्रिंट किया जा सकता है।'
+          },
+          {
+            icon: '✅',
+            name: 'लैब विजिट / अनुपालन जांच',
+            desc: 'सुनिश्चित करता है कि विजिट के दौरान आईसीटी लैब और स्मार्ट क्लास दोनों सुविधाएं कवर की गई हैं। गायब सुविधाओं को चिह्नित करता है।',
+            tableSop: 'विजिट किए गए स्कूल जहां कोई सुविधा छूट गई हो। कॉलम: विजिट की तिथि, स्कूल का नाम, जिला, समन्वयक का नाम, रिकॉर्ड की गई सुविधाएं और अनुपालन अंतर स्थिति। अनुपालन गैप सूत्र: Gap = !(hasSmart && hasICT) जहाँ hasSmart "Smart Class" प्रकार की विजिट दर्शाता है और hasICT "ICT Lab" विजिट दर्शाता है।',
+            uploadOption: 'विजिट रिपोर्ट स्प्रेडशीट आवश्यक है।',
+            profilePhoto: 'लागू नहीं',
+            exportOption: 'गैर-अनुपालन रिकॉर्ड की स्प्रेडशीट डाउनलोड करने के लिए सीधा एक्सेल निर्यात बटन शामिल है।'
+          },
+          {
+            icon: '📋',
+            name: 'लैब विजिट / विजिट प्लानिंग',
+            desc: 'विजिट लक्ष्यों और अंतिम विजिट के बीत चुके दिनों के आधार पर स्वतः सुझाव देता है कि समन्वयकों को किन स्कूलों का दौरा करना चाहिए।',
+            tableSop: 'प्राथमिकता बैंड सूची (गंभीर/उच्च/मध्यम), स्कूल का नाम, यूडीआईएस, ब्लॉक, निर्दिष्ट आगंतुक, लक्ष्य अंतर और अनुशंसित कार्रवाई। प्राथमिकता स्कोर सूत्र: Priority Score = (1 - (Unique Visits / Target Visits)) * 100, यदि अंतिम विजिट >45 दिन पहले थी तो +15 अंक, >30 दिन पर +10 अंक, और >15 दिन पर +5 अंक की मंदी पेनल्टी जोड़ी जाती है। 0-विजिट स्कूलों के लिए प्राथमिकता स्कोर हमेशा 100 होता है।',
+            uploadOption: 'स्कूल मास्टर (लक्ष्यों के लिए) और विजिट रिपोर्ट (पूर्ण विजिट के लिए) आवश्यक हैं।',
+            profilePhoto: 'लागू नहीं',
+            exportOption: 'विजिट लक्ष्य स्प्रेडशीट डाउनलोड करने के लिए एक्सेल निर्यात सूची बटन शामिल है।'
+          },
+          {
+            icon: '👥',
+            name: 'प्रदर्शन विश्लेषण / फील्ड टीम प्रदर्शन',
+            desc: '6 मुख्य भारित मानदंडों के आधार पर समन्वयक प्रदर्शन रैंकिंग को संकलित करता है।',
+            tableSop: 'सीसी नाम, जिला, स्कूल, सक्रिय प्रशिक्षक, सीपीयू/मिनी-पीसी स्थापित और प्रयुक्त संख्या, उपयोग घंटे, कक्षाएं, विजिट और समग्र स्कोर। प्रदर्शन स्कोर सूत्र (अधिकतम 100 अंक) = इंफ्रास्ट्रक्चर उपयोग (25 अंक) + उपयोग दक्षता (20 अंक) + शैक्षणिक डिलीवरी (20 अंक) + स्मार्ट क्लास डिलीवरी (10 अंक) + मॉनिटरिंग और विजिट स्कोर (15 अंक) + प्रशिक्षक उपलब्धता (10 अंक)। इंफ्रास्ट्रक्चर उपयोग वेटेज: 25 * ((cpuUsed/cpuInst) + (miniUsed/miniInst))/2. उपयोग दक्षता: 20 * (avgCC_Hours/maxCC_Hours). शैक्षणिक डिलीवरी: 20 * (ccClasses/maxClasses). स्मार्ट क्लास: 10 * (ccSmart/maxSmart). मॉनिटरिंग: 15 * (ccVisits/maxVisits). उपलब्धता: 10 * (ccInstructors/ccSchools).',
+            uploadOption: 'रेटिंग की गणना के लिए सभी 6 फाइलों (स्कूल मास्टर, विजिट रिपोर्ट, क्लास लॉग, डेली घंटे, इन्वेंटरी और मैनपावर) का अपलोड होना आवश्यक है।',
+            profilePhoto: 'विस्तृत ड्रिलडाउन पैनल में सीसी आंकड़ों के बगल में सक्रिय समन्वयक प्रोफ़ाइल फ़ोटो प्रदर्शित करता है।',
+            exportOption: 'एक्सेल निर्यात बटन संपूर्ण सीसी रैंकिंग डाउनलोड करता है। ड्रिलडाउन मॉडल स्कूल, डिवाइस, शिक्षक, उपयोग, कक्षा और विजिट रिकॉर्ड के एक्सेल निर्यात का समर्थन करते हैं।'
+          },
+          {
+            icon: '🏆',
+            name: 'प्रदर्शन विश्लेषण / स्कूल प्रदर्शन',
+            desc: 'व्यक्तिगत स्कूलों, आईसीटी प्रशिक्षकों और विषय शिक्षकों के प्रदर्शन संकेतकों की तुलना करता है।',
+            tableSop: 'सॉर्ट करने योग्य रैंकिंग। स्कूल JHPMS स्कोर: (Avg Classes/day for School) / (Max School Avg Classes/day) * 100. स्कूल Edustat स्कोर: (Avg Hours/day for School) / (Max School Avg Hours/day) * 100. संयुक्त स्कोर: 0.6 * JHPMS स्कोर + 0.4 * Edustat स्कोर। आईसीटी प्रशिक्षक स्कोर: (Instructor JHPMS ICT Classes) / (Max Instructor JHPMS ICT Classes) * 100. विषय शिक्षक स्कोर: (Teacher JHPMS Smart Classes) / (Max Teacher JHPMS Smart Classes) * 100. रैंक की गणना गतिशील रूप से की जाती है।',
+            uploadOption: 'JHPMS क्लास लॉग, EduStat डेली घंटे, डिवाइस इन्वेंटरी और मैनपावर शिक्षक सूची पर निर्भर करता है।',
+            profilePhoto: 'लागू नहीं',
+            exportOption: 'एक्सेल निर्यात सक्रिय रैंकिंग सूची डाउनलोड करता है। चार्ट टूलबार रीचार्ट्स चार्ट से सीधे एसवीजी, पीएनजी, या कच्चा सीएसवी डेटा डाउनलोड करने की अनुमति देता है।'
+          },
+          {
+            icon: '📤',
+            name: 'रिपोर्ट / रिपोर्ट निर्यात',
+            desc: 'सुंदर माइक्रोसॉफ्ट एक्सेल प्रारूप में सामान्यीकृत, फ़िल्टर किए गए रिकॉर्ड डाउनलोड करने के लिए व्यवस्थापक विंडो।',
+            tableSop: 'फ़िल्टर पैरामीटर तालिका। एक्सेल जनरेशन से पहले सक्रिय प्रोजेक्ट, जिलों, ब्लॉकों और चयनित तिथि सीमा का चयन।',
+            uploadOption: 'ब्राउज़र स्टोरेज से कैश्ड डेटा स्ट्रीम का उपयोग करता है।',
+            profilePhoto: 'लागू नहीं',
+            exportOption: 'xlsx-js-style का उपयोग करके स्टाइलिश XLSX निर्यात। कस्टम स्टाइल में व्यक्तिगत कॉलम चौड़ाई, टील हेडर थीम (#0F766E), रैंक हाइलाइट (गोल्ड/सिल्वर/ब्रॉन्ज़), और स्थिति कलर (सक्रिय के लिए हरा, खाली के लिए लाल) शामिल हैं।'
+          },
+          {
+            icon: '📊',
+            name: 'रिपोर्ट / समग्र विश्लेषण',
+            desc: 'कार्यकारी विश्लेषणात्मक डैशबोर्ड जिसमें कंपोजिट हेल्थ गेज, MoM परिवर्तन, उपलब्धियां और समीक्षा तालिकाएं शामिल हैं।',
+            tableSop: 'पीएम समीक्षा तालिका: स्कूल का नाम, यूडीआईएस, स्थान, विजिट योग, अंतिम विजिट तिथि, स्टाफिंग स्थिति, जेएचपीएमएस कक्षाएं, एडूस्टैट घंटे, कंपोजिट स्कोर और एआई रूट कॉज बैज। कंपोजिट स्कोर वेटेज: JHPMS 30%, EduStat 25%, Visit Coverage 25%, Manpower 20%। सूत्र: (JHPMS Score * 30%) + (EduStat Score * 25%) + (Visit Score * 25%) + (Manpower Score * 20%)। कोई डेटा न होने पर वेटेज गतिशील रूप से पुनर्वितरित होता है।',
+            uploadOption: 'JHPMS क्लास लॉग, EduStat डेली घंटे, विजिट रिपोर्ट और मैनपावर शिक्षक सूची की आवश्यकता है।',
+            profilePhoto: 'लागू नहीं',
+            exportOption: 'ब्राउज़र प्रिंट पीडीएफ, पीडीएफ निर्यात बटन, और पीपीटीएक्स प्रस्तुति टेम्पलेट का निर्यात।'
+          },
+          {
+            icon: '⚙️',
+            name: 'सिस्टम सेटअप / डेटा अपलोड',
+            desc: 'केंद्रीय डेटाबेस (Supabase) में मासिक स्प्रेडशीट अपलोड करने के लिए एडमिन वर्कस्पेस।',
+            tableSop: 'डेटाबेस सिंक स्थिति प्रदर्शित करता है: तालिका नाम, सिंक स्थिति, फ़ाइल का नाम, रिकॉर्ड संख्या और अंतिम सिंक्रनाइज़ेशन तिथि।',
+            uploadOption: '6 मुख्य स्कीमा (स्कूल मास्टर, विजिट रिपोर्ट, जेएचपीएमएस क्लास लॉग, एडूस्टैट घंटे, डिवाइस इन्वेंटरी और मैनपावर शिक्षक सूची) अपलोड करने की अनुमति देता है।',
+            profilePhoto: 'लागू नहीं',
+            exportOption: 'क्लाउड डेटा साफ़ करने वाला बटन व्यवस्थापक के पुष्टि करने के बाद सभी स्थानीय ब्राउज़र कैशे फ़ाइलों को मिटा देता है।'
+          },
+          {
+            icon: '👤',
+            name: 'प्रोफाइल निर्माण / उपयोगकर्ता खाता निर्माण',
+            desc: 'नए खातों और लॉगिन भूमिकाओं (एडमिन बनाम मानक उपयोगकर्ता) को पंजीकृत करने के लिए व्यवस्थापक कंसोल।',
+            tableSop: 'उपयोगकर्ता नाम, उपयोगकर्ता आईडी, ईमेल, मोबाइल नंबर, जिला, पद और क्रिप्टोग्राफ़िक पासवर्ड फ़ील्ड।',
+            uploadOption: 'उपयोगकर्ता इनपुट को सीधे डेटाबेस में सिंक करता है। डेटा सुरक्षा के लिए पासवर्ड क्लाइंट-साइड हैश (hashPassword) होते हैं।',
+            profilePhoto: 'समन्वयक प्रोफ़ाइल फ़ोटो अपलोड करने की सुविधा, जिसे सुपाबेस क्लाउड स्टोरेज में सिंक किया जाता है।',
+            exportOption: 'लागू नहीं'
+          },
+          {
+            icon: '👥',
+            name: 'प्रोफाइल निर्माण / उपयोगकर्ता सूची निर्देशिका',
+            desc: 'मौजूदा खातों, भूमिकाओं और उपयोगकर्ता प्रोफाइल विवरणों को सूचीबद्ध करता है।',
+            tableSop: 'उपयोगकर्ता नाम, विशेषाधिकार भूमिका, नाम, ईमेल, मोबाइल नंबर, जिला और पदनाम प्रदर्शित करने वाली सॉर्ट करने योग्य तालिका।',
+            uploadOption: 'लागू नहीं',
+            profilePhoto: 'Base64 अपलोड का उपयोग करके किसी भी उपयोगकर्ता की प्रोफ़ाइल फ़ोटो को बदलने या हटाने की अनुमति देता है।',
+            exportOption: 'सुरक्षात्मक व्यवस्थापक नियंत्रण के साथ खातों को स्थायी रूप से हटाने की अनुमति देता है।'
+          },
+          {
+            icon: '🔒',
+            name: 'प्रोफाइल निर्माण / उपयोगकर्ता अनुमतियां',
+            desc: 'उपयोगकर्ताओं को अनुमत मेनू रूट और जिला सीमाएं (डिस्ट्रिक्ट गेटिंग) असाइन करने के लिए नियंत्रण कक्ष।',
+            tableSop: 'अनुमति मैट्रिक्स: प्रति मेनू (View, Edit, Add, Delete, Show) परिचालन और बहु-जिला फ़िल्टर चयन सूची।',
+            uploadOption: 'लागू नहीं',
+            profilePhoto: 'लागू नहीं',
+            exportOption: 'अनुमति मैट्रिक्स में किए गए बदलावों को सेव करने की क्रिया यूजर रिकॉर्ड में JSON पेलोड के रूप में सुरक्षित होती है।'
+          },
+          {
+            icon: 'ℹ️',
+            name: 'हेल्पडेस्क और एसओपी',
+            desc: 'मानक संचालन प्रक्रियाओं (SOP), कैलकुलेशन सूत्रों और तकनीकी गाइडों वाला द्विभाषी सहायता कंसोल।',
+            tableSop: 'इंटरैक्टिव संदर्भ दृश्य। हेडर पर लगा भाषा टॉगल अंग्रेजी और हिंदी के बीच दस्तावेज़ों का अनुवाद करता है।',
+            uploadOption: 'लागू नहीं',
+            profilePhoto: 'लागू नहीं',
+            exportOption: 'लागू नहीं'
+          }
+        ]
+      },
+      kpiTab: {
+        title: 'KPI कार्ड और समग्र स्वास्थ्य स्कोर गणना',
+        desc: 'फ़िल्टर किए गए स्कूलों के बेसलाइन के आधार पर स्कोर की गणना की जाती है। यदि कोई डेटा स्ट्रीम उपलब्ध नहीं है, तो वेटेज को री-डिस्ट्रिब्यूट किया जाता है।',
         cards: [
           {
-            name: 'कुल स्कूल (Schools Covered)',
+            name: 'Schools Covered',
             metric: '🏫 125 स्कूल',
-            formula: 'सक्रिय प्रोजेक्ट, जिला, ब्लॉक और समन्वयक (CC) फ़िल्टर से मेल खाने वाले अद्वितीय स्कूलों की कुल संख्या।',
-            logic: 'यह अन्य सभी गणनाओं के लिए बेसलाइन (Denominator) तय करता है। यदि किसी स्कूल का डेटा किसी फ़ाइल में उपलब्ध नहीं भी है, तो भी वह इस सूची में रहेगा।',
-            visualType: 'card',
+            formula: 'कुल संख्या = |{udise_code ∈ School_Master}|',
+            logic: 'बेसलाइन तय करता है। यदि किसी स्कूल का डेटा किसी फ़ाइल में उपलब्ध नहीं भी है, तो भी वह इस सूची में रहेगा ताकि आधार कम न हो।',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
-            name: 'सक्रिय सीसी/डीईएफ (Active CC/DEF)',
+            name: 'सक्रिय सीसी (Active CC/DEF)',
             metric: '👤 12 समन्वयक',
-            formula: 'फ़िल्टर किए गए स्कूलों से जुड़े CC/DEF विजिटर्स की कुल संख्या।',
-            logic: 'निगरानी टीम की ट्रैकिंग में मदद करता है। स्पेलिंग सुधार सूची का उपयोग करके नाम के डुप्लिकेट्स को ठीक किया जाता है।',
-            visualType: 'card',
+            formula: 'कुल संख्या = |{visitor_name ∈ School_Master (स्पेलिंग सुधारी गई)}|',
+            logic: 'मानव संसाधन की संख्या। नामों को स्पेलिंग सुधार सूची के आधार पर मैप किया जाता है ताकि डुप्लिकेट नाम ठीक किए जा सकें।',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
             name: 'औसत प्रदर्शन (Avg Performance)',
             metric: '📊 72.4%',
-            formula: 'सभी स्कूलों के JHPMS (30%), EduStat (25%), विजिट कवरेज (25%), और मैनपावर (20%) स्कोर का भारित औसत (Weighted Average)।',
-            logic: 'यह नेटवर्क का समग्र स्वास्थ्य स्कोर है। यदि कोई डेटा स्ट्रीम फ़िल्टर में बंद की जाती है, तो वेटेज को स्वचालित रूप से दोबारा री-डिस्ट्रिब्यूट कर दिया जाता है ताकि वह कुल 100% ही रहे।',
-            visualType: 'card',
+            formula: '(JHPMS Score * 30%) + (EduStat Score * 25%) + (Visit Score * 25%) + (Manpower Score * 20%)',
+            logic: 'समग्र स्वास्थ्य स्कोर। यदि कोई डेटा फ़ीड बंद है, तो बचे हुए सक्रिय फ़ीड का वेटेज बढ़ाकर कुल योग 100% रखा जाता है।',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
             name: 'सक्रिय लैब्स (Working Labs)',
             metric: '🖥️ 88.0%',
             formula: '(कम से कम 1 JHPMS क्लास चलाने वाले स्कूल / कुल स्कूल) * 100',
-            logic: 'सक्रिय लैब्स का प्रतिशत। यदि किसी तिथि सीमा में किसी स्कूल ने 0 क्लास ली हैं, तो उसे "निष्क्रिय लैब" के रूप में चिह्नित किया जाता है।',
-            visualType: 'card',
+            logic: 'सक्रिय लैब्स का प्रतिशत। यदि किसी तिथि सीमा में स्कूल ने 0 क्लास ली हैं, तो उसे निष्क्रिय लैब माना जाता है।',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
-            name: 'विजिट लक्ष्य पूर्ण स्कूल (Visited Schools)',
+            name: 'विजिट लक्ष्य पूर्ण (Visited Schools)',
             metric: '✅ 74.0%',
             formula: '(विजिट लक्ष्य पूरा करने वाले स्कूल / कुल स्कूल) * 100। लक्ष्य = मासिक लक्ष्य * अवधि (महीनों में)।',
-            logic: 'समन्वयकों (CC) के विजिट अनुपालन को मापता है। विजिट टारगेट के लिए केवल अद्वितीय विजिट तिथियों को गिना जाता है (एक दिन में एक ही स्कूल में की गई अनेक विजिट को 1 गिना जाता है)।',
-            visualType: 'card',
+            logic: 'समन्वयकों के भौतिक विजिट अनुपालन को मापता है। विजिट टारगेट के लिए केवल अद्वितीय विजिट तिथियों को गिना जाता है।',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
             name: 'कंप्यूटर उपयोग घंटे (Total Usage Hours)',
             metric: '⏱️ 4,250 घंटे',
-            formula: 'EduStat दैनिक लॉग फ़ाइलों से प्राप्त कुल कंप्यूटर उपयोग के घंटों का योग।',
-            logic: 'हार्डवेयर उपयोग की तीव्रता को दर्शाता है। यह H:MM फॉर्मेट को दशमलव घंटों में बदलता है और त्रुटियों को रोकने के लिए प्रति दिन अधिकतम 6 घंटे की सीमा लागू करता है।',
-            visualType: 'card',
+            formula: 'कुल उपयोग घंटे = ∑ min(daily_hours, 6.0) सभी स्कूलों में।',
+            logic: 'कंप्यूटर उपयोग की तीव्रता। त्रुटियों को रोकने के लिए प्रति दिन प्रति स्कूल अधिकतम 6 घंटे की सीमा लागू है।',
             color: 'border-teal-200 bg-emerald-50/20'
           },
           {
-            name: 'तत्काल सहायता वाले स्कूल (Urgent Help Schools)',
+            name: 'तत्काल सहायता स्कूल (Urgent Help Schools)',
             metric: '🚨 14 स्कूल',
-            formula: 'कुल स्कूल जिनका समग्र स्वास्थ्य स्कोर (Composite Score) < 30% है (शून्य डेटा वाले स्कूलों को छोड़कर)।',
+            formula: 'कुल स्कूल जिनका समग्र स्वास्थ्य स्कोर < 30% है (शून्य डेटा वाले स्कूलों को छोड़कर)।',
             logic: 'यह उन स्कूलों की पहचान करता है जहां तत्काल तकनीकी सहायता या शिक्षक नियुक्ति की आवश्यकता है।',
-            visualType: 'card',
             color: 'border-red-200 bg-rose-50/20'
+          },
+          {
+            name: 'विद्यालय समग्र स्वास्थ्य स्कोर (Composite School Health Score)',
+            metric: '🏥 0 - 100% स्कोर',
+            formula: 'Composite = w_JHPMS * JHPMS_Score + w_EduStat * EduStat_Score + w_Visit * Visit_Score + w_Manpower * Manpower_Score. अनुपस्थिति में भार 100% के लिए पुनर्वितरित होता है।',
+            logic: 'प्रत्येक स्कूल के समग्र प्रदर्शन का आकलन करता है। प्राप्त ग्रेड: उत्कृष्ट (>=80), ट्रैक पर (60-80), ध्यान देने की आवश्यकता (40-60), और गंभीर (<40)।',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'इंफ्रास्ट्रक्चर उपयोग स्कोर (Infrastructure Utilization - सीसी रेटिंग)',
+            metric: '🛠️ अधिकतम 25 अंक',
+            formula: 'Score = 25 * ((cpuUsed / cpuInstalled) + (miniUsed / miniInstalled)) / 2',
+            logic: 'सक्रिय सीपीयू और मिनी-पीसी के स्थापित उपकरणों के अनुपात का औसत निकालता है, जिससे हार्डवेयर उपयोगिता का पता चलता है (अधिकतम 25 अंक)।',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'उपयोग दक्षता स्कोर (Usage Efficiency - सीसी रेटिंग)',
+            metric: '⏱️ अधिकतम 20 अंक',
+            formula: 'Score = 20 * ((CC_avgCpu / maxAvgCpu) + (CC_avgMini / maxAvgMini)) / 2, जहाँ CC_avgCpu = totalCpuHours / (workingDays * cpuInstalled)',
+            logic: 'प्रति डिवाइस दैनिक कंप्यूटर उपयोग घंटों का माप, जिसे सबसे बेहतर समन्वयक के प्रदर्शन (बेंचमार्क) के साथ नॉर्मलाइज़ किया जाता है (अधिकतम 20 अंक)।',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'शैक्षणिक डिलीवरी स्कोर (Academic Delivery - सीसी रेटिंग)',
+            metric: '📖 अधिकतम 20 अंक',
+            formula: 'Score = 20 * (AcademicRaw / maxAcademic), जहाँ AcademicRaw = ICTClasses / totalSchools',
+            logic: 'प्रति आवंटित स्कूल कंप्यूटर क्लास संचालन की संख्या, जिसे सबसे बेहतर समन्वयक के प्रदर्शन (बेंचमार्क) के साथ नॉर्मलाइज़ किया जाता है (अधिकतम 20 अंक)।',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'स्मार्ट क्लास डिलीवरी स्कोर (Smart Class Delivery - सीसी रेटिंग)',
+            metric: '📺 अधिकतम 10 अंक',
+            formula: 'Score = 10 * (SmartRaw / maxSmart), जहाँ SmartRaw = SmartClasses / totalSchools',
+            logic: ' आवंटित स्कूलों में स्मार्ट क्लास गतिविधियों का आकलन और सर्वश्रेष्ठ समन्वयक से तुलना (अधिकतम 10 अंक)।',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'विजिट एवं मॉनिटरिंग स्कोर (Monitoring & Visit - सीसी रेटिंग)',
+            metric: '🚗 अधिकतम 15 अंक',
+            formula: 'Score = 15 * ((totalIctVisits + totalSmartVisits) / totalSchools) / maxMonitoring',
+            logic: 'समन्वयकों की भौतिक विद्यालय विजिट की आवृत्ति का आकलन करता है (अधिकतम 15 अंक)।',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'शिक्षक उपलब्धता स्कोर (Instructor Availability - सीसी रेटिंग)',
+            metric: '👥 अधिकतम 10 अंक',
+            formula: 'Score = 10 * (instructorWorking / totalSchools) / maxAvailability',
+            logic: 'आवंटित स्कूलों में शिक्षकों की नियुक्ति दर का मापन और सर्वश्रेष्ठ समन्वयक से तुलना (अधिकतम 10 अंक)।',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'स्कूल संयुक्त प्रदर्शन स्कोर (School Combined Score)',
+            metric: '🏆 संयुक्त स्कूल स्कोर',
+            formula: 'Combined = 0.6 * School_JHPMS_Score + 0.4 * School_EduStat_Score',
+            logic: 'शैक्षणिक डिलीवरी (JHPMS) और हार्डवेयर उपयोगिता (EduStat) को संतुलित करता है। यह स्कूल रैंकिंग के लिए उपयोग किया जाता है।',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'आईसीटी इंस्ट्रक्टर और विषय शिक्षक स्कोर',
+            metric: '👩‍🏫 0 - 100% रैंक स्कोर',
+            formula: 'ICT Instructor: (ICTClasses / maxInstructorClasses) * 100 | Subject Teacher: (SmartClasses / maxTeacherClasses) * 100',
+            logic: 'शिक्षण स्टाफ की रैंकिंग। आईसीटी इंस्ट्रक्टर कंप्यूटर शिक्षा के लिए और विषय शिक्षक स्मार्ट क्लास लॉग के आधार पर रैंक किए जाते हैं।',
+            color: 'border-teal-200 bg-emerald-50/20'
+          },
+          {
+            name: 'विजिट प्लानिंग प्राथमिकता स्कोर (Priority Score)',
+            metric: '🎯 प्राथमिकता (0-100)',
+            formula: 'Score = (1 - (Unique Visits / Target Visits)) * 100 + मंदी पेनल्टी (दिनों के आधार पर +5 से +15 अंक)। अधिकतम 99 पर सीमित। 0-विजिट स्कूल हमेशा 100 स्कोर पर रहेंगे।',
+            logic: 'अगली विजिट के लिए स्कूलों का स्वतः सुझाव देता है। विजिट कवरेज कम होने पर स्कोर बढ़ता है, और पिछले 15+ दिनों से विजिट न होने पर पेनल्टी जुड़ती है।',
+            color: 'border-teal-200 bg-emerald-50/20'
           }
         ]
       },
-      healthSection: {
-        title: 'समग्र स्वास्थ्य स्कोर और ग्रेडिंग प्रणाली',
-        desc: 'यह पोर्टल JHPMS, EduStat, विजिट, और मैनपावर डेटा को जोड़कर एक प्रतिशत स्कोर बनाता है।',
-        weightsTitle: 'घटकों का भार (Component Weights)',
-        weights: [
-          { name: 'JHPMS लैब्स', weight: 30, desc: 'क्लास लेने की दर को मापता है। JHPMS में दर्ज क्लास की संख्या पर आधारित।' },
-          { name: 'EduStat घंटे', weight: 25, desc: 'कंप्यूटर चलने के घंटों को मापता है। अधिकतम उपयोग घंटों के आधार पर स्कोर।' },
-          { name: 'विजिट कवरेज', weight: 25, desc: 'शारीरिक रूप से अधिकारियों के जाने को मापता है। विजिट लक्ष्य के सापेक्ष स्कोर।' },
-          { name: 'CC मैनपावर', weight: 20, desc: 'शिक्षक की उपस्थिति। सक्रिय = 100%, प्रक्रियाधीन = 40%, खाली (Vacant) = 0%।' }
+      dataImportTab: {
+        title: 'डेटा अपलोड, एक्सेल स्कीमा और सुधार इंजन',
+        desc: 'एक्सेल फाइलों को बैकग्राउंड वेब वर्कर की मदद से बिना स्क्रीन फ्रीज किए पार्स और वैलिडेट किया जाता है।',
+        schemas: [
+          {
+            name: 'स्कूल मास्टर (Schools Master)',
+            cols: 'udise_code, school_name, district, block, project_name, visitor_name, monthly_target',
+            val: 'सुनिश्चित करता है कि हर स्कूल का यूडीआईएस कोड और मासिक विजिट लक्ष्य (डिफ़ॉल्ट: 1) दर्ज हो।'
+          },
+          {
+            name: 'विजिट रिपोर्ट (Visit Reports)',
+            cols: 'udise_code, visit_date, visitor_name, visit_type, remarks',
+            val: 'विजिट तिथियां निकाली जाती हैं। एक दिन में एक ही स्कूल में की गई अनेक विजिट को केवल 1 विशिष्ट विजिट माना जाता है।'
+          },
+          {
+            name: 'JHPMS क्लास लॉग (JHPMS Lab)',
+            cols: 'udise, date, labType, subject, subjectTeacher, no_of_classes',
+            val: 'क्लास का वर्गीकरण: ICT Class यदि विषय कंप्यूटर है; Smart Class यदि लैब स्मार्ट है; MIS Work यदि विषय MIS है।'
+          },
+          {
+            name: 'EduStat कंप्यूटर आवर्स (EduStat Daily)',
+            cols: 'udise, serial, date, hours (H:MM या दशमलव)',
+            val: 'समय का रूपांतरण: H:MM फॉर्मेट (जैसे 2:30) को दशमलव (2.5 घंटे) में बदला जाता है।'
+          },
+          {
+            name: 'EduStat डिवाइस इन्वेंटरी (EduStat Master)',
+            cols: 'udise, device, serial, installed (Yes/No)',
+            val: 'कंप्यूटर के सीरियल नंबर को डिवाइस प्रकार से मिलाता है ताकि सिंक की स्थिति जांची जा सके।'
+          },
+          {
+            name: 'मैनपावर शिक्षक सूची (Manpower Roster)',
+            cols: 'udise, status, instructorName',
+            val: 'अनुदेशक की स्थिति को सामान्य करता है: Working/Active को Active, Resign/Terminate को Vacant माना जाता है।'
+          }
         ],
-        gradingTitle: 'समग्र स्वास्थ्य ग्रेडिंग स्केल',
-        grades: [
-          { label: 'उत्कृष्ट (Excellent)', range: '≥ 80%', color: 'text-emerald-700 bg-emerald-100/50', action: 'पूरी तरह स्थिर। शिक्षण के अच्छे तरीकों को अन्य क्षेत्रों में लागू करें।' },
-          { label: 'ट्रैक पर (On-Track)', range: '60% - 79%', color: 'text-teal-700 bg-teal-100/50', action: 'सामान्य संचालन। डिवाइस सिंक टाइम और कंप्यूटर आवर्स बढ़ाने पर ध्यान दें।' },
-          { label: 'ध्यान दें (Needs Attention)', range: '40% - 59%', color: 'text-amber-700 bg-amber-100/50', action: 'जोखिम में। समन्वयकों को तुरंत भौतिक निरीक्षण के लिए भेजें।' },
-          { label: 'गंभीर (Critical)', range: '< 40%', color: 'text-red-700 bg-red-100/50', action: 'अक्रिय लैब। तकनीकी टीम और नए शिक्षक की तत्काल तैनाती आवश्यक।' }
-        ]
-      },
-      overviewSection: {
-        introTitle: 'पोर्टल मानक संचालन प्रक्रिया (SOP)',
-        introDesc: 'यह पोर्टल झारखंड सरकार के ICT लैब और स्मार्ट क्लास की निगरानी के लिए एक निर्णय प्रणाली है। यह विभिन्न परिचालन डेटा को एक ही स्थान पर एकत्रित करता है।',
-        menuTitle: 'साइडबार मेनू विकल्प और उनकी क्षमताएं',
-        menus: [
-          { name: 'होम (Home)', desc: 'स्वागत पृष्ठ। यहां उपयोगकर्ता की भूमिका, जिला अधिकार क्षेत्र और पोर्टल की बुनियादी जानकारी दिखाई देती है।' },
-          { name: 'डैशबोर्ड (Dashboard)', desc: 'उच्च स्तरीय मानचित्र और KPI विवरण। यह जिलों के अनुसार लक्ष्य और विजिट के अंतर को दर्शाता है।' },
-          { name: 'लैब विजिट (Lab Visit)', desc: 'विजिट लॉग्स का गहन विवरण। इसमें सर्च व्यू, विजिट ट्रेंड्स, और डेटा विश्वसनीयता रिपोर्ट उपलब्ध हैं।' },
-          { name: 'रिपोर्ट्स और एक्सपोर्ट (Reports & Export)', desc: 'आगे की ऑडिट के लिए पूरे पोर्टल के डेटा को माइक्रोसॉफ्ट एक्सेल फॉर्मेट में डाउनलोड करने की सुविधा।' },
-          { name: 'समग्र विश्लेषण (Overall Analysis)', desc: 'डैशबोर्ड का मुख्य हिस्सा। इसमें KPI कार्ड्स, कंपोजिट हेल्थ गेज, एआई द्वारा लिखित विवरण और विसंगतियां दिखाई देती हैं।' },
-          { name: 'सिस्टम सेटअप (Data Upload)', desc: 'प्रशासक (Admin) क्षेत्र। यहाँ Supabase क्लाउड में एक्सेल डेटा फाइलों (JHPMS, EduStat, विजिट, मैनपावर) को अपलोड किया जाता है।' },
-          { name: 'प्रोफाइल निर्माण (Profile Creation)', desc: 'सुरक्षा और नियंत्रण। एडमिन यहाँ नए उपयोगकर्ताओं के खाते बना सकता है और उनके जिले के अधिकार क्षेत्र को तय कर सकता है।' }
-        ]
-      },
-      chartsSection: {
-        title: 'चार्ट और ग्राफ को कैसे पढ़ें और समझें',
-        desc: 'पोर्टल में दिखाए जाने वाले विभिन्न ग्राफ और उनके विश्लेषण की व्याख्या नीचे दी गई है।',
-        items: [
+        selfHealingTitle: 'स्व-सुधार (Self-Healing) और डेटा अनुकूलन नियम',
+        healingRules: [
           {
-            name: 'समग्र स्वास्थ्य रेडियल गेज (ApexCharts)',
-            detail: 'यह अर्ध-वृत्ताकार गेज कुल स्वास्थ्य स्कोर को दर्शाता है। स्कोर के आधार पर इसका रंग स्वयं हरा (उत्कृष्ट), पीला (चेतावनी), या लाल (गंभीर) में बदल जाता है।',
-            howToRead: 'मुख्य प्रतिशत स्कोर देखें। घटक स्कोर देखने के लिए गेज पर माउस ले जाएं (Hover करें) या उस पर टैप करें।'
+            name: 'हेडर सामान्यीकरण',
+            desc: 'कॉलम के नामों से अतिरिक्त स्पेस हटाकर स्मॉल केस और अंडरस्कोर में बदलता है। जैसे "UDISE Code" को "udise_code" में बदला जाता है।'
           },
           {
-            name: 'माहवार क्लास स्थिति (Area Chart)',
-            detail: 'स्मार्ट क्लास, कंप्यूटर क्लास और एमआईएस वर्क को समय के साथ (माह-दर-माह) दिखाने वाला एक ढालू एरिया चार्ट।',
-            howToRead: 'बिंदुओं पर होवर करके महीने का विवरण देखें। नीचे दिए गए लेजेंड्स पर क्लिक करके अवांछित श्रेणियों (जैसे MIS) को ग्राफ से छिपाया जा सकता है।'
+            name: 'सटीक तिथि पार्सिंग',
+            desc: 'एक्सेल के संख्यात्मक दिनांक फॉर्मेट (जैसे 45626) को बिना टाइमज़ोन अंतर के मानक ISO दिनांक में परिवर्तित करता है।'
           },
           {
-            name: 'MoM तुलनात्मक प्रदर्शन (Bar Chart)',
-            detail: 'यह चार्ट वर्तमान अवधि के डेटा की तुलना ठीक पिछली समान अवधि से करता है। हरा तीर (▲) बढ़त और लाल तीर (▼) गिरावट को दर्शाता है।',
-            howToRead: 'यह देखने के लिए प्रयोग करें कि क्या नेटवर्क का प्रदर्शन सुधर रहा है या खराब हो रहा है।'
+            name: 'डुप्लिकेट विजिट सुधार',
+            desc: 'विजिट फ़ाइल से प्रति स्कूल प्रति दिन की डुप्लिकेट प्रविष्टियों को हटाकर डेटाबेस को स्वच्छ रखता है।'
           },
           {
-            name: 'नियोजित बनाम पूर्ण विजिट (Planned vs Completed)',
-            detail: 'ब्लॉक के अनुसार कुल विजिट लक्ष्यों और पूर्ण की गई विजिट की तुलना करने वाला दोहरे बार का चार्ट।',
-            howToRead: 'ग्रे बार तय लक्ष्य को दर्शाता है और बैंगनी बार पूरी की गई विजिट को। यदि दोनों के बीच बड़ा अंतर है, तो वह ब्लॉक विजिट की कमी से जूझ रहा है।'
-          },
-          {
-            name: 'विजिट न होने के दिनों की स्थिति (Visit Aging Status)',
-            detail: 'स्कूलों को उनके अंतिम विजिट के दिनों के अंतराल पर वर्गीकृत करता है (जैसे 0-30 दिन, 31-60 दिन आदि)।',
-            howToRead: 'आदर्श रूप से सभी स्कूल "0-30 Days" वाले कॉलम में होने चाहिए। "90+ Days" वाले स्कूल गंभीर उपेक्षा को दर्शाते हैं।'
-          },
-          {
-            name: 'भौगोलिक मानचित्र (Block performance Map)',
-            detail: 'बॉक्स-मैप। बड़े बक्से अधिक स्कूलों वाले ब्लॉक दिखाते हैं, जबकि उनका रंग ब्लॉक के औसत स्कोर को दर्शाता है।',
-            howToRead: 'लाल रंग के बक्से कमजोर प्रदर्शन वाले ब्लॉक हैं। विस्तृत विवरण देखने के लिए आप नीचे दाएं कोने में दिए गए विस्तार बटन (expand) का उपयोग कर सकते हैं।'
+            name: 'बैकग्राउंड वेब वर्कर',
+            desc: 'एक्सेल पार्सिंग का काम मुख्य पेज के बजाय `ExcelWorker` थ्रेड को सौंपता है, जिससे 10,000+ रो की फाइल अपलोड होने पर भी पेज हैंग नहीं होता।'
           }
         ]
       },
-      rankingsSection: {
-        title: 'उपलब्धियां और श्रेष्ठ प्रदर्शन रैंकिंग लॉजिक',
-        desc: 'पोर्टल स्वचालित रूप से विजेताओं और उनके विवरणों की गणना किस प्रकार करता है, इसका विवरण यहाँ है।',
-        rules: [
-          {
-            name: 'सर्वश्रेष्ठ प्रदर्शन करने वाला जिला (Top District)',
-            logic: 'वह जिला जिसका अपने सभी स्कूलों के कंपोजिट स्कोर का गणितीय औसत सबसे अधिक होता है।',
-            detail: 'जिले में कम से कम 2 स्कूल सक्रिय होने चाहिए। यह उस जिले द्वारा चलाए गए कुल क्लासेस और घंटों को भी प्रदर्शित करता है।'
-          },
-          {
-            name: 'स्टार उपयोगिता स्कूल (Star School)',
-            logic: 'स्कूल के JHPMS ICT क्लासेस, स्मार्ट क्लासेस, और EduStat घंटों का कुल योग।',
-            detail: 'जिस स्कूल का यह योग सर्वाधिक होगा, वह विजेता बनेगा। यह दर्शाता है कि किस स्कूल में हार्डवेयर का सबसे ज्यादा उपयोग हुआ है।'
-          },
-          {
-            name: 'सर्वश्रेष्ठ CC / DEF / अनुदेशक',
-            logic: 'स्कूलों को उनके अनुदेशक/CC के नाम के आधार पर समूहीकृत किया जाता है और उनके स्कूलों के औसत स्कोर की तुलना की जाती है।',
-            detail: 'सबसे अधिक स्कोर वाले व्यक्ति को विजेता घोषित किया जाता है। CC लीडरबोर्ड टॉप 10 समन्वयकों को उनके औसत स्कोर से सूचीबद्ध करता है।'
-          }
-        ]
+      photoTab: {
+        title: 'प्रोफ़ाइल फ़ोटो फ्लो और डिज़ाइनर एक्सेल निर्यात',
+        desc: 'पोर्टल में प्रोफाइल फोटो अपलोड करने और स्टाइल के साथ एक्सेल फाइल निर्यात करने की तकनीकी जानकारी।',
+        photoFlow: {
+          title: 'प्रोफ़ाइल फ़ोटो अपलोड और स्टोरेज प्रक्रिया',
+          desc: 'अधिकारी साइडबार में अपनी पहचान के लिए अपनी प्रोफाइल फोटो लगा सकते हैं।',
+          steps: [
+            'उपयोगकर्ता प्रोफाइल पिक्चर पर क्लिक करके इमेज फ़ाइल चुनता है (`accept="image/*"`)।',
+            'इमेज साइज की जांच की जाती है (अधिकतम 2MB की सीमा लागू है)।',
+            'FileReader इमेज फ़ाइल को Base64 एन्कोडेड स्ट्रिंग में बदल देता है।',
+            'तुरंत लोड होने के लिए Base64 स्ट्रिंग को ब्राउज़र के `localStorage` (`snet_profile_photo`) में सहेजा जाता है।',
+            'क्लाउड सिंक के लिए Base64 स्ट्रिंग को Supabase Storage के `app-data` बकेट में `profile_photo` की के तहत अपलोड किया जाता है।'
+          ]
+        },
+        exportFlow: {
+          title: 'स्टाइलिश एक्सेल एक्सपोर्ट सिस्टम (xlsx-js-style)',
+          desc: 'साधारण unstyled CSV के बजाय सुंदर कॉर्पोरेट लेआउट में स्प्रेडशीट जनरेट करता है।',
+          features: [
+            {
+              name: 'स्वचालित कॉलम चौड़ाई',
+              desc: 'कॉलम के सबसे लंबे शब्द की लंबाई की गणना करके कॉलम की चौड़ाई को स्वतः 4 करैक्टर अतिरिक्त स्थान के साथ सेट करता है।'
+            },
+            {
+              name: 'टील (Teal) हेडर थीम',
+              desc: 'हेडर रो में सॉलिड टील बैकग्राउंड रंग (`#0F766E`) और बोल्ड सफ़ेद Segoe UI फ़ॉन्ट (साइज 11) लागू करता है।'
+            },
+            {
+              name: 'रैंक Color Highlights',
+              desc: 'रैंक 1 को गोल्ड बैकग्राउंड (`#FEF3C7`), रैंक 2 को सिल्वर (`#F1F5F9`), और रैंक 3 को ब्रॉन्ज़ (`#FFEDD5`) रंग से हाइलाइट करता है।'
+            },
+            {
+              name: 'स्थिति कलर कोडिंग',
+              desc: 'सक्रिय/शिक्षक उपलब्ध होने पर हरा बैकग्राउंड (`#DCFCE7`) और त्यागपत्र/पद रिक्त होने पर लाल बैकग्राउंड (`#FEE2E2`) दर्शाता है।'
+            },
+            {
+              name: 'प्रिंट और PDF ओवरराइड्स',
+              desc: 'CSS `@media print` नियमों का उपयोग करके साइडबार, फ़िल्टर पैनल और बटनों को प्रिंट में छिपाता है और पेज साइज के अनुसार चार्ट्स को फिट करता है।'
+            }
+          ]
+        }
       },
-      checkerSection: {
-        title: 'विसंगतियां और सिंक चेकर (Triangulation)',
-        desc: 'पोर्टल विभिन्न फ़ाइलों के डेटा की तुलना करता है। यदि दो डेटा स्रोतों में असंगति होती है, तो उसे विसंगति (Anomaly) के रूप में चिह्नित किया जाता है।',
+      anomaliesTab: {
+        title: 'डेटा विसंगति चेकर और गंभीर विसंगतियां',
+        desc: 'यह प्रणाली JHPMS, EduStat, और विजिट रिपोर्टों की आपस में तुलना करता है।',
         warnings: [
           {
             name: 'हार्डवेयर सिंक असंगति (Sync Mismatch)',
-            trigger: 'JHPMS पर 15 से अधिक क्लासेस दिखाई गई हैं, लेकिन EduStat पर 0 कंप्यूटर घंटे हैं।',
-            meaning: 'शिक्षक ने क्लासेस तो ली हैं लेकिन कंप्यूटर ट्रैकिंग सॉफ्टवेयर ने कोई रिकॉर्ड नहीं भेजा। यह कंप्यूटर खराब होने, इंटरनेट न होने, या गलत एंट्री का संकेत देता है।',
+            trigger: 'JHPMS पर 15 से अधिक क्लासेस हैं, लेकिन EduStat पर 0 कंप्यूटर घंटे हैं।',
+            meaning: 'शिक्षक ने कक्षाएं ली हैं पर कंप्यूटर मॉनिटरिंग सॉफ्टवेयर में कोई उपयोग नहीं दिखा। यह कंप्यूटर में खराबी, बिजली न होने, या गलत लॉग एंट्री को दर्शाता है।',
             level: 'Critical (गंभीर)'
           },
           {
             name: 'विजिट प्रभावहीनता (Visit Inefficacy)',
             trigger: 'CC ने महीने में 4 से अधिक विजिट की हैं, लेकिन स्कूल का स्कोर अभी भी 20% से कम है।',
-            meaning: 'बार-बार विजिट करने के बावजूद स्कूल के प्रदर्शन में सुधार नहीं हो रहा है। यह दर्शाता है कि भौतिक विजिट स्थानीय समस्याओं को सुलझाने में विफल हो रही हैं।',
+            meaning: 'अधिकारियों के बार-बार जाने पर भी प्रदर्शन में कोई सुधार नहीं हुआ। यह विजिट की गुणवत्ता की समीक्षा की आवश्यकता को दर्शाता है।',
             level: 'High (उच्च)'
           },
           {
             name: 'रोस्टर असंगति (Roster out of Sync)',
             trigger: 'स्कूल में कक्षाएं चल रही हैं, लेकिन मैनपावर शीट में वहां शिक्षक का पद खाली (Vacant) है।',
-            meaning: 'बिना शिक्षक के क्लास चलना दर्शाता है कि मैनपावर सूची अपडेट नहीं है या कोई अन्य शिक्षक अतिरिक्त प्रभार में क्लास ले रहा है।',
+            meaning: 'शिक्षक न होने पर भी क्लास चलना दर्शाता है कि शिक्षक प्रोफाइल सूची अपडेट नहीं है या कोई अन्य शिक्षक अतिरिक्त प्रभार में है।',
             level: 'Medium (मध्यम)'
           },
           {
-            name: 'डिवाइस सिंक चेतावनी (Sync Warning)',
+            name: 'लॉक लैब हार्डवेयर',
+            trigger: 'अनुदेशक सक्रिय (Active) है, लेकिन EduStat पर 0 घंटे दर्ज हैं।',
+            meaning: 'शिक्षक उपस्थित है पर कंप्यूटर बिल्कुल बंद हैं। यह लैब लॉक होने, बिजली संकट या सॉफ्टवेयर सेटअप न होने को दर्शाता है।',
+            level: 'High (उच्च)'
+          },
+          {
+            name: 'लंबे समय से खाली पद (Prolonged Vacancy)',
+            trigger: 'मैनपावर सूची में शिक्षक का पद 30 से अधिक दिनों से खाली (Vacant) है।',
+            meaning: 'स्कूल में लंबे समय से कोई अनुदेशक नियुक्त नहीं किया गया है, जिससे कंप्यूटर शिक्षा पूरी तरह बंद पड़ी है।',
+            level: 'High (उच्च)'
+          },
+          {
+            name: 'डीवाइस सिंक अंतर (Device Sync Warning)',
             trigger: 'उन स्कूलों की संख्या जहाँ JHPMS में कक्षाएं दर्ज हैं पर EduStat घंटे 0 हैं।',
-            meaning: 'यह उन स्कूलों की संख्या दर्शाता है जिनका कंप्यूटर मॉनिटरिंग सिस्टम ऑफलाइन है या सर्वर से सिंक नहीं हो पा रहा है।',
+            meaning: 'यह उन स्कूलों की संख्या दर्शाता है जिनका कंप्यूटर सिंक सिस्टम सर्वर से कनेक्ट नहीं हो पा रहा है।',
             level: 'Sync Gap'
           }
         ]
@@ -438,61 +884,88 @@ export default function Helpdesk({ darkMode = false }) {
         ))}
       </div>
 
-      {/* ═══════ TAB 1: OVERVIEW & NAVIGATION ═══════ */}
+      {/* ═══════ TAB 1: MENU NAVIGATION ═══════ */}
       {activeTab === 'overview' && (
         <div className="portal-card bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800 space-y-6">
           <div className="border-b pb-3.5">
             <h2 className="text-base font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider font-serif">
-              {t.overviewSection.introTitle}
+              {t.overviewTab.title}
             </h2>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-sans">{t.overviewSection.introDesc}</p>
+            <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">{t.overviewTab.desc}</p>
           </div>
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-black text-slate-700 dark:text-slate-350 uppercase tracking-wide font-sans">
-              {t.overviewSection.menuTitle}
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {t.overviewSection.menus.map((item, idx) => (
-                <div key={idx} className="p-4 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 hover:bg-teal-50/20 dark:hover:bg-teal-950/5 transition">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">
-                      {idx === 0 && '🏠'}
-                      {idx === 1 && '📊'}
-                      {idx === 2 && '👥'}
-                      {idx === 3 && '📥'}
-                      {idx === 4 && '📋'}
-                      {idx === 5 && '⚙️'}
-                      {idx === 6 && '👤'}
-                    </span>
-                    <span className="font-extrabold text-xs uppercase tracking-wider text-teal-800 dark:text-teal-400 font-sans">
-                      {item.name}
-                    </span>
+          <div className="space-y-5">
+            {t.overviewTab.menus.map((menu, idx) => (
+              <div key={idx} className="p-4 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 hover:bg-teal-50/20 dark:hover:bg-teal-950/5 transition flex flex-col md:flex-row gap-4 items-start">
+                
+                {/* Visual Snapshot Mockup */}
+                <div className="w-full md:w-48 shrink-0 bg-white dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-850 p-3 shadow-sm select-none">
+                  <div className="flex items-center gap-1.5 border-b pb-1.5 mb-2">
+                    <span className="text-xs">{menu.icon || '📋'}</span>
+                    <span className="text-[9px] font-black text-teal-700 uppercase tracking-wider truncate block flex-1">{menu.name}</span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal font-sans">{item.desc}</p>
+                  {/* Mock Table/List visual representation */}
+                  <div className="space-y-1">
+                    <div className="h-2 bg-slate-150 dark:bg-slate-800 rounded w-4/5" />
+                    <div className="h-2 bg-slate-150 dark:bg-slate-800 rounded w-2/3" />
+                    <div className="h-2 bg-slate-150 dark:bg-slate-800 rounded w-[90%]" />
+                  </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="flex-1 space-y-2 text-left">
+                  <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-350 uppercase tracking-wider">{menu.name}</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-sans">{menu.desc}</p>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-2">
+                    <div className="p-2.5 rounded-lg bg-slate-100/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800 text-[11px] text-slate-650 dark:text-slate-400 font-sans">
+                      <span className="font-extrabold uppercase text-[9px] text-teal-800 dark:text-teal-400 tracking-wider block mb-1">📋 {t.common.tableSopHeader}</span>
+                      {menu.tableSop}
+                    </div>
+                    {menu.exportOption && (
+                      <div className="p-2.5 rounded-lg bg-teal-50/30 dark:bg-teal-950/10 border border-teal-100/30 dark:border-teal-900/20 text-[11px] text-slate-650 dark:text-slate-400 font-sans">
+                        <span className="font-extrabold uppercase text-[9px] text-teal-700 dark:text-teal-400 tracking-wider block mb-1">📤 {t.common.exportOptionHeader}</span>
+                        {menu.exportOption}
+                      </div>
+                    )}
+                  </div>
+
+                  {(menu.uploadOption || menu.profilePhoto) && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-1">
+                      {menu.uploadOption && (
+                        <div className="p-2.5 rounded-lg bg-amber-50/30 dark:bg-amber-950/10 border border-amber-100/30 dark:border-amber-900/20 text-[11px] text-slate-655 dark:text-slate-400 font-sans">
+                          <span className="font-extrabold uppercase text-[9px] text-amber-700 dark:text-amber-400 tracking-wider block mb-1">📥 {t.common.uploadOptionHeader}</span>
+                          {menu.uploadOption}
+                        </div>
+                      )}
+                      {menu.profilePhoto && (
+                        <div className="p-2.5 rounded-lg bg-sky-50/30 dark:bg-sky-950/10 border border-sky-100/30 dark:border-sky-900/20 text-[11px] text-slate-655 dark:text-slate-400 font-sans">
+                          <span className="font-extrabold uppercase text-[9px] text-sky-700 dark:text-sky-400 tracking-wider block mb-1">👤 {t.common.profilePhotoHeader}</span>
+                          {menu.profilePhoto}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* ═══════ TAB 2: KPI & HEALTH SCORE LOGIC ═══════ */}
+      {/* ═══════ TAB 2: KPIs & HEALTH SCORE WEIGHTS ═══════ */}
       {activeTab === 'kpi' && (
         <div className="space-y-6">
-          
-          {/* KPI Summary Cards */}
           <div className="portal-card bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800">
             <div className="border-b pb-3.5 mb-5">
               <h2 className="text-base font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider font-serif">
-                {t.kpiSection.title}
+                {t.kpiTab.title}
               </h2>
-              <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">{t.kpiSection.desc}</p>
+              <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">{t.kpiTab.desc}</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {t.kpiSection.cards.map((kpi, idx) => (
+              {t.kpiTab.cards.map((kpi, idx) => (
                 <div key={idx} className="p-4 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/10 flex flex-col md:flex-row gap-4 items-start">
                   
                   {/* Miniature Visual Mockup Snapshot */}
@@ -500,7 +973,7 @@ export default function Helpdesk({ darkMode = false }) {
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{kpi.name}</span>
                     <span className="text-lg font-black font-mono mt-2 block">{kpi.metric}</span>
                     <div className="mt-3 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                      <div className="h-full bg-teal-700 rounded-full" style={{ width: '75%' }} />
+                      <div className="h-full bg-teal-700 rounded-full" style={{ width: '70%' }} />
                     </div>
                   </div>
 
@@ -508,11 +981,11 @@ export default function Helpdesk({ darkMode = false }) {
                   <div className="flex-1 space-y-2">
                     <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-350 uppercase tracking-wider">{kpi.name}</h4>
                     <div>
-                      <span className="text-[10px] font-black text-teal-800 dark:text-teal-400 uppercase tracking-widest block">{t.kpiSection.formulaTitle}</span>
+                      <span className="text-[10px] font-black text-teal-800 dark:text-teal-400 uppercase tracking-widest block">{t.common.formula}</span>
                       <p className="text-xs text-slate-500 mt-0.5 leading-relaxed font-sans">{kpi.formula}</p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-black text-teal-800 dark:text-teal-400 uppercase tracking-widest block">{t.kpiSection.logicTitle}</span>
+                      <span className="text-[10px] font-black text-teal-800 dark:text-teal-400 uppercase tracking-widest block">{t.common.logic}</span>
                       <p className="text-xs text-slate-500 mt-0.5 leading-relaxed font-sans">{kpi.logic}</p>
                     </div>
                   </div>
@@ -521,221 +994,166 @@ export default function Helpdesk({ darkMode = false }) {
               ))}
             </div>
           </div>
-
-          {/* Health Score Weights & Grades */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-            
-            {/* Component Weights */}
-            <div className="portal-card lg:col-span-2 bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800">
-              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider border-b pb-3 mb-4 font-serif">
-                {t.healthSection.weightsTitle}
-              </h3>
-              
-              {/* Miniature SVG Gauge Representation */}
-              <div className="flex flex-col items-center justify-center p-3 border border-dashed rounded-xl mb-4 bg-slate-50/50 dark:bg-slate-950/20">
-                <svg viewBox="0 0 100 50" className="w-32 h-16">
-                  <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#e2e8f0" strokeWidth="12" strokeLinecap="round" />
-                  <path d="M 10 50 A 40 40 0 0 1 78 22" fill="none" stroke="#0d9488" strokeWidth="12" strokeLinecap="round" />
-                  <circle cx="50" cy="50" r="4" fill="#1e293b" />
-                  <line x1="50" y1="50" x2="72" y2="28" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-                <span className="text-[10px] font-black uppercase text-teal-800 tracking-wider mt-1">Composite Score: 72%</span>
-              </div>
-
-              <div className="space-y-3">
-                {t.healthSection.weights.map((w, idx) => (
-                  <div key={idx} className="text-xs">
-                    <div className="flex items-center justify-between font-bold">
-                      <span className="text-slate-700 dark:text-slate-350">{w.name}</span>
-                      <span className="text-teal-700 font-black">{w.weight}%</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5 leading-normal font-sans">{w.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Grading Scale */}
-            <div className="portal-card lg:col-span-3 bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800">
-              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider border-b pb-3 mb-4 font-serif">
-                {t.healthSection.gradingTitle}
-              </h3>
-              
-              <div className="space-y-3">
-                {t.healthSection.grades.map((g, idx) => (
-                  <div key={idx} className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex items-start justify-between gap-4 bg-slate-50/30 dark:bg-slate-950/5">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${g.color}`}>
-                          {g.label}
-                        </span>
-                        <span className="text-xs font-black font-mono">{g.range}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 leading-normal font-sans">{g.action}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-
         </div>
       )}
 
-      {/* ═══════ TAB 3: CHART & GRAPH INTERPRETATIONS ═══════ */}
-      {activeTab === 'charts' && (
-        <div className="portal-card bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800">
-          <div className="border-b pb-3.5 mb-5">
-            <h2 className="text-base font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider font-serif">
-              {t.chartsSection.title}
-            </h2>
-            <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">{t.chartsSection.desc}</p>
-          </div>
+      {/* ═══════ TAB 3: DATA IMPORT & SELF-HEALING ═══════ */}
+      {activeTab === 'dataImport' && (
+        <div className="space-y-6">
+          <div className="portal-card bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800">
+            <div className="border-b pb-3.5 mb-5">
+              <h2 className="text-base font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider font-serif">
+                {t.dataImportTab.title}
+              </h2>
+              <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">{t.dataImportTab.desc}</p>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {t.chartsSection.items.map((chart, idx) => (
-              <div key={idx} className="p-4 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/10 flex flex-col justify-between">
-                <div>
+            {/* Schema Tables */}
+            <div className="space-y-5">
+              {t.dataImportTab.schemas.map((schema, idx) => (
+                <div key={idx} className="p-4 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 flex flex-col md:flex-row gap-4 items-start">
                   
-                  {/* Miniature Visual Drawing of the specific chart type */}
-                  <div className="h-28 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-3 mb-3.5 flex items-end justify-between relative overflow-hidden">
-                    <span className="absolute top-2 left-2 text-[9px] font-extrabold uppercase text-slate-400 tracking-wider">Visual Snapshot Guide</span>
-                    {idx === 0 && (
-                      <div className="w-full h-full flex items-center justify-center pt-2">
-                        <svg viewBox="0 0 100 50" className="w-24 h-12">
-                          <path d="M 15 50 A 35 35 0 0 1 85 50" fill="none" stroke="#e2e8f0" strokeWidth="8" />
-                          <path d="M 15 50 A 35 35 0 0 1 70 20" fill="none" stroke="#22c55e" strokeWidth="8" />
-                        </svg>
+                  {/* Miniature Visual Mockup of Upload File Ingestion UI */}
+                  <div className="w-full md:w-48 shrink-0 bg-white dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-850 p-3 shadow-sm select-none">
+                    <span className="text-[9px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider block mb-2">Spreadsheet Columns Ingestion</span>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-1 rounded text-[9px] font-mono border">
+                        <span className="truncate w-24">udise_code</span>
+                        <span className="text-emerald-700">Matched</span>
                       </div>
-                    )}
-                    {idx === 1 && (
-                      <div className="w-full h-full flex items-end gap-1 pt-4">
-                        <div className="w-1/6 bg-teal-500/20 border-t-2 border-teal-500 h-[30%]" />
-                        <div className="w-1/6 bg-teal-500/20 border-t-2 border-teal-500 h-[45%]" />
-                        <div className="w-1/6 bg-teal-500/20 border-t-2 border-teal-500 h-[60%]" />
-                        <div className="w-1/6 bg-teal-500/20 border-t-2 border-teal-500 h-[50%]" />
-                        <div className="w-1/6 bg-teal-500/20 border-t-2 border-teal-500 h-[75%]" />
-                        <div className="w-1/6 bg-teal-500/20 border-t-2 border-teal-500 h-[90%]" />
+                      <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-1 rounded text-[9px] font-mono border">
+                        <span className="truncate w-24">other_column</span>
+                        <span className="text-slate-400">Parsed</span>
                       </div>
-                    )}
-                    {idx === 2 && (
-                      <div className="w-full h-full flex items-end justify-center gap-6 pt-4">
-                        <div className="text-center">
-                          <div className="w-10 bg-teal-600 h-16 rounded-t" />
-                          <span className="text-[8px] text-slate-400 block mt-1">Current</span>
-                        </div>
-                        <div className="text-center">
-                          <div className="w-10 bg-slate-300 h-12 rounded-t" />
-                          <span className="text-[8px] text-slate-400 block mt-1">Previous</span>
-                        </div>
-                      </div>
-                    )}
-                    {idx === 3 && (
-                      <div className="w-full h-full flex items-end justify-around pt-4">
-                        <div className="text-center">
-                          <div className="flex gap-0.5 items-end justify-center">
-                            <div className="w-4 bg-slate-300 h-10" />
-                            <div className="w-4 bg-violet-600 h-8" />
-                          </div>
-                          <span className="text-[8px] text-slate-400 block mt-1">Block A</span>
-                        </div>
-                        <div className="text-center">
-                          <div className="flex gap-0.5 items-end justify-center">
-                            <div className="w-4 bg-slate-300 h-12" />
-                            <div className="w-4 bg-violet-600 h-12" />
-                          </div>
-                          <span className="text-[8px] text-slate-400 block mt-1">Block B</span>
-                        </div>
-                      </div>
-                    )}
-                    {idx === 4 && (
-                      <div className="w-full h-full flex items-end justify-around gap-2 pt-4">
-                        <div className="w-12 bg-violet-500/20 border-t border-violet-500 h-[80%] rounded-t flex items-center justify-center text-[9px] font-black text-violet-700">62%</div>
-                        <div className="w-12 bg-violet-500/20 border-t border-violet-500 h-[15%] rounded-t flex items-center justify-center text-[9px] font-black text-violet-700">12%</div>
-                        <div className="w-12 bg-violet-500/20 border-t border-violet-500 h-[5%] rounded-t flex items-center justify-center text-[9px] font-black text-violet-700">3%</div>
-                      </div>
-                    )}
-                    {idx === 5 && (
-                      <div className="w-full h-full grid grid-cols-3 gap-1 pt-4">
-                        <div className="bg-emerald-600 rounded p-1 text-[8px] font-bold text-white flex flex-col justify-between">
-                          <span>Block A</span>
-                          <span>85%</span>
-                        </div>
-                        <div className="bg-emerald-500 rounded p-1 text-[8px] font-bold text-white flex flex-col justify-between">
-                          <span>Block B</span>
-                          <span>72%</span>
-                        </div>
-                        <div className="bg-rose-500 rounded p-1 text-[8px] font-bold text-white flex flex-col justify-between">
-                          <span>Block C</span>
-                          <span>24%</span>
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
 
-                  <h3 className="font-extrabold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider">{chart.name}</h3>
-                  <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">{chart.detail}</p>
+                  <div className="flex-1 space-y-2">
+                    <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-350 uppercase tracking-wider">{schema.name}</h4>
+                    <div>
+                      <span className="text-[10px] font-black text-teal-800 dark:text-teal-400 uppercase tracking-widest block">Expected CSV/Excel Headers</span>
+                      <code className="text-xs bg-slate-100 dark:bg-slate-850 p-1.5 px-2 rounded block mt-1 break-words font-mono font-bold text-teal-900 dark:text-teal-300">
+                        {schema.cols}
+                      </code>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black text-teal-800 dark:text-teal-400 uppercase tracking-widest block">Validation Rule</span>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed font-sans">{schema.val}</p>
+                    </div>
+                  </div>
+
                 </div>
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-850">
-                  <span className="text-[10px] font-black text-teal-800 dark:text-teal-400 uppercase tracking-widest block">How to Read Graph</span>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed font-sans">{chart.howToRead}</p>
-                </div>
+              ))}
+            </div>
+
+            {/* Self-Healing Engine Details */}
+            <div className="mt-8 border-t border-slate-100 dark:border-slate-800 pt-6 space-y-4">
+              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">
+                {t.dataImportTab.selfHealingTitle}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {t.dataImportTab.healingRules.map((rule, idx) => (
+                  <div key={idx} className="p-4 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-950/5">
+                    <h4 className="font-extrabold text-xs text-teal-800 dark:text-teal-400 uppercase tracking-wider mb-1.5">{rule.name}</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed font-sans">{rule.desc}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* ═══════ TAB 4: BEST PERFORMERS & RANKINGS ═══════ */}
-      {activeTab === 'rankings' && (
-        <div className="portal-card bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800">
-          <div className="border-b pb-3.5 mb-5">
-            <h2 className="text-base font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider font-serif">
-              {t.rankingsSection.title}
-            </h2>
-            <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">{t.rankingsSection.desc}</p>
-          </div>
+      {/* ═══════ TAB 4: PROFILE PHOTO & STYLED EXPORTS ═══════ */}
+      {activeTab === 'photoTab' && (
+        <div className="space-y-6">
+          
+          {/* Profile Photo Upload Flow */}
+          <div className="portal-card bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800">
+            <div className="border-b pb-3.5 mb-5">
+              <h2 className="text-base font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider font-serif">
+                {t.photoTab.photoFlow.title}
+              </h2>
+              <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">{t.photoTab.photoFlow.desc}</p>
+            </div>
 
-          <div className="space-y-4">
-            {t.rankingsSection.rules.map((rule, idx) => (
-              <div key={idx} className="p-4 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/10 flex flex-col md:flex-row gap-4 items-start">
-                
-                {/* Miniature Visual Badge representation */}
-                <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center shrink-0 border border-amber-300">
-                  <span className="text-xl">{['🏆', '🌟', '🎖️'][idx % 3]}</span>
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+              {/* Profile Avatar Mockup */}
+              <div className="w-full lg:w-48 shrink-0 flex flex-col items-center justify-center p-4 border border-dashed rounded-xl bg-slate-50/50 dark:bg-slate-950/20">
+                <div className="relative w-16 h-16 rounded-lg border-2 border-teal-600 bg-teal-800/80 flex items-center justify-center text-white shadow-md mb-2 overflow-hidden">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  </svg>
                 </div>
-
-                <div className="flex-1 space-y-1">
-                  <span className="text-[10px] font-black text-amber-800 dark:text-amber-400 uppercase tracking-widest block">Ranking Rule</span>
-                  <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-350 uppercase tracking-wider">{rule.name}</h4>
-                  <div>
-                    <span className="text-[10px] font-black text-teal-800 dark:text-teal-400 uppercase tracking-widest block mt-2">Calculations / Criteria Logic</span>
-                    <p className="text-xs text-slate-500 leading-relaxed font-sans">{rule.logic}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-black text-teal-800 dark:text-teal-400 uppercase tracking-widest block mt-1.5">Detailed Outputs</span>
-                    <p className="text-xs text-slate-500 leading-normal font-sans">{rule.detail}</p>
-                  </div>
-                </div>
+                <span className="text-[10px] font-black text-teal-800 uppercase tracking-wider">Profile Photo Avatar</span>
               </div>
-            ))}
+
+              <div className="flex-1 space-y-3">
+                {t.photoTab.photoFlow.steps.map((step, idx) => (
+                  <div key={idx} className="flex items-start gap-3 text-xs leading-relaxed font-sans">
+                    <span className="w-5 h-5 rounded-full bg-teal-700 text-white font-extrabold flex items-center justify-center shrink-0 text-[10px]">{idx + 1}</span>
+                    <p className="text-slate-550 dark:text-slate-400 mt-0.5">{step}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
+
+          {/* Styled Excel & PDF Export System */}
+          <div className="portal-card bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800">
+            <div className="border-b pb-3.5 mb-5">
+              <h2 className="text-base font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider font-serif">
+                {t.photoTab.exportFlow.title}
+              </h2>
+              <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">{t.photoTab.exportFlow.desc}</p>
+            </div>
+
+            <div className="space-y-5">
+              {t.photoTab.exportFlow.features.map((feat, idx) => (
+                <div key={idx} className="p-4 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 flex flex-col md:flex-row gap-4 items-start">
+                  
+                  {/* Miniature Visual Mockup of Spreadsheet style */}
+                  <div className="w-full md:w-48 shrink-0 bg-white dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-850 p-2 shadow-sm select-none">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-1">Spreadsheet Grid Style</span>
+                    <div className="border border-slate-200 rounded overflow-hidden">
+                      <div className="bg-[#0F766E] text-white text-[8px] p-1 font-bold flex justify-between border-b">
+                        <span>School</span>
+                        <span>Score</span>
+                        <span>Status</span>
+                      </div>
+                      <div className="text-[7.5px] p-1 flex justify-between border-b bg-slate-50 font-sans">
+                        <span className="truncate w-14">High School A</span>
+                        <span className="bg-[#E0E7FF] text-[#4338CA] px-1 font-bold rounded">84%</span>
+                        <span className="bg-[#DCFCE7] text-[#15803D] px-1 font-bold rounded">Active</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 space-y-1">
+                    <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-350 uppercase tracking-wider">{feat.name}</h4>
+                    <p className="text-xs text-slate-550 dark:text-slate-400 leading-relaxed font-sans">{feat.desc}</p>
+                  </div>
+
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
       )}
 
-      {/* ═══════ TAB 5: ANOMALIES & SYNC CHECKER ═══════ */}
-      {activeTab === 'checker' && (
+      {/* ═══════ TAB 5: MISMATCH CHECKER & SYNC WARNINGS ═══════ */}
+      {activeTab === 'anomalies' && (
         <div className="portal-card bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800">
           <div className="border-b pb-3.5 mb-5">
             <h2 className="text-base font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider font-serif">
-              {t.checkerSection.title}
+              {t.anomaliesTab.title}
             </h2>
-            <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">{t.checkerSection.desc}</p>
+            <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">{t.anomaliesTab.desc}</p>
           </div>
 
           <div className="space-y-4">
-            {t.checkerSection.warnings.map((warning, idx) => (
+            {t.anomaliesTab.warnings.map((warning, idx) => (
               <div key={idx} className="p-4 rounded-xl border border-rose-100 dark:border-rose-950/40 bg-rose-50/10 dark:bg-rose-950/5 flex flex-col md:flex-row gap-4 items-start">
                 
                 {/* Miniature Visual Badge representation */}
@@ -749,10 +1167,10 @@ export default function Helpdesk({ darkMode = false }) {
                 </div>
 
                 <div className="flex-1 space-y-1">
-                  <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-300 uppercase tracking-wider">{warning.name}</h4>
+                  <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-350 uppercase tracking-wider">{warning.name}</h4>
                   <div>
-                    <span className="text-[10px] font-black text-rose-800 dark:text-rose-400 uppercase tracking-widest block">Trigger Condition Logic</span>
-                    <p className="text-xs text-slate-500 mt-0.5 leading-normal font-mono font-bold bg-slate-100 dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800 inline-block font-sans">{warning.trigger}</p>
+                    <span className="text-[10px] font-black text-rose-800 dark:text-rose-400 uppercase tracking-widest block">{t.common.trigger}</span>
+                    <p className="text-xs text-slate-550 mt-0.5 leading-normal font-mono font-bold bg-slate-100 dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800 inline-block font-sans">{warning.trigger}</p>
                   </div>
                   <div>
                     <span className="text-[10px] font-black text-rose-800 dark:text-rose-400 uppercase tracking-widest block mt-2">What It Indicates</span>
