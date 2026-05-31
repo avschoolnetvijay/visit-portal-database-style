@@ -5,7 +5,7 @@ import {
   ComposedChart, LabelList
 } from 'recharts';
 import { Icons } from './Icons';
-import { parseDateRobust, formatDate, downloadSVG, downloadPNG, downloadCSV } from '../utils';
+import { parseDateRobust, formatDate, downloadSVG, downloadPNG, downloadCSV, getMonthsInRange } from '../utils';
 import ReactApexChart from 'react-apexcharts';
 
 /* ───── Standard Chart Download Toolbar Dropdown ───── */
@@ -428,8 +428,9 @@ const OverallAnalysis = ({
   }, [parsedStartDate, parsedEndDate]);
 
   const durationMonths = useMemo(() => {
-    return Math.max(0.5, dateDurationMs / (30 * 24 * 60 * 60 * 1000));
-  }, [dateDurationMs]);
+    if (!parsedStartDate || !parsedEndDate) return 1;
+    return Math.max(1, getMonthsInRange(parsedStartDate, parsedEndDate));
+  }, [parsedStartDate, parsedEndDate]);
 
   const prevDateRange = useMemo(() => {
     if (!parsedStartDate || !parsedEndDate) return { start: null, end: null };
@@ -608,8 +609,13 @@ const OverallAnalysis = ({
     currentVisits.forEach((v) => {
       const udise = cleanUdise(v.udise_code);
       if (!validUdises.has(udise)) return;
-      if (!map[udise]) map[udise] = { count: 0, lastDate: null };
-      map[udise].count++;
+      if (!map[udise]) map[udise] = { count: 0, lastDate: null, visitDates: new Set() };
+      
+      const dateStr = (v.visit_date || '').split('T')[0];
+      if (dateStr && !map[udise].visitDates.has(dateStr)) {
+        map[udise].visitDates.add(dateStr);
+        map[udise].count++;
+      }
       if (v.visit_date) {
         const d = new Date(v.visit_date);
         if (!isNaN(d.getTime()) && (!map[udise].lastDate || d > map[udise].lastDate)) {
@@ -656,8 +662,8 @@ const OverallAnalysis = ({
       const vis = visitMap[udise] || { count: 0, lastDate: null };
 
       const fieldVisits = vis.count;
-      const monthlyTarget = s.monthly_target > 0 ? s.monthly_target : (s.targetVisits > 0 ? s.targetVisits : 1);
-      const targetVisits = Math.max(1, Math.round(monthlyTarget * durationMonths));
+      const monthlyTarget = s.monthly_target || 1;
+      const targetVisits = monthlyTarget * durationMonths;
       const lastVisitDate = s.lastVisit || vis.lastDate;
 
       // Component Sub-scores (0-100)
@@ -873,7 +879,14 @@ const OverallAnalysis = ({
     const visitLocalMap = {};
     visitList.forEach(v => {
       const udise = String(v.udise_code || '').trim();
-      if (validUdisesLocal.has(udise)) visitLocalMap[udise] = (visitLocalMap[udise] || 0) + 1;
+      if (validUdisesLocal.has(udise)) {
+        if (!visitLocalMap[udise]) visitLocalMap[udise] = { count: 0, visitDates: new Set() };
+        const dateStr = (v.visit_date || '').split('T')[0];
+        if (dateStr && !visitLocalMap[udise].visitDates.has(dateStr)) {
+          visitLocalMap[udise].visitDates.add(dateStr);
+          visitLocalMap[udise].count++;
+        }
+      }
     });
 
     const maxJhpms = Math.max(1, ...Object.values(jhpmsLocalMap));
@@ -885,12 +898,12 @@ const OverallAnalysis = ({
       const jClasses = jhpmsLocalMap[udise] || 0;
       const eHours = edustatLocalMap[udise] || 0;
       const mpStatus = manpowerLocalMap[udise] || 'Vacant';
-      const fVisits = visitLocalMap[udise] || 0;
+      const fVisits = visitLocalMap[udise]?.count || 0;
 
       const jScore = isJhpmsActive ? clamp((jClasses / maxJhpms) * 100) : 0;
       const eScore = isEdustatActive ? clamp((eHours / maxEdustat) * 100) : 0;
-      const monthlyTarget = s.monthly_target > 0 ? s.monthly_target : (s.targetVisits > 0 ? s.targetVisits : 1);
-      const dTarget = Math.max(1, Math.round(monthlyTarget * durationMonths));
+      const monthlyTarget = s.monthly_target || 1;
+      const dTarget = monthlyTarget * durationMonths;
       const vScore = isVisitActive ? (dTarget > 0 ? clamp((fVisits / dTarget) * 100) : (fVisits > 0 ? 50 : 0)) : 0;
       const mScore = isManpowerActive ? (mpStatus === 'Active' ? 100 : mpStatus === 'Pending' ? 40 : 0) : 0;
 
@@ -936,7 +949,14 @@ const OverallAnalysis = ({
     const visitLocalMap = {};
     visitList.forEach(v => {
       const udise = cleanUdise(v.udise_code);
-      if (validUdisesLocal.has(udise)) visitLocalMap[udise] = (visitLocalMap[udise] || 0) + 1;
+      if (validUdisesLocal.has(udise)) {
+        if (!visitLocalMap[udise]) visitLocalMap[udise] = { count: 0, visitDates: new Set() };
+        const dateStr = (v.visit_date || '').split('T')[0];
+        if (dateStr && !visitLocalMap[udise].visitDates.has(dateStr)) {
+          visitLocalMap[udise].visitDates.add(dateStr);
+          visitLocalMap[udise].count++;
+        }
+      }
     });
 
     const manpowerLocalMap = {};
@@ -951,9 +971,9 @@ const OverallAnalysis = ({
     // Physical coverage as schools that met their scaled dynamic target
     const visitPct = pct(schoolList.filter(s => {
       const udise = cleanUdise(s.udise_code);
-      const visitsDone = visitLocalMap[udise] || 0;
-      const mTarget = s.monthly_target > 0 ? s.monthly_target : (s.targetVisits > 0 ? s.targetVisits : 1);
-      const dTarget = Math.max(1, Math.round(mTarget * durationMonths));
+      const visitsDone = visitLocalMap[udise]?.count || 0;
+      const mTarget = s.monthly_target || 1;
+      const dTarget = mTarget * durationMonths;
       return visitsDone >= dTarget;
     }).length, total);
     const edustatPct = pct(schoolList.filter(s => edustatLocalMap[cleanUdise(s.udise_code)] > 0).length, total);
