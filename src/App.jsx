@@ -1859,7 +1859,7 @@ const App = () => {
             {/* Main Center Tab Panel */}
             <div className="flex-1 flex flex-col overflow-hidden relative m-3 md:my-3 md:mr-3 md:ml-3 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 shadow-xl">
                 <main className="flex-1 overflow-y-auto p-4 scroll-smooth">
-                    {activeTab !== 'search' && activeTab !== 'setup' && activeTab !== 'profile-creation' && activeTab !== 'user-creation' && activeTab !== 'user-list' && activeTab !== 'user-permissions' && (
+                    {activeTab !== 'search' && activeTab !== 'setup' && activeTab !== 'profile-creation' && activeTab !== 'user-creation' && activeTab !== 'user-list' && activeTab !== 'user-permissions' && activeTab !== 'helpdesk' && (
                         <div className="portal-filter-bar z-10 mb-4 rounded-xl border border-white shadow-sm flex flex-col gap-2 no-print">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
                                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">

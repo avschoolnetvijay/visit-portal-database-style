@@ -4,6 +4,7 @@ import { Icons } from './Icons';
 export default function Helpdesk({ darkMode = false }) {
   const [lang, setLang] = useState('en'); // 'en' or 'hi'
   const [activeTab, setActiveTab] = useState('overview');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Bilingual Content Database
   const content = {
@@ -847,6 +848,133 @@ export default function Helpdesk({ darkMode = false }) {
 
   const t = content[lang];
 
+  const getSearchResults = () => {
+    if (!searchQuery.trim()) return null;
+    const q = searchQuery.toLowerCase().trim();
+    const results = [];
+
+    // 1. Search overviewTab.menus
+    t.overviewTab.menus.forEach(menu => {
+      const matchName = menu.name?.toLowerCase().includes(q);
+      const matchDesc = menu.desc?.toLowerCase().includes(q);
+      const matchSop = menu.tableSop?.toLowerCase().includes(q);
+      const matchUpload = menu.uploadOption?.toLowerCase().includes(q);
+      const matchExport = menu.exportOption?.toLowerCase().includes(q);
+      const matchPhoto = menu.profilePhoto?.toLowerCase().includes(q);
+
+      if (matchName || matchDesc || matchSop || matchUpload || matchExport || matchPhoto) {
+        results.push({
+          type: lang === 'en' ? 'Menu / Component' : 'मेनू / घटक',
+          icon: menu.icon || '📋',
+          title: menu.name,
+          details: [
+            { label: lang === 'en' ? 'Description' : 'विवरण', val: menu.desc },
+            { label: t.common.tableSopHeader, val: menu.tableSop },
+            menu.uploadOption !== 'N/A' && { label: t.common.uploadOptionHeader, val: menu.uploadOption },
+            menu.exportOption !== 'N/A' && { label: t.common.exportOptionHeader, val: menu.exportOption },
+            menu.profilePhoto && { label: t.common.profilePhotoHeader, val: menu.profilePhoto }
+          ].filter(Boolean)
+        });
+      }
+    });
+
+    // 2. Search kpiTab.cards
+    t.kpiTab.cards.forEach(kpi => {
+      const matchName = kpi.name?.toLowerCase().includes(q);
+      const matchFormula = kpi.formula?.toLowerCase().includes(q);
+      const matchLogic = kpi.logic?.toLowerCase().includes(q);
+
+      if (matchName || matchFormula || matchLogic) {
+        results.push({
+          type: lang === 'en' ? 'KPI / Formula' : 'KPI / सूत्र',
+          icon: '📊',
+          title: kpi.name,
+          details: [
+            { label: lang === 'en' ? 'Metric Value' : 'मीट्रिक मान', val: kpi.metric },
+            { label: t.common.formula, val: kpi.formula },
+            { label: t.common.logic, val: kpi.logic }
+          ]
+        });
+      }
+    });
+
+    // 3. Search dataImportTab.schemas
+    t.dataImportTab.schemas.forEach(schema => {
+      const matchName = schema.name?.toLowerCase().includes(q);
+      const matchCols = schema.cols?.toLowerCase().includes(q);
+      const matchVal = schema.val?.toLowerCase().includes(q);
+
+      if (matchName || matchCols || matchVal) {
+        results.push({
+          type: lang === 'en' ? 'Data Ingestion Schema' : 'डेटा अपलोड स्कीमा',
+          icon: '📥',
+          title: schema.name,
+          details: [
+            { label: lang === 'en' ? 'Expected Headers' : 'अपेक्षित हेडर कॉलम', val: schema.cols },
+            { label: lang === 'en' ? 'Validation Rule' : 'सत्यापन नियम', val: schema.val }
+          ]
+        });
+      }
+    });
+
+    // 4. Search dataImportTab.healingRules
+    t.dataImportTab.healingRules.forEach(rule => {
+      const matchName = rule.name?.toLowerCase().includes(q);
+      const matchDesc = rule.desc?.toLowerCase().includes(q);
+
+      if (matchName || matchDesc) {
+        results.push({
+          type: lang === 'en' ? 'Self-Healing Rule' : 'डेटा स्व-सुधार नियम',
+          icon: '⚡',
+          title: rule.name,
+          details: [
+            { label: lang === 'en' ? 'Description' : 'विवरण', val: rule.desc }
+          ]
+        });
+      }
+    });
+
+    // 5. Search photoTab.exportFlow.features
+    t.photoTab.exportFlow.features.forEach(feat => {
+      const matchName = feat.name?.toLowerCase().includes(q);
+      const matchDesc = feat.desc?.toLowerCase().includes(q);
+
+      if (matchName || matchDesc) {
+        results.push({
+          type: lang === 'en' ? 'Excel/PDF Styling Feature' : 'निर्यात स्टाइलिंग नियम',
+          icon: '🎨',
+          title: feat.name,
+          details: [
+            { label: lang === 'en' ? 'Description' : 'विवरण', val: feat.desc }
+          ]
+        });
+      }
+    });
+
+    // 6. Search anomaliesTab.warnings
+    t.anomaliesTab.warnings.forEach(warning => {
+      const matchName = warning.name?.toLowerCase().includes(q);
+      const matchTrigger = warning.trigger?.toLowerCase().includes(q);
+      const matchMeaning = warning.meaning?.toLowerCase().includes(q);
+
+      if (matchName || matchTrigger || matchMeaning) {
+        results.push({
+          type: lang === 'en' ? 'Data Anomaly Warning' : 'डेटा विसंगति चेतावनी',
+          icon: '🚨',
+          title: warning.name,
+          details: [
+            { label: lang === 'en' ? 'Trigger Criteria' : 'ट्रिगर मानदंड', val: warning.trigger },
+            { label: lang === 'en' ? 'Indication / Business Logic' : 'चेतावनी संकेत और व्यावसायिक अर्थ', val: warning.meaning }
+          ]
+        });
+      }
+    });
+
+    return results;
+  };
+
+  const searchResults = getSearchResults();
+
   return (
     <div className={`p-4 md:p-6 space-y-6 font-sans select-none animate-fade-in ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
       
@@ -867,12 +995,37 @@ export default function Helpdesk({ darkMode = false }) {
         </button>
       </div>
 
+      {/* ═══════ GLOBAL TOPIC SEARCH BAR ═══════ */}
+      <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl shadow-inner no-print">
+        <div className="relative flex-1">
+          <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder={lang === 'en' ? 'Search help topics, calculations, formulas...' : 'हेल्प टॉपिक, कैलकुलेशन या फॉर्मूले खोजें...'}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-lg text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-sans focus:outline-none focus:border-teal-500 text-slate-850 dark:text-slate-200"
+          />
+        </div>
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="bg-slate-200 dark:bg-slate-800 hover:bg-slate-350 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-[10px] uppercase tracking-wider px-4 py-2.5 rounded-lg transition animate-fade-in"
+          >
+            {lang === 'en' ? 'Clear' : 'साफ़ करें'}
+          </button>
+        )}
+      </div>
+
       {/* ═══════ TABBED NAVIGATION ═══════ */}
       <div className="flex flex-wrap gap-1.5 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 no-print">
         {Object.entries(t.tabs).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setActiveTab(key)}
+            onClick={() => {
+              setActiveTab(key);
+              setSearchQuery('');
+            }}
             className={`px-4 py-2 rounded-lg text-xs font-bold transition font-sans ${
               activeTab === key
                 ? 'bg-teal-700 text-white shadow-sm'
@@ -884,8 +1037,62 @@ export default function Helpdesk({ darkMode = false }) {
         ))}
       </div>
 
-      {/* ═══════ TAB 1: MENU NAVIGATION ═══════ */}
-      {activeTab === 'overview' && (
+      {/* ═══════ TAB CONTENTS OR SEARCH RESULTS ═══════ */}
+      {searchQuery.trim() !== '' ? (
+        <div className="portal-card bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800 space-y-6">
+          <div className="border-b pb-3.5">
+            <h2 className="text-base font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider font-serif">
+              {lang === 'en' ? 'Global Search Results' : 'ग्लोबल खोज परिणाम'} ({searchResults.length})
+            </h2>
+            <p className="text-xs text-slate-500 mt-1 leading-normal font-sans">
+              {lang === 'en' 
+                ? `Showing topics matching "${searchQuery}" across all categories.` 
+                : `सभी श्रेणियों में "${searchQuery}" से मेल खाने वाले विषयों की सूची।`}
+            </p>
+          </div>
+
+          {searchResults.length > 0 ? (
+            <div className="space-y-4">
+              {searchResults.map((result, idx) => (
+                <div key={idx} className="p-4 rounded-xl border border-slate-150 dark:border-slate-850 bg-slate-50/30 dark:bg-slate-950/10 flex gap-4 items-start text-left">
+                  <div className="w-10 h-10 rounded-lg bg-teal-100 dark:bg-teal-950/30 flex items-center justify-center text-lg shrink-0 select-none">
+                    {result.icon}
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-teal-800/10 text-teal-800 dark:text-teal-400 font-sans border border-teal-800/10 select-none">
+                        {result.type}
+                      </span>
+                      <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-350 uppercase tracking-wider">{result.title}</h4>
+                    </div>
+
+                    <div className="space-y-3 pt-1">
+                      {result.details.map((detail, dIdx) => (
+                        <div key={dIdx}>
+                          <span className="text-[10px] font-black text-teal-800 dark:text-teal-400 uppercase tracking-widest block select-none">{detail.label}</span>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed font-sans">{detail.val}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 font-sans select-none">
+              <span className="text-3xl block mb-2">🔍</span>
+              <p className="text-sm text-slate-500 font-semibold">
+                {lang === 'en' ? 'No matching help topics or formulas found.' : 'कोई मेल खाने वाला हेल्प टॉपिक या सूत्र नहीं मिला।'}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                {lang === 'en' ? 'Try searching for keywords like "Composite", "Priority", "CC", or "Hours".' : 'कृपया "Composite", "Priority", "CC", या "Hours" जैसे कीवर्ड खोजने का प्रयास करें।'}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {activeTab === 'overview' && (
         <div className="portal-card bg-white dark:bg-slate-900 p-5 border border-slate-250 dark:border-slate-800 space-y-6">
           <div className="border-b pb-3.5">
             <h2 className="text-base font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider font-serif">
@@ -1181,6 +1388,8 @@ export default function Helpdesk({ darkMode = false }) {
             ))}
           </div>
         </div>
+      )}
+        </>
       )}
 
     </div>
