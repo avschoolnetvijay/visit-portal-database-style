@@ -2798,17 +2798,29 @@ const OverallAnalysis = ({
                             filename="planned_vs_completed_visits"
                           />
                           <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
+                             <BarChart
                               data={plannedVsCompletedData}
-                              margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+                              margin={{ top: 20, right: 10, left: -20, bottom: 5 }}
                             >
                               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                               <XAxis dataKey="name" tick={{ fontSize: 9 }} />
                               <YAxis tick={{ fontSize: 9 }} />
                               <Tooltip content={<CustomTooltip />} />
                               <Legend wrapperStyle={{ fontSize: 9 }} />
-                              <Bar dataKey="Planned" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
-                              <Bar dataKey="Completed" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="Planned" fill="#cbd5e1" radius={[4, 4, 0, 0]}>
+                                <LabelList 
+                                  dataKey="Planned" 
+                                  position="top" 
+                                  style={{ fontSize: 9, fontWeight: 'bold', fill: darkMode ? '#cbd5e1' : '#1e293b' }} 
+                                />
+                              </Bar>
+                              <Bar dataKey="Completed" fill="#7c3aed" radius={[4, 4, 0, 0]}>
+                                <LabelList 
+                                  dataKey="Completed" 
+                                  position="top" 
+                                  style={{ fontSize: 9, fontWeight: 'bold', fill: darkMode ? '#cbd5e1' : '#1e293b' }} 
+                                />
+                              </Bar>
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
