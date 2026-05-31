@@ -652,37 +652,43 @@ body, body *, body .portal-sidebar, body .portal-card, body .portal-filter-bar {
    ========================================================================== */
 
 /* ICT Class / ICT Visit: Series 1 - Teal #00C49F */
-.apexcharts-datalabels-group[rel="0"] rect,
-.apexcharts-datalabels-group[rel="0"] .apexcharts-datalabel-bg,
-.apexcharts-datalabels-group[rel="0"] .apexcharts-datalabel-background,
-.apexcharts-datalabels-group[rel="0"] .apexcharts-datalabels-background,
-.apexcharts-datalabels-group:nth-child(1) rect,
-.apexcharts-datalabels-group:nth-child(1) .apexcharts-datalabel-bg,
-.apexcharts-datalabels-group:nth-child(1) .apexcharts-datalabel-background {
+.apexcharts-series[rel="1"] rect,
+.apexcharts-series[rel="1"] .apexcharts-datalabel-bg,
+.apexcharts-series[rel="1"] .apexcharts-datalabel-background,
+.apexcharts-series[rel="1"] .apexcharts-datalabels-background,
+.apexcharts-series[data\:realIndex="0"] rect,
+.apexcharts-series[data\:realIndex="0"] .apexcharts-datalabels-background,
+.apexcharts-datalabels[data\:realIndex="0"] rect,
+.apexcharts-datalabels[data\:realIndex="0"] .apexcharts-datalabels-background,
+.apexcharts-datalabels[data\:realIndex="0"] .apexcharts-datalabel-bg {
   fill: #00C49F !important;
   stroke: #00C49F !important;
 }
 
 /* Smart Class / Smart Visit: Series 2 - Blue #3B82F6 */
-.apexcharts-datalabels-group[rel="1"] rect,
-.apexcharts-datalabels-group[rel="1"] .apexcharts-datalabel-bg,
-.apexcharts-datalabels-group[rel="1"] .apexcharts-datalabel-background,
-.apexcharts-datalabels-group[rel="1"] .apexcharts-datalabels-background,
-.apexcharts-datalabels-group:nth-child(2) rect,
-.apexcharts-datalabels-group:nth-child(2) .apexcharts-datalabel-bg,
-.apexcharts-datalabels-group:nth-child(2) .apexcharts-datalabel-background {
+.apexcharts-series[rel="2"] rect,
+.apexcharts-series[rel="2"] .apexcharts-datalabel-bg,
+.apexcharts-series[rel="2"] .apexcharts-datalabel-background,
+.apexcharts-series[rel="2"] .apexcharts-datalabels-background,
+.apexcharts-series[data\:realIndex="1"] rect,
+.apexcharts-series[data\:realIndex="1"] .apexcharts-datalabels-background,
+.apexcharts-datalabels[data\:realIndex="1"] rect,
+.apexcharts-datalabels[data\:realIndex="1"] .apexcharts-datalabels-background,
+.apexcharts-datalabels[data\:realIndex="1"] .apexcharts-datalabel-bg {
   fill: #3B82F6 !important;
   stroke: #3B82F6 !important;
 }
 
 /* MIS Work: Series 3 - Amber #F59E0B */
-.apexcharts-datalabels-group[rel="2"] rect,
-.apexcharts-datalabels-group[rel="2"] .apexcharts-datalabel-bg,
-.apexcharts-datalabels-group[rel="2"] .apexcharts-datalabel-background,
-.apexcharts-datalabels-group[rel="2"] .apexcharts-datalabels-background,
-.apexcharts-datalabels-group:nth-child(3) rect,
-.apexcharts-datalabels-group:nth-child(3) .apexcharts-datalabel-bg,
-.apexcharts-datalabels-group:nth-child(3) .apexcharts-datalabel-background {
+.apexcharts-series[rel="3"] rect,
+.apexcharts-series[rel="3"] .apexcharts-datalabel-bg,
+.apexcharts-series[rel="3"] .apexcharts-datalabel-background,
+.apexcharts-series[rel="3"] .apexcharts-datalabels-background,
+.apexcharts-series[data\:realIndex="2"] rect,
+.apexcharts-series[data\:realIndex="2"] .apexcharts-datalabels-background,
+.apexcharts-datalabels[data\:realIndex="2"] rect,
+.apexcharts-datalabels[data\:realIndex="2"] .apexcharts-datalabels-background,
+.apexcharts-datalabels[data\:realIndex="2"] .apexcharts-datalabel-bg {
   fill: #F59E0B !important;
   stroke: #F59E0B !important;
 }
