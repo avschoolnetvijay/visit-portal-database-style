@@ -1764,12 +1764,13 @@ const OverallAnalysis = ({
   }, [currentEdustat, edustatMaster, validUdises, isEdustatActive]);
 
   const visitAgingGroups = useMemo(() => {
-    const groups = { '0-15 Days': 0, '16-30 Days': 0, '31-45 Days': 0, '45+ Days': 0 };
+    const groups = { '0-30 Days': 0, '31-60 Days': 0, '61-90 Days': 0, '91-120 Days': 0, '120+ Days': 0 };
     finalEnriched.forEach(s => {
-      if (s.daysSinceVisit <= 15) groups['0-15 Days']++;
-      else if (s.daysSinceVisit <= 30) groups['16-30 Days']++;
-      else if (s.daysSinceVisit <= 45) groups['31-45 Days']++;
-      else groups['45+ Days']++;
+      if (s.daysSinceVisit <= 30) groups['0-30 Days']++;
+      else if (s.daysSinceVisit <= 60) groups['31-60 Days']++;
+      else if (s.daysSinceVisit <= 90) groups['61-90 Days']++;
+      else if (s.daysSinceVisit <= 120) groups['91-120 Days']++;
+      else groups['120+ Days']++;
     });
     return Object.entries(groups).map(([name, count]) => ({ name, count }));
   }, [finalEnriched]);
