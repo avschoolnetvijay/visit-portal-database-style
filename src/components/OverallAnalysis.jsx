@@ -124,64 +124,63 @@ const normalizeManpowerStatus = (statusStr) => {
   return 'Vacant';
 };
 
-/* ───── Dynamic SVG semi-circle gauge ───── */
+/* ───── Overall Health Radial Gauge (ApexCharts) ───── */
 const SemiGauge = ({ value, size = 200, label, grade, gradeColor, isReporting = true }) => {
-  const strokeW = 16;
-  const pad = strokeW + 6;                 // generous room: full stroke-width + extra for round linecaps
-  const r = (size - 2 * pad) / 2;         // radius that leaves space on both sides
-  const cx = size / 2;
-  const cy = pad + r;                      // vertical center pushed down so arc top sits at y=pad
-  const svgH = cy + 45;                    // height: arc-center + room for grade text below
-  const startAngle = Math.PI;
-  const sweepAngle = Math.PI;
-  const v = isReporting ? clamp(value) / 100 : 0;
+  const v = isReporting ? Math.round(clamp(value)) : 0;
+  const fillColor = v >= 80 ? '#0f766e' : v >= 60 ? '#0d9488' : v >= 40 ? '#f59e0b' : '#ef4444';
 
-  const arcPath = (startFrac, endFrac) => {
-    const a1 = startAngle + sweepAngle * startFrac;
-    const a2 = startAngle + sweepAngle * endFrac;
-    const x1 = cx + r * Math.cos(a1);
-    const y1 = cy + r * Math.sin(a1);
-    const x2 = cx + r * Math.cos(a2);
-    const y2 = cy + r * Math.sin(a2);
-    const largeArc = endFrac - startFrac > 0.5 ? 1 : 0;
-    return `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`;
+  const options = {
+    chart: {
+      type: 'radialBar',
+      sparkline: { enabled: true },
+      animations: { enabled: true, easing: 'easeinout', speed: 800 },
+    },
+    plotOptions: {
+      radialBar: {
+        startAngle: -135,
+        endAngle: 135,
+        hollow: { size: '55%' },
+        track: {
+          background: '#e2e8f0',
+          strokeWidth: '100%',
+          margin: 0,
+        },
+        dataLabels: {
+          name: {
+            show: true,
+            fontSize: '13px',
+            fontFamily: 'Inter, sans-serif',
+            fontWeight: 700,
+            color: isReporting ? gradeColor : '#94a3b8',
+            offsetY: 20,
+          },
+          value: {
+            show: true,
+            fontSize: '28px',
+            fontFamily: 'Inter, sans-serif',
+            fontWeight: 800,
+            color: undefined,
+            offsetY: -14,
+            formatter: () => isReporting ? `${v}%` : 'N/A',
+          },
+        },
+      },
+    },
+    fill: { colors: [fillColor] },
+    stroke: { lineCap: 'round' },
+    labels: [isReporting ? grade : 'Not Reporting'],
   };
 
-  const needleAngle = startAngle + sweepAngle * v;
-  const nx = cx + (r - 18) * Math.cos(needleAngle);
-  const ny = cy + (r - 18) * Math.sin(needleAngle);
-
   return (
-    <div className="flex flex-col items-center select-none font-sans mt-2">
-      <svg id="health-gauge-svg" width={size} height={svgH} viewBox={`0 0 ${size} ${svgH}`}>
-        {/* Background Arc */}
-        <path d={arcPath(0, 1)} fill="none" stroke="#e2e8f0" strokeWidth={strokeW} strokeLinecap="round" />
-        {/* Value Arc */}
-        {isReporting && v > 0 && (
-          <path
-            d={arcPath(0, v)}
-            fill="none"
-            stroke={v >= 0.8 ? '#0f766e' : v >= 0.6 ? '#0d9488' : v >= 0.4 ? '#f59e0b' : '#ef4444'}
-            strokeWidth={strokeW}
-            strokeLinecap="round"
-          />
-        )}
-        {/* Needle */}
-        {isReporting && (
-          <>
-            <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#1e293b" strokeWidth="3" strokeLinecap="round" />
-            <circle cx={cx} cy={cy} r="5" fill="#1e293b" />
-          </>
-        )}
-        {/* Center Text */}
-        <text x={cx} y={cy - 20} textAnchor="middle" className="fill-slate-800 dark:fill-white font-extrabold" style={{ fontSize: 26, fontFamily: 'Inter, sans-serif' }}>
-          {isReporting ? `${Math.round(value)}%` : 'No Data'}
-        </text>
-        <text x={cx} y={cy + 24} textAnchor="middle" className="font-bold" style={{ fontSize: 13, fill: isReporting ? gradeColor : '#94a3b8', fontFamily: 'Inter, sans-serif' }}>
-          {isReporting ? grade : 'Not Reporting'}
-        </text>
-      </svg>
-      {label && <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-2 font-sans">{label}</span>}
+    <div className="flex flex-col items-center select-none font-sans" id="health-gauge-svg">
+      <ReactApexChart
+        options={options}
+        series={[isReporting ? v : 0]}
+        type="radialBar"
+        height={size + 10}
+        width={size}
+      />
+      {label && <span className="text-xs font-bold text-slate-500 uppercase tracking-wider -mt-2 font-sans">{label}</span>}
     </div>
   );
 };
@@ -2145,7 +2144,7 @@ const OverallAnalysis = ({
         
         {/* Semi-Circle composite gauge */}
         {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.health) && (
-          <div className="portal-card lg:col-span-1 pt-8 px-4 pb-4 flex flex-col items-center justify-start bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+          <div className="portal-card lg:col-span-1 p-4 flex flex-col items-center justify-start bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative">
             <ChartToolbar
               chartId="health-gauge-svg"
               csvData={[
