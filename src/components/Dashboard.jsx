@@ -551,6 +551,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
 const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDown, startDate, endDate, darkMode = false }) => {
   const { totalTarget, totalUnique, totalRecords, schools, visits } = data;
+  const [hiddenSeries, setHiddenSeries] = useState({ Smart: false, ICT: false });
 
   const statusBuckets = { Critical: [], Risk: [], Track: [], Excellent: [] };
   schools.forEach(s => {
@@ -860,9 +861,9 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
   }), [velocityData, darkMode]);
 
   const trendChartSeries = useMemo(() => [
-    { name: 'Smart', data: lineChartData.map(d => d.Smart) },
-    { name: 'ICT', data: lineChartData.map(d => d.ICT) }
-  ], [lineChartData]);
+    { name: 'Smart', data: hiddenSeries.Smart ? [] : lineChartData.map(d => d.Smart) },
+    { name: 'ICT', data: hiddenSeries.ICT ? [] : lineChartData.map(d => d.ICT) }
+  ], [lineChartData, hiddenSeries]);
 
   const trendChartOptions = useMemo(() => ({
     chart: {
@@ -1055,8 +1056,18 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
               <Icons.Analytics className="w-6 h-6 shrink-0" /> Daily Trend Analysis
             </h3>
             <div className="flex gap-3 text-xs text-white">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-teal-300"></span> Smart</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-300"></span> ICT</span>
+              <span
+                onClick={() => setHiddenSeries(prev => ({ ...prev, Smart: !prev.Smart }))}
+                className={`flex items-center gap-1.5 cursor-pointer select-none transition-all duration-200 ${hiddenSeries.Smart ? 'opacity-35 line-through' : 'opacity-100 hover:opacity-80'}`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-teal-300"></span> Smart
+              </span>
+              <span
+                onClick={() => setHiddenSeries(prev => ({ ...prev, ICT: !prev.ICT }))}
+                className={`flex items-center gap-1.5 cursor-pointer select-none transition-all duration-200 ${hiddenSeries.ICT ? 'opacity-35 line-through' : 'opacity-100 hover:opacity-80'}`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-300"></span> ICT
+              </span>
             </div>
           </div>
           <div className="p-4 flex-1">
