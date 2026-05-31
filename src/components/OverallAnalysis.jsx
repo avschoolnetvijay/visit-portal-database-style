@@ -1260,13 +1260,18 @@ const OverallAnalysis = ({
       ? name.substring(0, Math.max(3, maxChars - 2)) + '..' 
       : name;
 
+    const rx = Math.round(x);
+    const ry = Math.round(y);
+    const rw = Math.round(width);
+    const rh = Math.round(height);
+
     return (
       <g>
         <rect
-          x={x}
-          y={y}
-          width={width}
-          height={height}
+          x={rx}
+          y={ry}
+          width={rw}
+          height={rh}
           style={{
             fill: color,
             stroke: '#ffffff',
@@ -1277,25 +1282,33 @@ const OverallAnalysis = ({
         {showText && (
           <>
             <text
-              x={x + width / 2}
-              y={y + height / 2 - 2}
+              x={Math.round(rx + rw / 2)}
+              y={Math.round(ry + rh / 2 - 2)}
               textAnchor="middle"
               fill="#ffffff"
               fontSize={nameFontSize}
-              fontWeight="black"
-              className="select-none pointer-events-none uppercase tracking-wide font-sans"
-              style={{ letterSpacing: '0.025em' }}
+              fontWeight="bold"
+              textRendering="geometricPrecision"
+              className="select-none pointer-events-none uppercase tracking-wide"
+              style={{ 
+                fontFamily: "'Times New Roman', Times, serif",
+                letterSpacing: '0.025em' 
+              }}
             >
               {displayName}
             </text>
             <text
-              x={x + width / 2}
-              y={y + height / 2 + nameFontSize - 1}
+              x={Math.round(rx + rw / 2)}
+              y={Math.round(ry + rh / 2 + nameFontSize - 1)}
               textAnchor="middle"
               fill="#f1f5f9"
               fontSize={scoreFontSize}
               fontWeight="bold"
-              className="select-none pointer-events-none font-sans"
+              textRendering="geometricPrecision"
+              className="select-none pointer-events-none"
+              style={{ 
+                fontFamily: "'Times New Roman', Times, serif" 
+              }}
             >
               {score}% Avg
             </text>
