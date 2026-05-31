@@ -1764,14 +1764,14 @@ const OverallAnalysis = ({
   }, [currentEdustat, edustatMaster, validUdises, isEdustatActive]);
 
   const visitAgingGroups = useMemo(() => {
-    const groups = { '0-30 Days': 0, '31-60 Days': 0, '61-90 Days': 0, '91-120 Days': 0, '121-150 Days': 0, '151+ Days': 0 };
+    const groups = { '0-30 Days': 0, '31-60 Days': 0, '61-90 Days': 0, '91-120 Days': 0, '121-150 Days': 0, '150+ Days': 0 };
     finalEnriched.forEach(s => {
       if (s.daysSinceVisit <= 30) groups['0-30 Days']++;
       else if (s.daysSinceVisit <= 60) groups['31-60 Days']++;
       else if (s.daysSinceVisit <= 90) groups['61-90 Days']++;
       else if (s.daysSinceVisit <= 120) groups['91-120 Days']++;
       else if (s.daysSinceVisit <= 150) groups['121-150 Days']++;
-      else groups['151+ Days']++;
+      else groups['150+ Days']++;
     });
     return Object.entries(groups).map(([name, count]) => ({ name, count }));
   }, [finalEnriched]);
@@ -2687,7 +2687,7 @@ const OverallAnalysis = ({
                                 if (groupName === '61-90 Days') return s.daysSinceVisit > 60 && s.daysSinceVisit <= 90;
                                 if (groupName === '91-120 Days') return s.daysSinceVisit > 90 && s.daysSinceVisit <= 120;
                                 if (groupName === '121-150 Days') return s.daysSinceVisit > 120 && s.daysSinceVisit <= 150;
-                                if (groupName === '151+ Days') return s.daysSinceVisit > 150;
+                                if (groupName === '150+ Days') return s.daysSinceVisit > 150;
                                 return false;
                               });
                               const drillDownData = matchingSchools.map((s, index) => ({
