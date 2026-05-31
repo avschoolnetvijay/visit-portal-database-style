@@ -819,17 +819,23 @@ const App = () => {
             if (metrics[v.udise_code]) {
                 const m = metrics[v.udise_code];
                 m.totalRecords++;
-                // Defensive split on visit_date to avoid crashing on missing or invalid logs
-                const dateStr = (v.visit_date || '').split('T')[0];
-                if (dateStr) {
-                    m.visitDates.add(dateStr);
+                
+                const type = (v.visit_type || '').toLowerCase();
+                const isIct = type.includes('ict');
+                
+                // Only count ICT visits for target completion
+                if (isIct) {
+                    const dateStr = (v.visit_date || '').split('T')[0];
+                    if (dateStr) {
+                        m.visitDates.add(dateStr);
+                    }
                 }
+                
                 const dObj = new Date(v.visit_date);
                 if (!isNaN(dObj.getTime())) {
                     if (!m.lastVisit || dObj > new Date(m.lastVisit)) m.lastVisit = v.visit_date;
                 }
 
-                const type = (v.visit_type || '').toLowerCase();
                 if (type.includes('smart')) m.smartRecords++;
                 if (type.includes('ict')) m.ictRecords++;
             }

@@ -618,6 +618,11 @@ const OverallAnalysis = ({
     currentVisits.forEach((v) => {
       const udise = cleanUdise(v.udise_code);
       if (!validUdises.has(udise)) return;
+      
+      const type = (v.visit_type || '').toLowerCase();
+      const isIct = type.includes('ict');
+      if (!isIct) return; // Only count ICT visits for target completion!
+
       if (!map[udise]) map[udise] = { count: 0, lastDate: null, visitDates: new Set() };
       
       const dateStr = (v.visit_date || '').split('T')[0];
@@ -889,6 +894,9 @@ const OverallAnalysis = ({
     visitList.forEach(v => {
       const udise = String(v.udise_code || '').trim();
       if (validUdisesLocal.has(udise)) {
+        const type = (v.visit_type || '').toLowerCase();
+        if (!type.includes('ict')) return; // Only count ICT visits for target completion!
+
         if (!visitLocalMap[udise]) visitLocalMap[udise] = { count: 0, visitDates: new Set() };
         const dateStr = (v.visit_date || '').split('T')[0];
         if (dateStr && !visitLocalMap[udise].visitDates.has(dateStr)) {
@@ -959,6 +967,9 @@ const OverallAnalysis = ({
     visitList.forEach(v => {
       const udise = cleanUdise(v.udise_code);
       if (validUdisesLocal.has(udise)) {
+        const type = (v.visit_type || '').toLowerCase();
+        if (!type.includes('ict')) return; // Only count ICT visits for target completion!
+
         if (!visitLocalMap[udise]) visitLocalMap[udise] = { count: 0, visitDates: new Set() };
         const dateStr = (v.visit_date || '').split('T')[0];
         if (dateStr && !visitLocalMap[udise].visitDates.has(dateStr)) {
