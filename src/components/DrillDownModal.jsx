@@ -170,7 +170,23 @@ const DrillDownModal = ({ isOpen, onClose, title, data = [] }) => {
                                                 }
                                             }
                                             if (lowerKey.includes('date') && rawVal && typeof rawVal !== 'object') {
-                                                const formatted = formatDate(rawVal);
+                                                let formatted = formatDate(rawVal);
+                                                if (formatted === '-' && typeof rawVal === 'string') {
+                                                    try {
+                                                        const clean = rawVal.trim().replace(/["']/g, '');
+                                                        if (clean && clean !== '-') {
+                                                            const d = new Date(clean);
+                                                            if (d && !isNaN(d.getTime())) {
+                                                                const day = String(d.getDate()).padStart(2, '0');
+                                                                const month = String(d.getMonth() + 1).padStart(2, '0');
+                                                                const year = d.getFullYear();
+                                                                formatted = `${day}-${month}-${year}`;
+                                                            }
+                                                        }
+                                                    } catch (e) {
+                                                        console.error("Local date formatting fallback error in DrillDownModal", e);
+                                                    }
+                                                }
                                                 if (formatted !== '-') cellDisplay = formatted;
                                             }
 

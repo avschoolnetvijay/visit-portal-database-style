@@ -5,7 +5,7 @@ export const parseDateRobust = (input) => {
   if (input instanceof Date) return input;
   if (typeof input === 'number') return new Date(Math.round((input - 25569) * 86400 * 1000));
   if (typeof input === 'string') {
-    const clean = input.trim().replace(/^["']|["']$/g, '');
+    const clean = input.trim().replace(/["']/g, '');
     const ddmmyyyy = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
     if (ddmmyyyy) return new Date(ddmmyyyy[3], parseInt(ddmmyyyy[2]) - 1, ddmmyyyy[1]);
     const d = new Date(clean);
@@ -16,12 +16,8 @@ export const parseDateRobust = (input) => {
 
 export const formatDate = (dateInput) => {
   if (!dateInput) return '-';
-  let cleanInput = dateInput;
-  if (typeof dateInput === 'string') {
-    cleanInput = dateInput.trim().replace(/^["']|["']$/g, '');
-  }
-  const d = new Date(cleanInput);
-  if (isNaN(d.getTime())) return '-';
+  const d = parseDateRobust(dateInput);
+  if (!d || isNaN(d.getTime())) return '-';
 
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
