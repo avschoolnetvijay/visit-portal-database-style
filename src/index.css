@@ -648,34 +648,34 @@ body, body *, body .portal-sidebar, body .portal-card, body .portal-filter-bar {
 
 /* ==========================================================================
    ApexCharts Custom DataLabel Background series color mapping
+   Official portal colors: ICT=#00C49F, Smart=#3B82F6, MIS=#F59E0B
    ApexCharts encodes spaces in seriesName as "x20"
-   e.g. "ICT Class" → seriesName="ICTx20Class"
    ========================================================================== */
 
-/* ICT Class / ICT Visit: Series 1 (First Line) - Green #00df89 */
+/* ICT Class / ICT Visit: Series 1 - Teal #00C49F */
 .apexcharts-series[seriesName="ICTx20Class"] .apexcharts-datalabel-background,
 .apexcharts-series[seriesName="ICTx20Visit"] .apexcharts-datalabel-background,
 .apexcharts-series[rel="1"] .apexcharts-datalabel-background,
 .apexcharts-data-labels-group:nth-child(1) .apexcharts-datalabel-background {
-  fill: #00df89 !important;
-  stroke: #00df89 !important;
+  fill: #00C49F !important;
+  stroke: #00C49F !important;
 }
 
-/* Smart Class / Smart Visit: Series 2 (Second Line) - Blue #0097ff */
+/* Smart Class / Smart Visit: Series 2 - Blue #3B82F6 */
 .apexcharts-series[seriesName="Smartx20Class"] .apexcharts-datalabel-background,
 .apexcharts-series[seriesName="Smartx20Visit"] .apexcharts-datalabel-background,
 .apexcharts-series[rel="2"] .apexcharts-datalabel-background,
 .apexcharts-data-labels-group:nth-child(2) .apexcharts-datalabel-background {
-  fill: #0097ff !important;
-  stroke: #0097ff !important;
+  fill: #3B82F6 !important;
+  stroke: #3B82F6 !important;
 }
 
-/* MIS Work: Series 3 (Third Line) - Orange #ffb000 */
+/* MIS Work: Series 3 - Amber #F59E0B */
 .apexcharts-series[seriesName="MISx20Work"] .apexcharts-datalabel-background,
 .apexcharts-series[rel="3"] .apexcharts-datalabel-background,
 .apexcharts-data-labels-group:nth-child(3) .apexcharts-datalabel-background {
-  fill: #ffb000 !important;
-  stroke: #ffb000 !important;
+  fill: #F59E0B !important;
+  stroke: #F59E0B !important;
 }
 
 /* Enforce crisp styling for all custom rounded badges */
