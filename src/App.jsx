@@ -15,6 +15,7 @@ import FieldTeamPerformance from './components/FieldTeamPerformance';
 import SchoolPerformance from './components/SchoolPerformance';
 import ProfileCreation from './components/ProfileCreation';
 import OverallAnalysis from './components/OverallAnalysis';
+import Helpdesk from './components/Helpdesk';
 import MultiSelect from './components/MultiSelect';
 import signatureLogo from './vijay_ray_signature.png';
 import {
@@ -1365,6 +1366,14 @@ const App = () => {
             />
         );
 
+        if (activeTab === 'helpdesk') {
+            return (
+                <Helpdesk
+                    darkMode={darkMode}
+                />
+            );
+        }
+
         return <div className="p-10 text-center text-gray-500">Module under development</div>;
     };
 
@@ -1786,8 +1795,10 @@ const App = () => {
 
                         {/* Helpdesk Menu Item */}
                         <button
-                            onClick={() => alert("Helpdesk Console: Official support is always active. Feature coming soon!")}
-                            className="w-full flex items-center justify-between py-2 px-3 rounded-none text-[14.5px] font-bold text-white hover:bg-white/5 transition duration-150 font-sans"
+                            onClick={() => setActiveTab('helpdesk')}
+                            className={`w-full flex items-center justify-between py-2 px-3 rounded-none text-[14.5px] font-bold text-white hover:bg-white/5 transition duration-150 font-sans ${
+                                activeTab === 'helpdesk' ? 'bg-black/15 text-white font-extrabold border-l-4 border-white' : ''
+                            }`}
                         >
                             <div className="flex items-center gap-2.5">
                                 <span className="p-0.5 rounded text-white shrink-0">
