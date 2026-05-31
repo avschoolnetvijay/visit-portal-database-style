@@ -1881,12 +1881,6 @@ const App = () => {
                             </div>
                             <div className="h-px bg-gray-200/80 w-full my-1"></div>
                             <div className="flex flex-wrap gap-3 items-end">
-                                <div className="w-full sm:w-[calc(50%-6px)] md:w-44 text-left">
-                                    <span className="portal-label">Agency</span>
-                                    <select className="portal-input bg-gray-50 cursor-not-allowed opacity-70" disabled>
-                                        <option>Schoolnet India Limited</option>
-                                    </select>
-                                </div>
                                 <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
                                     <MultiSelect
                                         label="Projects"
