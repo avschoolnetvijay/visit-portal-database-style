@@ -238,6 +238,7 @@ const OverallAnalysis = ({
   const [activeDeepDiveTab, setActiveDeepDiveTab] = useState('jhpms');
   const [displayMode, setDisplayMode] = useState('corporate'); // 'corporate', '16-9', 'print'
   const [showDeckModal, setShowDeckModal] = useState(false);
+  const [isTreemapExpanded, setIsTreemapExpanded] = useState(false);
   const [deckPMName, setDeckPMName] = useState('Suvendu Shekhar Jana');
 
   const gridStroke = darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9';
@@ -2337,22 +2338,35 @@ const OverallAnalysis = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 page-break-after font-sans">
           
           {/* Treemap Panel */}
-          <div className="portal-card p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800">
+          <div className="portal-card p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800 relative">
             <div className="border-b pb-3 mb-4 flex items-center justify-between">
               <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Block Performance Map</h3>
               <span className="text-[10px] text-slate-400 font-bold font-sans">Bigger box = more schools. Redder box = needs help.</span>
             </div>
 
-            <div className="h-72 flex-1 rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800">
+            <div className="h-72 flex-1 rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800 relative">
               {treemapData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <Treemap
-                    data={treemapData}
-                    dataKey="size"
-                    stroke="#ffffff"
-                    content={<TreemapContent />}
-                  />
-                </ResponsiveContainer>
+                <>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <Treemap
+                      data={treemapData}
+                      dataKey="size"
+                      stroke="#ffffff"
+                      content={<TreemapContent />}
+                    />
+                  </ResponsiveContainer>
+                  
+                  {/* Expand button in the right bottom corner */}
+                  <button
+                    onClick={() => setIsTreemapExpanded(true)}
+                    title="Expand Block Performance Map"
+                    className="absolute bottom-3 right-3 z-10 flex items-center justify-center p-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl shadow-lg border border-teal-600/30 hover:scale-105 active:scale-95 transition-all select-none hover:shadow-teal-700/20 no-print"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0L15 15" />
+                    </svg>
+                  </button>
+                </>
               ) : (
                 <p className="text-slate-400 italic text-xs py-10 text-center">No block geographic data available.</p>
               )}
@@ -2831,6 +2845,49 @@ const OverallAnalysis = ({
                 className="px-4 bg-slate-100 dark:bg-slate-800 border dark:border-slate-700 text-xs font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════ EXPANDED GEOGRAPHIC TREEMAP MODAL ═══════ */}
+      {isTreemapExpanded && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/65 backdrop-blur-md p-4 md:p-8 animate-fade-in font-sans">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-6xl rounded-2xl shadow-2xl border border-slate-150 dark:border-slate-800 flex flex-col overflow-hidden max-h-[90vh] animate-zoom-in">
+            <div className="bg-slate-50 dark:bg-slate-800/40 px-6 py-4 border-b border-slate-150 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-850 dark:text-slate-150 uppercase tracking-wider font-serif">Block Performance Map (Expanded)</h3>
+                <p className="text-xs text-slate-400 font-bold mt-0.5 font-sans">Bigger box = more schools. Redder box = needs help.</p>
+              </div>
+              <button
+                onClick={() => setIsTreemapExpanded(false)}
+                title="Close"
+                className="p-1.5 text-slate-450 hover:text-slate-650 dark:hover:text-slate-200 rounded-lg hover:bg-slate-150 dark:hover:bg-slate-800 transition font-sans text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 flex-1 flex flex-col justify-center min-h-[55vh] max-h-[70vh]">
+              {treemapData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <Treemap
+                    data={treemapData}
+                    dataKey="size"
+                    stroke="#ffffff"
+                    content={<TreemapContent />}
+                  />
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-slate-400 italic text-xs py-10 text-center">No block geographic data available.</p>
+              )}
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-805/40 px-6 py-3.5 border-t border-slate-150 dark:border-slate-800 flex justify-end">
+              <button
+                onClick={() => setIsTreemapExpanded(false)}
+                className="px-4 py-2 bg-slate-150 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-xs font-black rounded-lg transition active:scale-95 duration-100 uppercase tracking-wider"
+              >
+                Close
               </button>
             </div>
           </div>
