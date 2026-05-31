@@ -155,7 +155,15 @@ const DrillDownModal = ({ isOpen, onClose, title, data = [] }) => {
                                             // Handle special formatted displays
                                             let cellDisplay = '-';
                                             if (rawVal !== null && rawVal !== undefined) {
-                                                if (typeof rawVal === 'object') {
+                                                if (rawVal instanceof Date) {
+                                                    // Date objects must be formatted directly — never JSON.stringify
+                                                    if (!isNaN(rawVal.getTime())) {
+                                                        const day = String(rawVal.getDate()).padStart(2, '0');
+                                                        const month = String(rawVal.getMonth() + 1).padStart(2, '0');
+                                                        const year = rawVal.getFullYear();
+                                                        cellDisplay = `${day}-${month}-${year}`;
+                                                    }
+                                                } else if (typeof rawVal === 'object') {
                                                     if (Array.isArray(rawVal)) {
                                                         cellDisplay = rawVal.join(', ');
                                                     } else if (rawVal instanceof Set) {
@@ -169,24 +177,8 @@ const DrillDownModal = ({ isOpen, onClose, title, data = [] }) => {
                                                     cellDisplay = String(rawVal);
                                                 }
                                             }
-                                            if (lowerKey.includes('date') && rawVal && typeof rawVal !== 'object') {
-                                                let formatted = formatDate(rawVal);
-                                                if (formatted === '-' && typeof rawVal === 'string') {
-                                                    try {
-                                                        const clean = rawVal.trim().replace(/["']/g, '');
-                                                        if (clean && clean !== '-') {
-                                                            const d = new Date(clean);
-                                                            if (d && !isNaN(d.getTime())) {
-                                                                const day = String(d.getDate()).padStart(2, '0');
-                                                                const month = String(d.getMonth() + 1).padStart(2, '0');
-                                                                const year = d.getFullYear();
-                                                                formatted = `${day}-${month}-${year}`;
-                                                            }
-                                                        }
-                                                    } catch (e) {
-                                                        console.error("Local date formatting fallback error in DrillDownModal", e);
-                                                    }
-                                                }
+                                            if (lowerKey.includes('date') && rawVal && !(rawVal instanceof Date) && typeof rawVal !== 'object') {
+                                                const formatted = formatDate(rawVal);
                                                 if (formatted !== '-') cellDisplay = formatted;
                                             }
 

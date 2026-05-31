@@ -260,7 +260,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
             school_name: s.school_name,
             visitor_name: s.visitor_name,
             instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
-            lastVisitDate: s.lastVisit || 'No Visits',
+            lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
             uniqueVisits: s.uniqueVisits,
             status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
           };
@@ -295,7 +295,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           ictClasses: ictClassesMap[s.udise_code] || 0,
           smartClasses: smartClassesMap[s.udise_code] || 0,
           edustatSync: hVal > 0 ? 'Yes' : 'No',
-          lastVisitDate: s.lastVisit || 'No Visits',
+          lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
           status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
         };
       });
@@ -327,7 +327,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
           ictClasses: ictClassesMap[s.udise_code] || 0,
           smartClasses: smartClassesMap[s.udise_code] || 0,
-          lastVisitDate: s.lastVisit || 'No Visits',
+          lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
           status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown'),
           instructorStatus: mRecord ? (mRecord.status || mRecord.working_status || 'Active') : 'Active'
         };
@@ -361,7 +361,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           ictClasses: ictClassesMap[s.udise_code] || 0,
           smartClasses: smartClassesMap[s.udise_code] || 0,
           hours: hVal,
-          lastVisitDate: s.lastVisit || 'No Visits',
+          lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
           status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
         };
       });
@@ -391,7 +391,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           ictClasses: ictClassesMap[s.udise_code] || 0,
           smartClasses: smartClassesMap[s.udise_code] || 0,
           uniqueVisits: s.uniqueVisits,
-          lastVisitDate: s.lastVisit || 'No Visits',
+          lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
           status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
         };
       });
@@ -424,7 +424,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           ictClasses: ictClassesMap[s.udise_code] || 0,
           smartClasses: smartClassesMap[s.udise_code] || 0,
           hours: hVal,
-          lastVisitDate: s.lastVisit || 'No Visits',
+          lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
           status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
         };
       });
@@ -457,7 +457,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
             instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
             ictClasses: ictClassesMap[s.udise_code] || 0,
             smartClasses: smartClassesMap[s.udise_code] || 0,
-            lastVisitDate: s.lastVisit || 'No Visits',
+            lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
             status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
           };
         });
@@ -501,7 +501,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
           ictClasses: ictClassesMap[s.udise_code] || 0,
           smartClasses: smartClassesMap[s.udise_code] || 0,
-          lastVisitDate: s.lastVisit || 'No Visits',
+          lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
           status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
         };
       });
