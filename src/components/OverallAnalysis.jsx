@@ -2868,7 +2868,7 @@ const OverallAnalysis = ({
                 ✕
               </button>
             </div>
-            <div className="p-6 flex-1 flex flex-col justify-center min-h-[55vh] max-h-[70vh]">
+            <div className="p-6 h-[60vh] min-h-[450px] relative rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800">
               {treemapData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <Treemap
