@@ -2641,7 +2641,9 @@ const OverallAnalysis = ({
                           <XAxis dataKey="name" tick={{ fontSize: 9 }} />
                           <YAxis tick={{ fontSize: 9 }} />
                           <Tooltip content={<CustomTooltip />} />
-                          <Bar dataKey="hours" name="Usage Hours" fill="url(#weeklyUtilGrad)" radius={[6, 6, 0, 0]} barSize={40} />
+                          <Bar dataKey="hours" name="Usage Hours" fill="url(#weeklyUtilGrad)" radius={[6, 6, 0, 0]} barSize={40}>
+                            <LabelList dataKey="hours" position="top" formatter={(val) => Math.round(val).toLocaleString('en-IN')} style={{ fontSize: 10, fontWeight: 'bold', fill: darkMode ? '#cbd5e1' : '#1e293b' }} />
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
