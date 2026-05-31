@@ -371,6 +371,15 @@ const OverallAnalysis = ({
   // PM Assignable Recommended Actions workbench state
   const [actionItems, setActionItems] = useState([]);
 
+  // Heatmap Grid Legend filter state
+  const [heatmapLegends, setHeatmapLegends] = useState({
+    excellent: true,
+    ontrack: true,
+    needsAttention: true,
+    critical: true,
+    na: true
+  });
+
   const validWdays = Number(workingDays) > 0 ? Number(workingDays) : 22;
 
   // 1. Calculate active weights based on array presence & activeSources prop
@@ -2901,13 +2910,53 @@ const OverallAnalysis = ({
             </div>
 
             {/* Premium Colored Heatmap Gradient Scale Legend */}
-            <div className="flex items-center gap-4 flex-wrap text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-4 flex-wrap text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 select-none">
               <span className="text-slate-400">Scale Legend:</span>
-              <div className="flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-emerald-100 border border-emerald-205"></span> Excellent (≥80%)</div>
-              <div className="flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-teal-50 border border-teal-200"></span> On-Track (60-79%)</div>
-              <div className="flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-amber-100 border border-amber-205"></span> Needs Attention (40-59%)</div>
-              <div className="flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-red-100 border border-red-200"></span> {"Critical (<40%)"}</div>
-              <div className="flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-slate-100 border border-slate-205"></span> N/A (No School)</div>
+              <button 
+                type="button"
+                onClick={() => setHeatmapLegends(prev => ({ ...prev, excellent: !prev.excellent }))}
+                className={`flex items-center gap-1.5 transition-all duration-150 hover:bg-slate-150/45 dark:hover:bg-slate-700/30 p-1 px-1.5 rounded ${
+                  heatmapLegends.excellent ? 'opacity-100 font-black' : 'opacity-40 line-through text-slate-400'
+                }`}
+              >
+                <span className="w-3.5 h-3.5 rounded bg-emerald-100 border border-emerald-205 block"></span> Excellent (≥80%)
+              </button>
+              <button 
+                type="button"
+                onClick={() => setHeatmapLegends(prev => ({ ...prev, ontrack: !prev.ontrack }))}
+                className={`flex items-center gap-1.5 transition-all duration-150 hover:bg-slate-150/45 dark:hover:bg-slate-700/30 p-1 px-1.5 rounded ${
+                  heatmapLegends.ontrack ? 'opacity-100 font-black' : 'opacity-40 line-through text-slate-400'
+                }`}
+              >
+                <span className="w-3.5 h-3.5 rounded bg-teal-50 border border-teal-200 block"></span> On-Track (60-79%)
+              </button>
+              <button 
+                type="button"
+                onClick={() => setHeatmapLegends(prev => ({ ...prev, needsAttention: !prev.needsAttention }))}
+                className={`flex items-center gap-1.5 transition-all duration-150 hover:bg-slate-150/45 dark:hover:bg-slate-700/30 p-1 px-1.5 rounded ${
+                  heatmapLegends.needsAttention ? 'opacity-100 font-black' : 'opacity-40 line-through text-slate-400'
+                }`}
+              >
+                <span className="w-3.5 h-3.5 rounded bg-amber-100 border border-amber-205 block"></span> Needs Attention (40-59%)
+              </button>
+              <button 
+                type="button"
+                onClick={() => setHeatmapLegends(prev => ({ ...prev, critical: !prev.critical }))}
+                className={`flex items-center gap-1.5 transition-all duration-150 hover:bg-slate-150/45 dark:hover:bg-slate-700/30 p-1 px-1.5 rounded ${
+                  heatmapLegends.critical ? 'opacity-100 font-black' : 'opacity-40 line-through text-slate-400'
+                }`}
+              >
+                <span className="w-3.5 h-3.5 rounded bg-red-100 border border-red-200 block"></span> Critical (&lt;40%)
+              </button>
+              <button 
+                type="button"
+                onClick={() => setHeatmapLegends(prev => ({ ...prev, na: !prev.na }))}
+                className={`flex items-center gap-1.5 transition-all duration-150 hover:bg-slate-150/45 dark:hover:bg-slate-700/30 p-1 px-1.5 rounded ${
+                  heatmapLegends.na ? 'opacity-100 font-black' : 'opacity-40 line-through text-slate-400'
+                }`}
+              >
+                <span className="w-3.5 h-3.5 rounded bg-slate-100 border border-slate-205 block"></span> N/A (No School)
+              </button>
             </div>
 
             <div className="overflow-auto flex-1 max-h-72">
@@ -2928,24 +2977,43 @@ const OverallAnalysis = ({
                         const val = heatmapMatrix[d][b];
                         if (!val) {
                           // Beautiful distinctly styled N/A cells!
+                          const isNaOn = heatmapLegends.na;
                           return (
-                            <td key={bIdx} className="p-2 border dark:border-slate-800 bg-slate-100/50 dark:bg-slate-800/40 text-slate-400 font-bold font-mono" title={`No schools assigned in ${b} for District ${d}`}>
-                              N/A
+                            <td 
+                              key={bIdx} 
+                              className={`p-2 border dark:border-slate-800 font-mono transition-all duration-200 ${
+                                isNaOn 
+                                  ? 'bg-slate-100/50 dark:bg-slate-800/40 text-slate-400 font-bold' 
+                                  : 'bg-transparent text-transparent select-none'
+                              }`} 
+                              title={isNaOn ? `No schools assigned in ${b} for District ${d}` : undefined}
+                            >
+                              {isNaOn ? 'N/A' : '–'}
                             </td>
                           );
                         }
                         const score = val.score;
-                        const bg = score >= 80 ? 'bg-emerald-100 text-emerald-950 font-extrabold border-emerald-200' :
-                                   score >= 60 ? 'bg-teal-50 text-teal-950 font-bold border-teal-150' :
-                                   score >= 40 ? 'bg-amber-100 text-amber-950 font-semibold border-amber-150' :
-                                   'bg-red-100 text-red-950 font-black border-red-200';
+                        const group = score >= 80 ? 'excellent' :
+                                      score >= 60 ? 'ontrack' :
+                                      score >= 40 ? 'needsAttention' :
+                                      'critical';
+                        const isGroupOn = heatmapLegends[group];
+                        
+                        const bg = !isGroupOn ? 'bg-transparent text-transparent select-none border-slate-100 dark:border-slate-800/50' :
+                                   score >= 80 ? 'bg-emerald-100 text-emerald-950 font-extrabold border-emerald-200 hover:scale-[1.05]' :
+                                   score >= 60 ? 'bg-teal-50 text-teal-950 font-bold border-teal-150 hover:scale-[1.05]' :
+                                   score >= 40 ? 'bg-amber-100 text-amber-950 font-semibold border-amber-150 hover:scale-[1.05]' :
+                                   'bg-red-100 text-red-950 font-black border-red-200 hover:scale-[1.05]';
+                        
                         return (
                           <td
                             key={bIdx}
-                            className={`p-2 border dark:border-slate-800 cursor-pointer transition hover:scale-[1.05] duration-75 ${bg}`}
-                            title={`District: ${d}\nBlock: ${b}\nAvg Score: ${score}%\nSchools Count: ${val.count}`}
+                            className={`p-2 border dark:border-slate-800 transition duration-75 ${
+                              isGroupOn ? 'cursor-pointer' : 'cursor-default'
+                            } ${bg}`}
+                            title={isGroupOn ? `District: ${d}\nBlock: ${b}\nAvg Score: ${score}%\nSchools Count: ${val.count}` : undefined}
                           >
-                            {score}%
+                            {isGroupOn ? `${score}%` : '–'}
                           </td>
                         );
                       })}
