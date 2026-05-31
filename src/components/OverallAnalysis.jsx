@@ -1876,7 +1876,7 @@ const OverallAnalysis = ({
   const ccLeaderboard = useMemo(() => {
     const ccMap = {};
     finalEnriched.forEach(s => {
-      const cc = s.staffName !== '-' ? s.staffName : 'Unassigned';
+      const cc = (s.visitorName && s.visitorName !== '-') ? s.visitorName : 'Unassigned';
       if (!ccMap[cc]) ccMap[cc] = { name: cc, scoreSum: 0, count: 0 };
       ccMap[cc].scoreSum += s.compositeScore;
       ccMap[cc].count++;
@@ -2938,19 +2938,19 @@ const OverallAnalysis = ({
                 </div>
 
                 <div className="portal-card p-3 bg-white dark:bg-slate-900">
-                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Instructor Status Roster</h4>
+                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">ICT Instructor Status Roster</h4>
                   <div className="space-y-2 mt-4 font-mono text-xs">
                     <div className="flex justify-between p-2 rounded bg-green-50 dark:bg-emerald-950/20 text-green-800 dark:text-emerald-300">
-                      <span>🟢 Active Status:</span>
-                      <span className="font-bold">{(manpower || []).filter(m => normalizeManpowerStatus(m.status) === 'Active').length} CCs</span>
+                      <span>🟢 Active Instructors:</span>
+                      <span className="font-bold">{finalEnriched.filter(s => s.staffStatus === 'Active').length} Schools</span>
                     </div>
                     <div className="flex justify-between p-2 rounded bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300">
                       <span>🟡 Pending Recruitment:</span>
-                      <span className="font-bold">{(manpower || []).filter(m => normalizeManpowerStatus(m.status) === 'Pending').length} CCs</span>
+                      <span className="font-bold">{finalEnriched.filter(s => s.staffStatus === 'Pending').length} Schools</span>
                     </div>
                     <div className="flex justify-between p-2 rounded bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300">
-                      <span>🔴 Vacant/Resigned:</span>
-                      <span className="font-bold">{(manpower || []).filter(m => normalizeManpowerStatus(m.status) === 'Vacant').length} CCs</span>
+                      <span>🔴 Vacant Instructors:</span>
+                      <span className="font-bold">{finalEnriched.filter(s => s.staffStatus === 'Vacant' || !s.staffStatus).length} Schools</span>
                     </div>
                   </div>
                 </div>
