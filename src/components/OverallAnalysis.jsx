@@ -279,132 +279,6 @@ const OverallAnalysis = ({
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [isTreemapExpanded, setIsTreemapExpanded] = useState(false);
   const [deckPMName, setDeckPMName] = useState('Suvendu Shekhar Jana');
-  const classStatusSeries = useMemo(() => [
-    { name: 'ICT Class', data: monthlyClassStatusData.map(d => d['ICT Class'] || 0) },
-    { name: 'Smart Class', data: monthlyClassStatusData.map(d => d['Smart Class'] || 0) },
-    { name: 'MIS Work', data: monthlyClassStatusData.map(d => d['MIS Work'] || 0) }
-  ], [monthlyClassStatusData]);
-
-  const classStatusOptions = useMemo(() => ({
-    chart: {
-      type: 'area',
-      height: 320,
-      fontFamily: "'Times New Roman', Times, serif",
-      toolbar: {
-        show: true,
-        tools: {
-          download: true,
-          selection: false,
-          zoom: false,
-          zoomin: false,
-          zoomout: false,
-          pan: false,
-          reset: false,
-        },
-        export: {
-          csv: { filename: `class-status-${startDate ? formatDate(startDate) : 'Jun-2025'}-to-${endDate ? formatDate(endDate) : 'May-2026'}` },
-          png: { filename: `class-status-${startDate ? formatDate(startDate) : 'Jun-2025'}-to-${endDate ? formatDate(endDate) : 'May-2026'}` },
-        }
-      },
-      animations: {
-        enabled: true,
-        speed: 600,
-        animateGradually: { enabled: true, delay: 80 }
-      },
-      background: 'transparent',
-      dropShadow: { enabled: false },
-    },
-    stroke: {
-      curve: 'smooth',
-      width: [2.5, 2, 2],
-      lineCap: 'round',
-    },
-    fill: {
-      type: ['gradient', 'solid', 'solid'],
-      gradient: {
-        shade: 'light',
-        type: 'vertical',
-        shadeIntensity: 0.4,
-        opacityFrom: 0.35,
-        opacityTo: 0.02,
-        stops: [0, 90, 100]
-      },
-      opacity: [1, 0, 0],
-    },
-    colors: ['#1D9E75', '#378ADD', '#BA7517'],
-    markers: {
-      size: [4, 4, 4],
-      strokeColors: '#ffffff',
-      strokeWidth: 2,
-      hover: { size: 6, sizeOffset: 2 }
-    },
-    dataLabels: {
-      enabled: true,
-      style: {
-        fontSize: '11px',
-        fontWeight: '500',
-        colors: ['#1D9E75', '#378ADD', '#BA7517'],
-      },
-      background: {
-        enabled: false,
-      },
-      formatter: (val) => val ? val.toLocaleString('en-IN') : '',
-      offsetY: -6,
-    },
-    legend: {
-      show: true,
-      position: 'top',
-      horizontalAlign: 'center',
-      fontSize: '13px',
-      fontWeight: 500,
-      labels: {
-        colors: darkMode ? '#f1f5f9' : '#334155'
-      },
-      markers: {
-        width: 10,
-        height: 10,
-        radius: 5,
-      },
-      itemMargin: { horizontal: 12 },
-      onItemClick: { toggleDataSeries: true },
-      onItemHover: { highlightDataSeries: true },
-    },
-    xaxis: {
-      categories: monthlyClassStatusData.map(d => d.name),
-      labels: {
-        style: { fontSize: '12px', colors: darkMode ? '#94a3b8' : '#6B7280' },
-        rotate: 0,
-      },
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-    },
-    yaxis: {
-      min: 0,
-      forceNiceScale: true,
-      labels: {
-        formatter: (val) => Math.round(val).toLocaleString('en-IN'),
-        style: { fontSize: '12px', colors: darkMode ? '#94a3b8' : '#6B7280' },
-      },
-    },
-    grid: {
-      show: true,
-      borderColor: darkMode ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
-      strokeDashArray: 4,
-      xaxis: { lines: { show: false } },
-      yaxis: { lines: { show: true  } },
-      padding: { top: 0, right: 20, bottom: 0, left: 10 },
-    },
-    tooltip: {
-      theme: darkMode ? 'dark' : 'light',
-      shared: true,
-      intersect: false,
-      y: {
-        formatter: (val) => val ? val.toLocaleString('en-IN') : '0',
-      },
-    },
-    title: { text: undefined },
-  }), [monthlyClassStatusData, darkMode, startDate, endDate]);
-
   const gridStroke = darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9';
   const axisStroke = darkMode ? 'rgba(255,255,255,0.1)' : '#e2e8f0';
   const textStroke = darkMode ? '#94a3b8' : '#64748b';
@@ -1400,6 +1274,132 @@ const OverallAnalysis = ({
 
     return monthList;
   }, [jhpmsLab, parsedStartDate, parsedEndDate, isJhpmsActive, validUdises]);
+
+  const classStatusSeries = useMemo(() => [
+    { name: 'ICT Class', data: (monthlyClassStatusData || []).map(d => d['ICT Class'] || 0) },
+    { name: 'Smart Class', data: (monthlyClassStatusData || []).map(d => d['Smart Class'] || 0) },
+    { name: 'MIS Work', data: (monthlyClassStatusData || []).map(d => d['MIS Work'] || 0) }
+  ], [monthlyClassStatusData]);
+
+  const classStatusOptions = useMemo(() => ({
+    chart: {
+      type: 'area',
+      height: 320,
+      fontFamily: "'Times New Roman', Times, serif",
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          selection: false,
+          zoom: false,
+          zoomin: false,
+          zoomout: false,
+          pan: false,
+          reset: false,
+        },
+        export: {
+          csv: { filename: `class-status-${startDate ? formatDate(startDate) : 'Jun-2025'}-to-${endDate ? formatDate(endDate) : 'May-2026'}` },
+          png: { filename: `class-status-${startDate ? formatDate(startDate) : 'Jun-2025'}-to-${endDate ? formatDate(endDate) : 'May-2026'}` },
+        }
+      },
+      animations: {
+        enabled: true,
+        speed: 600,
+        animateGradually: { enabled: true, delay: 80 }
+      },
+      background: 'transparent',
+      dropShadow: { enabled: false },
+    },
+    stroke: {
+      curve: 'smooth',
+      width: [2.5, 2, 2],
+      lineCap: 'round',
+    },
+    fill: {
+      type: ['gradient', 'solid', 'solid'],
+      gradient: {
+        shade: 'light',
+        type: 'vertical',
+        shadeIntensity: 0.4,
+        opacityFrom: 0.35,
+        opacityTo: 0.02,
+        stops: [0, 90, 100]
+      },
+      opacity: [1, 0, 0],
+    },
+    colors: ['#1D9E75', '#378ADD', '#BA7517'],
+    markers: {
+      size: [4, 4, 4],
+      strokeColors: '#ffffff',
+      strokeWidth: 2,
+      hover: { size: 6, sizeOffset: 2 }
+    },
+    dataLabels: {
+      enabled: true,
+      style: {
+        fontSize: '11px',
+        fontWeight: '500',
+        colors: ['#1D9E75', '#378ADD', '#BA7517'],
+      },
+      background: {
+        enabled: false,
+      },
+      formatter: (val) => val ? val.toLocaleString('en-IN') : '',
+      offsetY: -6,
+    },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'center',
+      fontSize: '13px',
+      fontWeight: 500,
+      labels: {
+        colors: darkMode ? '#f1f5f9' : '#334155'
+      },
+      markers: {
+        width: 10,
+        height: 10,
+        radius: 5,
+      },
+      itemMargin: { horizontal: 12 },
+      onItemClick: { toggleDataSeries: true },
+      onItemHover: { highlightDataSeries: true },
+    },
+    xaxis: {
+      categories: (monthlyClassStatusData || []).map(d => d.name),
+      labels: {
+        style: { fontSize: '12px', colors: darkMode ? '#94a3b8' : '#6B7280' },
+        rotate: 0,
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      min: 0,
+      forceNiceScale: true,
+      labels: {
+        formatter: (val) => Math.round(val).toLocaleString('en-IN'),
+        style: { fontSize: '12px', colors: darkMode ? '#94a3b8' : '#6B7280' },
+      },
+    },
+    grid: {
+      show: true,
+      borderColor: darkMode ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
+      strokeDashArray: 4,
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true  } },
+      padding: { top: 0, right: 20, bottom: 0, left: 10 },
+    },
+    tooltip: {
+      theme: darkMode ? 'dark' : 'light',
+      shared: true,
+      intersect: false,
+      y: {
+        formatter: (val) => val ? val.toLocaleString('en-IN') : '0',
+      },
+    },
+    title: { text: undefined },
+  }), [monthlyClassStatusData, darkMode, startDate, endDate]);
 
   // Treemap Custom Card Renderer with Smart Auto-Scaling and Contrast
   const TreemapContent = (props) => {
