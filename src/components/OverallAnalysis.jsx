@@ -1187,17 +1187,18 @@ const OverallAnalysis = ({
 
   // Compile current and previous KPIs
   const currentKPIs = useMemo(() => {
-    const total = enriched.length || 1;
-    const labPct = pct(enriched.filter(s => s.jhpmsClasses > 0).length, total);
-    const visitPct = pct(enriched.filter(s => s.fieldVisits >= s.targetVisits).length, total);
-    const deviceHours = enriched.reduce((acc, s) => acc + s.eduHours, 0);
-    const criticalCount = enriched.filter(s => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0)).length;
+    const targetSchools = showExceptions ? finalEnriched : enriched;
+    const total = targetSchools.length || 1;
+    const labPct = pct(targetSchools.filter(s => s.jhpmsClasses > 0).length, total);
+    const visitPct = pct(targetSchools.filter(s => s.fieldVisits >= s.targetVisits).length, total);
+    const deviceHours = targetSchools.reduce((acc, s) => acc + s.eduHours, 0);
+    const criticalCount = targetSchools.filter(s => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0)).length;
     
     // Count distinct assigned visitor/coordinator CC names in filtered scope (using mapping)
-    const activeCCs = [...new Set(enriched.map(s => s.visitorName).filter(name => name && name !== '-' && name.trim() !== '' && name.toLowerCase() !== 'unassigned'))].length;
+    const activeCCs = [...new Set(targetSchools.map(s => s.visitorName).filter(name => name && name !== '-' && name.trim() !== '' && name.toLowerCase() !== 'unassigned'))].length;
 
-    const edustatPct = pct(enriched.filter(s => s.eduHours > 0).length, total);
-    const manpowerPct = pct(enriched.filter(s => s.staffStatus === 'Active').length, total);
+    const edustatPct = pct(targetSchools.filter(s => s.eduHours > 0).length, total);
+    const manpowerPct = pct(targetSchools.filter(s => s.staffStatus === 'Active').length, total);
 
     const composite = (labPct * (weights.jhpms / 100)) +
                       (edustatPct * (weights.edustat / 100)) +
@@ -1212,11 +1213,12 @@ const OverallAnalysis = ({
       criticalCount,
       activeCCs
     };
-  }, [enriched, weights]);
+  }, [enriched, finalEnriched, showExceptions, weights]);
 
   const prevKPIs = useMemo(() => {
     if (!compareMode) return null;
-    const computed = calculateKpiSet(fSchools, prevJhpms, prevEdustat, manpower, prevVisits);
+    const targetSchools = showExceptions ? finalEnriched : fSchools;
+    const computed = calculateKpiSet(targetSchools, prevJhpms, prevEdustat, manpower, prevVisits);
     
     // If no historical snapshot was captured in the uploaded data (i.e. all empty 0s),
     // generate a robust, realistic historical snapshot that is slightly lower, 
@@ -1232,15 +1234,16 @@ const OverallAnalysis = ({
       };
     }
     return computed;
-  }, [compareMode, fSchools, prevJhpms, prevEdustat, manpower, prevVisits, currentKPIs]);
+  }, [compareMode, fSchools, finalEnriched, showExceptions, prevJhpms, prevEdustat, manpower, prevVisits, currentKPIs]);
 
   // 8. Dynamic Composite overall health calculation based on active weights (Canonical!)
   const healthData = useMemo(() => {
+    const targetSchools = showExceptions ? finalEnriched : enriched;
     const composite = currentKPIs.avgScore;
     const jhpmsGlobal = currentKPIs.labPct;
-    const edustatGlobal = pct(finalEnriched.filter(s => s.eduHours > 0).length, finalEnriched.length);
+    const edustatGlobal = pct(targetSchools.filter(s => s.eduHours > 0).length, targetSchools.length);
     const visitGlobal = currentKPIs.visitPct;
-    const manpowerGlobal = pct(finalEnriched.filter(s => s.staffStatus === 'Active').length, finalEnriched.length);
+    const manpowerGlobal = pct(targetSchools.filter(s => s.staffStatus === 'Active').length, targetSchools.length);
 
     let grade, gradeColor;
     if (composite >= 80) { grade = 'Excellent'; gradeColor = '#0f766e'; }
@@ -1249,7 +1252,7 @@ const OverallAnalysis = ({
     else { grade = 'Critical'; gradeColor = '#ef4444'; }
 
     return { composite, grade, gradeColor, jhpmsGlobal, edustatGlobal, visitGlobal, manpowerGlobal };
-  }, [currentKPIs, finalEnriched]);
+  }, [currentKPIs, enriched, finalEnriched, showExceptions]);
 
   // MoM KPI Change indicators
   const kpis = useMemo(() => {
@@ -1934,8 +1937,11 @@ const OverallAnalysis = ({
       schoolProjectMap[cleanUdise(s.udise_code)] = s.project_name || 'Unassigned';
     });
 
+    const activeSchoolsSet = new Set(finalEnriched.map(s => cleanUdise(s.udise)));
+
     currentVisits.forEach(v => {
       const udise = cleanUdise(v.udise_code);
+      if (showExceptions && !activeSchoolsSet.has(udise)) return;
       const p = schoolProjectMap[udise];
       if (p && stats[p]) {
         const type = (v.visit_type || '').toLowerCase();
@@ -1948,7 +1954,7 @@ const OverallAnalysis = ({
     });
 
     return Object.values(stats);
-  }, [finalEnriched, fSchools, currentVisits]);
+  }, [finalEnriched, fSchools, currentVisits, showExceptions]);
 
   const labUsesSeries = useMemo(() => {
     return [
