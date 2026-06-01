@@ -2239,6 +2239,7 @@ const OverallAnalysis = ({
 
     let cpuHours = 0;
     let miniPcHours = 0;
+    let panelHours = 0;
     
     currentEdustat.forEach(e => {
       const udise = String(e.udise).trim();
@@ -2246,17 +2247,27 @@ const OverallAnalysis = ({
       const serial = String(e.serial).trim();
       const device = serialDeviceMap[serial] || 'CPU'; // Default to CPU if not in Master
       const hrs = Number(e.hours) || 0;
-      if (device.includes('CPU') || device.includes('DESKTOP') || device.includes('PC')) {
+      // Use exact match to avoid 'INTERACTIVE FLAT PANEL' being misclassified
+      if (device === 'CPU') {
         cpuHours += hrs;
-      } else {
+      } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
         miniPcHours += hrs;
+      } else if (device === 'INTERACTIVE FLAT PANEL') {
+        panelHours += hrs;
+      } else {
+        // Unknown device type defaults to CPU bucket
+        cpuHours += hrs;
       }
     });
-    
-    return [
+
+    const result = [
       { name: 'Traditional CPU', value: Math.round(cpuHours), color: '#3b82f6' },
-      { name: 'Mini PC/Thin Client', value: Math.round(miniPcHours), color: '#10b981' }
+      { name: 'Mini PC/Thin Client', value: Math.round(miniPcHours), color: '#10b981' },
     ];
+    if (panelHours > 0) {
+      result.push({ name: 'Panel (IFP)', value: Math.round(panelHours), color: '#8b5cf6' });
+    }
+    return result;
   }, [currentEdustat, edustatMaster, validUdises, isEdustatActive]);
 
   const visitAgingGroups = useMemo(() => {
@@ -3145,7 +3156,7 @@ const OverallAnalysis = ({
             {activeDeepDiveTab === 'edustat' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <div className="portal-card flex flex-col items-center justify-center p-3 bg-white dark:bg-slate-900">
-                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3 text-center">CPU vs Mini PC Hours Breakdown</h4>
+                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3 text-center">CPU / Mini PC / Panel Hours Breakdown</h4>
                   {isEdustatActive ? (
                     <div className="h-44 w-full relative" id="edustat-cpu-pie-container">
                       <ChartToolbar

@@ -314,7 +314,7 @@ export default function Helpdesk({ darkMode = false }) {
           {
             name: 'EduStat Master (डिवाइस इन्वेंटरी)',
             cols: 'udise, device, serial, installed (Yes/No)',
-            val: 'Maps serial numbers to device types (Traditional CPU vs Thin Client) to evaluate sync rates.'
+            val: 'Maps serial numbers to device types (CPU, Mini PC/Thin Client, or Panel/IFP) to evaluate sync rates and categorize usage hours.'
           },
           {
             name: 'Manpower Roster (शिक्षक प्रोफाइल)',

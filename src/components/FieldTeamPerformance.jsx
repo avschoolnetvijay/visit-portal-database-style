@@ -67,9 +67,12 @@ const FieldTeamPerformance = ({
                     cpuUsed: 0,
                     miniPcInstalled: 0,
                     miniPcUsed: 0,
+                    panelInstalled: 0,
+                    panelUsed: 0,
                     edustatNotInstalled: 0,
                     totalCpuHours: 0,
                     totalMiniPcHours: 0,
+                    totalPanelHours: 0,
                     ictClasses: 0,
                     smartClasses: 0,
                     totalIctVisits: 0,
@@ -136,6 +139,8 @@ const FieldTeamPerformance = ({
                             ccData.cpuInstalled++;
                         } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
                             ccData.miniPcInstalled++;
+                        } else if (device === 'INTERACTIVE FLAT PANEL') {
+                            ccData.panelInstalled++;
                         }
                     }
                 });
@@ -171,6 +176,8 @@ const FieldTeamPerformance = ({
                         ccData.totalCpuHours += hours;
                     } else if (deviceType === 'MINI PC' || deviceType === 'THIN CLIENT') {
                         ccData.totalMiniPcHours += hours;
+                    } else if (deviceType === 'INTERACTIVE FLAT PANEL') {
+                        ccData.totalPanelHours += hours;
                     }
                 }
             });
@@ -190,6 +197,8 @@ const FieldTeamPerformance = ({
                             ccData.cpuUsed++;
                         } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
                             ccData.miniPcUsed++;
+                        } else if (device === 'INTERACTIVE FLAT PANEL') {
+                            ccData.panelUsed++;
                         }
                     }
                 });
@@ -254,16 +263,18 @@ const FieldTeamPerformance = ({
             ? Number(workingDays)
             : Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
         
-        let maxAvgCpu = 0, maxAvgMini = 0;
+        let maxAvgCpu = 0, maxAvgMini = 0, maxAvgPanel = 0;
         let maxAcademic = 0, maxSmart = 0;
         let maxMonitoring = 0, maxAvailability = 0;
 
         let pass1Data = Object.values(ccMap).map(c => {
             const cpuNotUsed = Math.max(0, c.cpuInstalled - c.cpuUsed);
             const miniPcNotUsed = Math.max(0, c.miniPcInstalled - c.miniPcUsed);
+            const panelNotUsed = Math.max(0, c.panelInstalled - c.panelUsed);
             
             const avgCpu = c.cpuInstalled > 0 ? (c.totalCpuHours / days / c.cpuInstalled) : 0;
             const avgMini = c.miniPcInstalled > 0 ? (c.totalMiniPcHours / days / c.miniPcInstalled) : 0;
+            const avgPanel = c.panelInstalled > 0 ? (c.totalPanelHours / days / c.panelInstalled) : 0;
             const academic = c.totalSchools > 0 ? (c.ictClasses / c.totalSchools) : 0;
             const smart = c.totalSchools > 0 ? (c.smartClasses / c.totalSchools) : 0;
             const monitoring = c.totalSchools > 0 ? ((c.totalIctVisits + c.totalSmartVisits) / c.totalSchools) : 0;
@@ -274,6 +285,7 @@ const FieldTeamPerformance = ({
 
             maxAvgCpu = Math.max(maxAvgCpu, avgCpu);
             maxAvgMini = Math.max(maxAvgMini, avgMini);
+            maxAvgPanel = Math.max(maxAvgPanel, avgPanel);
             maxAcademic = Math.max(maxAcademic, academic);
             maxSmart = Math.max(maxSmart, smart);
             maxMonitoring = Math.max(maxMonitoring, monitoring);
@@ -291,12 +303,18 @@ const FieldTeamPerformance = ({
                 miniPcInstalled: c.miniPcInstalled,
                 miniPcUsed: c.miniPcUsed,
                 miniPcNotUsed,
+                panelInstalled: c.panelInstalled,
+                panelUsed: c.panelUsed,
+                panelNotUsed,
                 totalCpuHours: c.totalCpuHours.toFixed(2),
                 totalMiniPcHours: c.totalMiniPcHours.toFixed(2),
+                totalPanelHours: c.totalPanelHours.toFixed(2),
                 avgCpuRaw: avgCpu,
                 avgMiniRaw: avgMini,
+                avgPanelRaw: avgPanel,
                 avgCpu: avgCpu.toFixed(5),
                 avgMini: avgMini.toFixed(5),
+                avgPanel: avgPanel.toFixed(5),
                 ictClasses: c.ictClasses,
                 avgClasses: avgClasses.toFixed(5),
                 smartClasses: c.smartClasses,
@@ -314,15 +332,19 @@ const FieldTeamPerformance = ({
         });
 
         let finalData = pass1Data.map(c => {
-            // 1. Infrastructure Utilization (25 Marks)
+            // 1. Infrastructure Utilization (25 Marks) — now includes Panel
             const cpuUtil = c.cpuInstalled > 0 ? (c.cpuUsed / c.cpuInstalled) : 0;
             const miniUtil = c.miniPcInstalled > 0 ? (c.miniPcUsed / c.miniPcInstalled) : 0;
-            const infraScore = ((cpuUtil + miniUtil) / 2) * 25;
+            const panelUtil = c.panelInstalled > 0 ? (c.panelUsed / c.panelInstalled) : 0;
+            const activeDeviceTypes = [cpuUtil, miniUtil, panelUtil].filter((_, i) => [c.cpuInstalled, c.miniPcInstalled, c.panelInstalled][i] > 0);
+            const infraScore = (activeDeviceTypes.length > 0 ? activeDeviceTypes.reduce((a, b) => a + b, 0) / activeDeviceTypes.length : 0) * 25;
 
             // 2. Usage Efficiency (20 Marks)
             const normCpu = maxAvgCpu > 0 ? (c.avgCpuRaw / maxAvgCpu) : 0;
             const normMini = maxAvgMini > 0 ? (c.avgMiniRaw / maxAvgMini) : 0;
-            const usageScore = ((normCpu + normMini) / 2) * 20;
+            const normPanel = maxAvgPanel > 0 ? (c.avgPanelRaw / maxAvgPanel) : 0;
+            const activeUsageTypes = [normCpu, normMini, normPanel].filter((_, i) => [c.cpuInstalled, c.miniPcInstalled, c.panelInstalled][i] > 0);
+            const usageScore = (activeUsageTypes.length > 0 ? activeUsageTypes.reduce((a, b) => a + b, 0) / activeUsageTypes.length : 0) * 20;
 
             // 3. Academic Delivery (20 Marks)
             const academicScore = maxAcademic > 0 ? (c.academicRaw / maxAcademic) * 20 : 0;
@@ -390,13 +412,13 @@ const FieldTeamPerformance = ({
         // Resolve viewType based on drilldownFilter
         let viewType = 'schools';
         if ([
-            'cpu_installed', 'mini_installed', 'edustat_not_installed',
-            'cpu_used', 'mini_used', 'cpu_not_used', 'mini_not_used'
+            'cpu_installed', 'mini_installed', 'panel_installed', 'edustat_not_installed',
+            'cpu_used', 'mini_used', 'panel_used', 'cpu_not_used', 'mini_not_used', 'panel_not_used'
         ].includes(drilldownFilter)) {
             viewType = 'devices';
         } else if (drilldownFilter === 'working_instructors') {
             viewType = 'instructors';
-        } else if (['cpu_hours_logs', 'mini_hours_logs'].includes(drilldownFilter)) {
+        } else if (['cpu_hours_logs', 'mini_hours_logs', 'panel_hours_logs'].includes(drilldownFilter)) {
             viewType = 'usage_logs';
         } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
             viewType = 'classes';
@@ -427,16 +449,22 @@ const FieldTeamPerformance = ({
                 filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'CPU' && String(m.installed || '').toUpperCase() === 'YES');
             } else if (drilldownFilter === 'mini_installed') {
                 filteredDevices = filteredDevices.filter(m => (String(m.device || '').toUpperCase() === 'MINI PC' || String(m.device || '').toUpperCase() === 'THIN CLIENT') && String(m.installed || '').toUpperCase() === 'YES');
+            } else if (drilldownFilter === 'panel_installed') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'INTERACTIVE FLAT PANEL' && String(m.installed || '').toUpperCase() === 'YES');
             } else if (drilldownFilter === 'edustat_not_installed') {
                 filteredDevices = filteredDevices.filter(m => String(m.installed || '').toUpperCase() === 'NO');
             } else if (drilldownFilter === 'cpu_used') {
                 filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'CPU' && String(m.installed || '').toUpperCase() === 'YES' && activeSerials.has(String(m.serial || '').trim()));
             } else if (drilldownFilter === 'mini_used') {
                 filteredDevices = filteredDevices.filter(m => (String(m.device || '').toUpperCase() === 'MINI PC' || String(m.device || '').toUpperCase() === 'THIN CLIENT') && String(m.installed || '').toUpperCase() === 'YES' && activeSerials.has(String(m.serial || '').trim()));
+            } else if (drilldownFilter === 'panel_used') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'INTERACTIVE FLAT PANEL' && String(m.installed || '').toUpperCase() === 'YES' && activeSerials.has(String(m.serial || '').trim()));
             } else if (drilldownFilter === 'cpu_not_used') {
                 filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'CPU' && String(m.installed || '').toUpperCase() === 'YES' && !activeSerials.has(String(m.serial || '').trim()));
             } else if (drilldownFilter === 'mini_not_used') {
                 filteredDevices = filteredDevices.filter(m => (String(m.device || '').toUpperCase() === 'MINI PC' || String(m.device || '').toUpperCase() === 'THIN CLIENT') && String(m.installed || '').toUpperCase() === 'YES' && !activeSerials.has(String(m.serial || '').trim()));
+            } else if (drilldownFilter === 'panel_not_used') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'INTERACTIVE FLAT PANEL' && String(m.installed || '').toUpperCase() === 'YES' && !activeSerials.has(String(m.serial || '').trim()));
             }
 
             return filteredDevices.map((m, idx) => {
@@ -529,6 +557,8 @@ const FieldTeamPerformance = ({
                 logRows = logRows.filter(l => l.deviceType === 'CPU');
             } else if (drilldownFilter === 'mini_hours_logs') {
                 logRows = logRows.filter(l => l.deviceType === 'MINI PC' || l.deviceType === 'THIN CLIENT');
+            } else if (drilldownFilter === 'panel_hours_logs') {
+                logRows = logRows.filter(l => l.deviceType === 'INTERACTIVE FLAT PANEL');
             }
 
             // Sort by raw date descending
@@ -662,6 +692,7 @@ const FieldTeamPerformance = ({
             // 2. Edustat master device info
             let cpuInstalled = 0;
             let miniInstalled = 0;
+            let panelInstalledSch = 0;
             let edustatNotInstalled = 0;
 
             (edustatMaster || []).forEach(m => {
@@ -671,6 +702,7 @@ const FieldTeamPerformance = ({
                     if (installed === 'YES') {
                         if (device === 'CPU') cpuInstalled++;
                         else if (device === 'MINI PC' || device === 'THIN CLIENT') miniInstalled++;
+                        else if (device === 'INTERACTIVE FLAT PANEL') panelInstalledSch++;
                     } else if (installed === 'NO') {
                         edustatNotInstalled++;
                     }
@@ -700,6 +732,7 @@ const FieldTeamPerformance = ({
             // 4. Edustat Hours count
             let totalCpuHours = 0;
             let totalMiniPcHours = 0;
+            let totalPanelHoursSch = 0;
             
             const serialMap = {};
             (edustatMaster || []).forEach(m => {
@@ -718,8 +751,10 @@ const FieldTeamPerformance = ({
 
                 if (devType === 'CPU') {
                     totalCpuHours += hours;
-                } else {
+                } else if (devType === 'MINI PC' || devType === 'THIN CLIENT') {
                     totalMiniPcHours += hours;
+                } else if (devType === 'INTERACTIVE FLAT PANEL') {
+                    totalPanelHoursSch += hours;
                 }
             });
 
@@ -752,6 +787,8 @@ const FieldTeamPerformance = ({
                 totalCpuHours: parseFloat(totalCpuHours.toFixed(2)),
                 miniInstalled,
                 totalMiniPcHours: parseFloat(totalMiniPcHours.toFixed(2)),
+                panelInstalled: panelInstalledSch,
+                totalPanelHours: parseFloat(totalPanelHoursSch.toFixed(2)),
                 edustatNotInstalled,
                 ictClasses,
                 smartClasses,
@@ -774,13 +811,13 @@ const FieldTeamPerformance = ({
 
     const drilldownViewType = useMemo(() => {
         if ([
-            'cpu_installed', 'mini_installed', 'edustat_not_installed',
-            'cpu_used', 'mini_used', 'cpu_not_used', 'mini_not_used'
+            'cpu_installed', 'mini_installed', 'panel_installed', 'edustat_not_installed',
+            'cpu_used', 'mini_used', 'panel_used', 'cpu_not_used', 'mini_not_used', 'panel_not_used'
         ].includes(drilldownFilter)) {
             return 'devices';
         } else if (drilldownFilter === 'working_instructors') {
             return 'instructors';
-        } else if (['cpu_hours_logs', 'mini_hours_logs'].includes(drilldownFilter)) {
+        } else if (['cpu_hours_logs', 'mini_hours_logs', 'panel_hours_logs'].includes(drilldownFilter)) {
             return 'usage_logs';
         } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
             return 'classes';
@@ -801,7 +838,7 @@ const FieldTeamPerformance = ({
                 'School Name': d.schoolName,
                 'Block': d.block,
                 'Serial No of Device': d.serial,
-                'Device (CPU, Mini PC, Thin Client)': d.deviceType,
+                'Device (CPU, Mini PC/Thin Client, Panel)': d.deviceType,
                 'Status': d.status
             }));
         } else if (drilldownViewType === 'instructors') {
@@ -821,7 +858,7 @@ const FieldTeamPerformance = ({
                 'School Name': d.schoolName,
                 'Block': d.block,
                 'Serial No of Device': d.serial,
-                'Device (CPU, Mini PC, Thin Client)': d.deviceType,
+                'Device (CPU, Mini PC, Thin Client, Panel)': d.deviceType,
                 'Hours Used': d.hours
             }));
         } else if (drilldownViewType === 'classes') {
@@ -856,8 +893,10 @@ const FieldTeamPerformance = ({
                 'Instructor Status': d.instructorStatus,
                 'CPU Installed': d.cpuInstalled,
                 'CPU Run Hours': d.totalCpuHours,
-                'Mini PC Installed': d.miniInstalled,
-                'Mini PC Run Hours': d.totalMiniPcHours,
+                'Mini PC/Thin Client Installed': d.miniInstalled,
+                'Mini PC/Thin Client Run Hours': d.totalMiniPcHours,
+                'Panel (IFP) Installed': d.panelInstalled,
+                'Panel (IFP) Run Hours': d.totalPanelHours,
                 'Devices Not Installed': d.edustatNotInstalled,
                 'JHPMS ICT Classes': d.ictClasses,
                 'JHPMS Smart Classes': d.smartClasses,
@@ -884,10 +923,15 @@ const FieldTeamPerformance = ({
             'No.Of Mini PC / Thin Client Installed': d.miniPcInstalled,
             'No. Of Mini PC / Thin Client Used': d.miniPcUsed,
             'No. Of Mini PC / Thin Client Not Used': d.miniPcNotUsed,
+            'No.Of Panel (IFP) Installed': d.panelInstalled,
+            'No. Of Panel (IFP) Used': d.panelUsed,
+            'No. Of Panel (IFP) Not Used': d.panelNotUsed,
             'Total Hours Used (CPU)': d.totalCpuHours,
             'Total Hours Used (Mini PC / Thin Client)': d.totalMiniPcHours,
+            'Total Hours Used (Panel / IFP)': d.totalPanelHours,
             'Average Hours/ Day/ Schools/ CPU': d.avgCpu,
             'Average Hours/ Day/ Schools/ Mini PC / Thin Client': d.avgMini,
+            'Average Hours/ Day/ Schools/ Panel (IFP)': d.avgPanel,
             'ICT Classes': d.ictClasses,
             'Avg Classes/per school/Day': d.avgClasses,
             'Smart Classes': d.smartClasses,
@@ -1028,8 +1072,12 @@ const FieldTeamPerformance = ({
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 min-w-[110px]">No.Of Mini PC / Thin Client Installed</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 min-w-[100px]">No. Of Mini PC / Thin Client Used</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 text-red-200 min-w-[110px]">No. Of Mini PC / Thin Client Not Used</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-indigo-900/40 min-w-[100px]">No.Of Panel (IFP) Installed</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-indigo-900/40 min-w-[90px]">No. Of Panel (IFP) Used</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-indigo-900/40 text-red-200 min-w-[100px]">No. Of Panel (IFP) Not Used</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (CPU)</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[110px]">Total Hours Used (Mini PC / Thin Client)</th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (Panel / IFP)</th>
                             <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]">
                                 <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
                                     <span>Avg Hrs/Day/Sch/CPU</span>
@@ -1064,6 +1112,25 @@ const FieldTeamPerformance = ({
                                         </p>
                                         <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[9px] text-gray-400">
                                             <strong>Example:</strong> 10 Mini PC / Thin Clients used for 300 hours total over 30 working days = 1.00 hr/working day/school.
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
+                            <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]">
+                                <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
+                                    <span>Avg Hrs/Day/Sch/Panel (IFP)</span>
+                                    <span className="text-emerald-300">ⓘ</span>
+                                    <div className="custom-tooltip-box text-white font-normal">
+                                        <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for Panel (IFP)</strong>
+                                        <div className="border-t border-white/10 pt-1.5 mt-1">
+                                            <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
+                                            <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Panel Hours / (Working Days × Panels Installed)</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-300 mt-1.5">
+                                            Shows the average daily usage hours for each Interactive Flat Panel (IFP) within the selected period.
+                                        </p>
+                                        <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[9px] text-gray-400">
+                                            <strong>Example:</strong> 5 Panels used for 150 hours total over 30 working days = 1.00 hr/working day/school.
                                         </div>
                                     </div>
                                 </div>
@@ -1232,6 +1299,28 @@ const FieldTeamPerformance = ({
                                 </td>
                                 
                                 <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('panel_installed'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-indigo-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view schools with Panel (IFP) installed (Total: ${row.panelInstalled})`}
+                                >
+                                    {row.panelInstalled}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('panel_used'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-indigo-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view schools with active Panel (IFP) usage (Total used: ${row.panelUsed})`}
+                                >
+                                    {row.panelUsed}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('panel_not_used'); }}
+                                    className={`p-3 border-r border-gray-100 text-center bg-indigo-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all ${row.panelNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}
+                                    title={`Click to view the ${row.panelNotUsed} schools where Panel (IFP) was Not Used`}
+                                >
+                                    {row.panelNotUsed}
+                                </td>
+                                
+                                <td 
                                     onClick={() => { setActiveCCDetail(row); setDrilldownFilter('cpu_hours_logs'); }}
                                     className="p-3 border-r border-gray-100 text-center bg-orange-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
                                     title={`Click to view CPU daily logs list (Total: ${row.totalCpuHours} hrs)`}
@@ -1244,6 +1333,13 @@ const FieldTeamPerformance = ({
                                     title={`Click to view Mini PC / Thin Client daily logs list (Total: ${row.totalMiniPcHours} hrs)`}
                                 >
                                     {row.totalMiniPcHours}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('panel_hours_logs'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-orange-50/30 font-bold text-teal-700 hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view Panel (IFP) daily logs list (Total: ${row.totalPanelHours} hrs)`}
+                                >
+                                    {row.totalPanelHours}
                                 </td>
                                 
                                 <td 
@@ -1259,6 +1355,13 @@ const FieldTeamPerformance = ({
                                     title={`Click to view Mini PC daily logs details (Avg: ${row.avgMini})`}
                                 >
                                     {row.avgMini}
+                                </td>
+                                <td 
+                                    onClick={() => { setActiveCCDetail(row); setDrilldownFilter('panel_hours_logs'); }}
+                                    className="p-3 border-r border-gray-100 text-center bg-emerald-50/30 text-emerald-700 font-bold hover:bg-teal-100/50 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 transition-all"
+                                    title={`Click to view Panel (IFP) daily logs details (Avg: ${row.avgPanel})`}
+                                >
+                                    {row.avgPanel}
                                 </td>
                                 
                                 <td 
