@@ -89,8 +89,12 @@ const PortalCard = ({ title, icon: IconComponent, items, onDrillDown }) => {
                     key={idx} 
                     className="py-1 px-1 text-[10px] font-extrabold text-teal-800/90 dark:text-teal-300/80 uppercase tracking-wide border-r border-[#7bbcb8] dark:border-teal-800 last:border-r-0 text-center"
                     style={{ width: `${100 / items.length}%` }}
+                    title={item.formula}
                   >
-                    {item.label}
+                    <div className="flex items-center justify-center gap-0.5 cursor-help">
+                      <span>{item.label}</span>
+                      {item.formula && <span className="text-[9px] opacity-75">ⓘ</span>}
+                    </div>
                   </th>
                 ))}
               </tr>
@@ -121,9 +125,9 @@ const PortalCard = ({ title, icon: IconComponent, items, onDrillDown }) => {
 
 const TargetCard = ({ target, achieved, gap, onDrillDown, schools }) => {
   const items = [
-    { label: 'Target', value: target, drillData: schools },
-    { label: 'Achieved', value: achieved, drillData: schools.filter(s => s.uniqueVisits > 0) },
-    { label: 'Gap', value: gap, drillData: schools.filter(s => s.uniqueVisits < s.targetVisits) }
+    { label: 'Target', value: target, drillData: schools, formula: "Sum of targets: (monthly_target * duration_months) for all filtered schools." },
+    { label: 'Achieved', value: achieved, drillData: schools.filter(s => s.uniqueVisits > 0), formula: "Number of schools visited at least once during the selected period." },
+    { label: 'Gap', value: gap, drillData: schools.filter(s => s.uniqueVisits < s.targetVisits), formula: "Remaining visits required to meet target: (Target - Achieved)." }
   ];
   
   return (
@@ -144,8 +148,12 @@ const TargetCard = ({ target, achieved, gap, onDrillDown, schools }) => {
                     key={idx} 
                     className="py-1 px-1 text-[10px] font-extrabold text-teal-800/90 dark:text-teal-300/80 uppercase tracking-wide border-r border-[#7bbcb8] dark:border-teal-800 last:border-r-0 text-center"
                     style={{ width: '33.33%' }}
+                    title={item.formula}
                   >
-                    {item.label}
+                    <div className="flex items-center justify-center gap-0.5 cursor-help">
+                      <span>{item.label}</span>
+                      {item.formula && <span className="text-[9px] opacity-75">ⓘ</span>}
+                    </div>
                   </th>
                 ))}
               </tr>
@@ -960,9 +968,9 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
           icon={Icons.SchoolSolid}
           onDrillDown={onDrillDown}
           items={[
-            { label: "Assigned School", value: schools.length, drillData: schools },
-            { label: "Touched (≥ 1 Visit)", value: schools.length - statusBuckets.Critical.length, color: "text-green-600", drillData: schools.filter(s => s.uniqueVisits > 0) },
-            { label: "Target Incomplete", value: pendingSchoolsCount, color: "text-red-600", drillData: schools.filter(s => s.uniqueVisits < s.targetVisits) }
+            { label: "Assigned School", value: schools.length, drillData: schools, formula: "Total count of unique schools assigned to CC/DEFs matching current filters." },
+            { label: "Touched (≥ 1 Visit)", value: schools.length - statusBuckets.Critical.length, color: "text-green-600", drillData: schools.filter(s => s.uniqueVisits > 0), formula: "Count of schools that received at least one coordinator visit in this period." },
+            { label: "Target Incomplete", value: pendingSchoolsCount, color: "text-red-600", drillData: schools.filter(s => s.uniqueVisits < s.targetVisits), formula: "Count of schools where completed visits are less than monthly target." }
           ]}
         />
         <PortalCard
@@ -970,9 +978,9 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
           icon={Icons.Visit}
           onDrillDown={onDrillDown}
           items={[
-            { label: "Smart", value: visitTypes.Smart.length, color: "text-teal-600", drillData: visitTypes.Smart },
-            { label: "ICT Lab", value: visitTypes.ICT.length, color: "text-blue-600", drillData: visitTypes.ICT },
-            { label: "Total", value: totalRecords, drillData: visits }
+            { label: "Smart", value: visitTypes.Smart.length, color: "text-teal-600", drillData: visitTypes.Smart, formula: "Total completed visits with type set to 'Smart Class'." },
+            { label: "ICT Lab", value: visitTypes.ICT.length, color: "text-blue-600", drillData: visitTypes.ICT, formula: "Total completed visits with type set to 'ICT Lab'." },
+            { label: "Total", value: totalRecords, drillData: visits, formula: "Sum of all unique visits (de-duplicated per school per day)." }
           ]}
         />
         <TargetCard
@@ -987,9 +995,9 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
           icon={Icons.Teachers}
           onDrillDown={onDrillDown}
           items={[
-            { label: "ICT", value: classConductedGroups.ict.value, color: "text-teal-600", drillData: classConductedGroups.ict.drillData },
-            { label: "Smart", value: classConductedGroups.smart.value, color: "text-blue-600", drillData: classConductedGroups.smart.drillData },
-            { label: "MIS", value: classConductedGroups.mis.value, color: "text-amber-600", drillData: classConductedGroups.mis.drillData }
+            { label: "ICT", value: classConductedGroups.ict.value, color: "text-teal-600", drillData: classConductedGroups.ict.drillData, formula: "Sum of ICT classes conducted (Lab type = ICT, Subject = Computer)." },
+            { label: "Smart", value: classConductedGroups.smart.value, color: "text-blue-600", drillData: classConductedGroups.smart.drillData, formula: "Sum of Smart classes conducted (Lab type = Smart, Subject != Computer or MIS)." },
+            { label: "MIS", value: classConductedGroups.mis.value, color: "text-amber-600", drillData: classConductedGroups.mis.drillData, formula: "Sum of MIS classes conducted (Subject contains 'MIS')." }
           ]}
         />
       </div>

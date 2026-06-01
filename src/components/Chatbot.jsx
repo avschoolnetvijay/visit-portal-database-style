@@ -248,6 +248,7 @@ export default function Chatbot({
         return (
           <div className="space-y-2">
             <p>✅ **Great news!** Under your currently selected filters, there are **0 critical schools** with a health score below 30%.</p>
+            <p className="text-[10px] text-slate-400 italic">Formula: School Composite Health Score = (JHPMS Classes % * 30%) + (EduStat Hours % * 25%) + (Visit Coverage % * 25%) + (CC Manpower % * 20%)</p>
           </div>
         );
       }
@@ -279,6 +280,9 @@ export default function Chatbot({
           {critSchools.length > 15 && (
             <p className="text-[10px] text-slate-400 italic">*Showing top 15 critical schools. Filter down further by Block or CC/DEF in the sidebar to isolate specific sectors.</p>
           )}
+          <p className="text-[10px] text-slate-500 font-medium font-sans mt-1.5 border-t border-slate-100 dark:border-slate-800 pt-1.5 leading-normal">
+            *Formula: School Composite Health Score = (JHPMS Classes Score × 30%) + (EduStat Hours Score × 25%) + (Visit Coverage Score × 25%) + (CC Manpower Score × 20%). Weights are redistributed proportionally if a data feed is inactive.
+          </p>
         </div>
       );
     }
@@ -317,7 +321,10 @@ export default function Chatbot({
             <li>**Total Completed Visits:** {totalCompleted} visits</li>
             <li>**Estimated Targets:** {totalTarget} target visits</li>
           </ul>
-          <p className="text-[10px] text-slate-400 mt-2">*Tips: Ask "overall visits" to get the raw database counts without active sidebar filters.*</p>
+          <p className="text-[10px] text-slate-500 border-t border-slate-150/40 dark:border-slate-800/40 pt-1.5 mt-2">
+            *Formulas & Logic: Target Visits = sum of (monthly_target * duration_months) for all scoped schools. Visit Coverage % = (Visited Schools / Total Schools) * 100.
+          </p>
+          <p className="text-[10px] text-slate-400 mt-1">*Tips: Ask "overall visits" to get the raw database counts without active sidebar filters.*</p>
         </div>
       );
     }
@@ -341,6 +348,9 @@ export default function Chatbot({
           <p>The total recorded computer runtimes in the **{isGlobalScope ? 'Entire Uploaded Database' : 'Active Filtered Scope'}** is:</p>
           <p className="text-2xl font-black font-mono text-slate-800 dark:text-slate-100">{Math.round(sumHours).toLocaleString('en-IN')} <span className="text-sm font-semibold">Hours</span></p>
           <p className="text-xs text-slate-500">This represents active computer sync hours reported by the client mini-PCs and CPUs in JHPMS labs.</p>
+          <p className="text-[10px] text-slate-500 border-t border-slate-150/40 dark:border-slate-800/40 pt-1.5 mt-1.5">
+            *Formula: Sum of all device login hours recorded across active scoped schools during the period.*
+          </p>
         </div>
       );
     }
@@ -394,6 +404,9 @@ export default function Chatbot({
             </div>
           </div>
           <p className="text-xs font-semibold text-right text-slate-600 dark:text-slate-400">Total Sum: {totalCls} Classes</p>
+          <p className="text-[10px] text-slate-500 border-t border-slate-150/40 dark:border-slate-800/40 pt-1.5">
+            *Formulas & Logics: Calculated by summing JHPMS lab log 'no_of_classes'. ICT = Subject "Computer" in ICT Lab; Smart = Smart Class type with subjects other than Computer/MIS; MIS = Subject contains "MIS".*
+          </p>
         </div>
       );
     }
@@ -430,6 +443,9 @@ export default function Chatbot({
               {activeCCSet.size > 10 && <span className="text-[10px] text-slate-400 italic px-1">+{activeCCSet.size - 10} more</span>}
             </div>
           </div>
+          <p className="text-[10px] text-slate-500 border-t border-slate-150/40 dark:border-slate-800/40 pt-1.5 mt-2">
+            *Logic: CC/DEF is considered 'Active' if status in manpower roster is 'Active' or 'WORKING'. 'Vacant' covers 'Resign', 'Terminate', or 'Vacant'.*
+          </p>
         </div>
       );
     }
@@ -485,6 +501,9 @@ export default function Chatbot({
             <li>**Field Monitoring Visits:** {sumVisits} completed</li>
             <li>**Composite Block Score:** <strong className={avgScore >= 70 ? 'text-green-600' : avgScore >= 40 ? 'text-amber-500' : 'text-red-500'}>{avgScore}%</strong></li>
           </ul>
+          <p className="text-[10px] text-slate-500 border-t border-slate-150/40 dark:border-slate-800/40 pt-1.5">
+            *Logic: Block stats are direct sums of constituent schools. Block Score is the arithmetic average of constituent schools' health scores.*
+          </p>
         </div>
       );
     }
@@ -518,6 +537,9 @@ export default function Chatbot({
             <li>**Field Monitoring Visits:** {sumVisits} completed</li>
             <li>**Average Project Score:** <strong className={avgScore >= 70 ? 'text-green-600' : avgScore >= 40 ? 'text-amber-500' : 'text-red-500'}>{avgScore}%</strong></li>
           </ul>
+          <p className="text-[10px] text-slate-500 border-t border-slate-150/40 dark:border-slate-800/40 pt-1.5">
+            *Logic: Project stats are direct sums of constituent schools. Project Score is the arithmetic average of constituent schools' health scores.*
+          </p>
         </div>
       );
     }

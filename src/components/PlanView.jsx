@@ -77,6 +77,13 @@ const PlanView = ({ data }) => {
                     </button>
                 </div>
                 
+                {/* Calculation Formula Info Banner */}
+                <div className="bg-slate-50 dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 p-3 px-6 text-xs font-sans text-slate-500 flex items-center justify-between no-print shadow-sm">
+                    <div>
+                        ℹ️ <strong className="text-slate-700 dark:text-slate-350">Priority Score Formula:</strong> Priority Score = (1 - (Completed Visits / Target Visits)) * 100, plus a recency penalty (+15 pts if last visit &gt;45 days ago, +10 pts if &gt;30 days, or +5 pts if &gt;15 days). Capped at 99. Zero-visit schools are hardcoded to maximum priority (100).
+                    </div>
+                </div>
+                
                 <div className="overflow-auto flex-1 p-4">
                     <table className="w-full text-xs text-left portal-table rounded-xl overflow-hidden border border-gray-100">
                         <thead className="sticky top-0 z-10 shadow-sm">

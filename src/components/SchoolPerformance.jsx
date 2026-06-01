@@ -824,6 +824,23 @@ const SchoolPerformance = ({
                     </div>
                 </div>
             </div>
+            
+            {/* Calculation Formula Info Banner */}
+            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-2xl text-xs font-sans text-slate-500 flex items-center justify-between no-print shadow-sm">
+                <div>
+                    ℹ️ <strong className="text-slate-700 dark:text-slate-350">Calculation Formula:</strong> {
+                        performanceType === 'school' ? (
+                            dataSource === 'jhpms' ? 'School JHPMS Score = (Avg classes per day for School / Max School Avg classes per day) * 100.' :
+                            dataSource === 'edustat' ? 'School EduStat Score = (Avg hours per day for School / Max School Avg hours per day) * 100.' :
+                            'Combined Score = (JHPMS Score * 60%) + (EduStat Score * 40%).'
+                        ) : performanceType === 'ict_instructor' ? (
+                            'ICT Instructor Score = (Instructor total JHPMS ICT classes / Max Instructor JHPMS ICT classes) * 100.'
+                        ) : (
+                            'Subject Teacher Score = (Teacher total JHPMS Smart classes / Max Teacher JHPMS Smart classes) * 100.'
+                        )
+                    }
+                </div>
+            </div>
 
             {/* 2. Top 3 Badges */}
             {performanceData.results.length > 0 && (

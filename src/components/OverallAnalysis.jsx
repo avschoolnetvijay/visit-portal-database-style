@@ -1171,7 +1171,8 @@ const OverallAnalysis = ({
         rawPct: 100,
         icon: '🏫',
         isActive: true,
-        mom: null
+        mom: null,
+        formula: 'Total count of unique schools matching the active project, district, block, and CC/DEF filters.'
       },
       {
         label: 'Active CC/DEF',
@@ -1179,7 +1180,8 @@ const OverallAnalysis = ({
         rawPct: 100,
         icon: '👤',
         isActive: isManpowerActive,
-        mom: compareMode && prevKPIs ? getMoMChange(activeCCs, prevKPIs.activeCCs) : null
+        mom: compareMode && prevKPIs ? getMoMChange(activeCCs, prevKPIs.activeCCs) : null,
+        formula: 'Count of unique CC/DEF coordinators who are Active or Working in the manpower roster.'
       },
       {
         label: 'Avg Performance',
@@ -1187,7 +1189,8 @@ const OverallAnalysis = ({
         rawPct: avgScore,
         icon: '📊',
         isActive: isJhpmsActive || isEdustatActive || isVisitActive || isManpowerActive,
-        mom: compareMode && prevKPIs ? getMoMChange(avgScore, prevKPIs.avgScore) : null
+        mom: compareMode && prevKPIs ? getMoMChange(avgScore, prevKPIs.avgScore) : null,
+        formula: 'Weighted average score: 30% JHPMS Labs + 25% EduStat + 25% Visits + 20% CC Manpower.'
       },
       {
         label: 'Working Labs',
@@ -1213,7 +1216,8 @@ const OverallAnalysis = ({
             'Action Recommendation': s.recommendation
           }));
           onDrillDown('Non-Working Labs (0 Classes) - Working Labs KPI', data);
-        } : null
+        } : null,
+        formula: 'Percentage of schools conducting at least 1 JHPMS academic class during this period.'
       },
       {
         label: 'Schools Actually Visited',
@@ -1240,7 +1244,8 @@ const OverallAnalysis = ({
             'Action Recommendation': s.recommendation
           }));
           onDrillDown('Visited Schools (Target Met) - Actually Visited KPI', data);
-        } : null
+        } : null,
+        formula: 'Percentage of schools where completed visits meet or exceed target visits (target = monthly_target * duration).'
       },
       {
         label: 'Total Computer Usage Hours',
@@ -1248,7 +1253,8 @@ const OverallAnalysis = ({
         rawPct: isEdustatActive ? clamp((deviceHours / (total * validWdays * 6)) * 100) : 0,
         icon: '⏱️',
         isActive: isEdustatActive,
-        mom: compareMode && prevKPIs ? getMoMChange(deviceHours, prevKPIs.deviceHours) : null
+        mom: compareMode && prevKPIs ? getMoMChange(deviceHours, prevKPIs.deviceHours) : null,
+        formula: 'Cumulative daily computer usage hours recorded by school systems in the EduStat database.'
       },
       {
         label: 'Schools Needing Urgent Help',
@@ -1275,7 +1281,8 @@ const OverallAnalysis = ({
             'Action Recommendation': s.recommendation
           }));
           onDrillDown('Schools Needing Urgent Help (Score < 30%) - Urgent Help KPI', data);
-        } : null
+        } : null,
+        formula: 'Number of schools where the composite health score evaluates to less than 30%.'
       }
     ];
   }, [finalEnriched, currentKPIs, prevKPIs, compareMode, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, validWdays, healthData, onDrillDown]);
@@ -2664,7 +2671,10 @@ const OverallAnalysis = ({
                 </div>
                 <div className="mt-2.5">
                   <div className="text-xl font-black font-mono leading-none">{kpi.value}</div>
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">{kpi.label}</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1 flex items-center gap-1 cursor-help" title={kpi.formula}>
+                    <span>{kpi.label}</span>
+                    {kpi.formula && <span className="text-[9px] opacity-65">ⓘ</span>}
+                  </div>
                 </div>
                 {kpi.isActive && (
                   <div className="mt-2.5 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
@@ -2775,8 +2785,8 @@ const OverallAnalysis = ({
               <MiniBar label="Visit Coverage" value={healthData.visitGlobal} weight={weights.visit} color="#7c3aed" isReporting={isVisitActive} />
               <MiniBar label="CC Manpower" value={healthData.manpowerGlobal} weight={weights.manpower} color="#d97706" isReporting={isManpowerActive} />
             </div>
-            <p className="text-[9px] text-slate-400 mt-3 italic text-center leading-normal font-sans">
-              *Composite is computed using dynamically redistributed active weights to match exactly 100% logic.
+            <p className="text-[9px] text-slate-400 mt-3 italic text-center leading-normal font-sans" title="Composite Formula = (JHPMS Labs Score * 30%) + (EduStat Hours Score * 25%) + (Visit Coverage Score * 25%) + (CC Manpower Score * 20%)">
+              *Composite Health Score = (JHPMS Labs Score × 30%) + (EduStat Hours Score × 25%) + (Visit Coverage Score × 25%) + (CC Manpower Score × 20%). Weights are redistributed proportionally if a database stream is inactive. ⓘ
             </p>
           </div>
         )}
