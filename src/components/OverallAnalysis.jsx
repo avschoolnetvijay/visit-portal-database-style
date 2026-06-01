@@ -3234,7 +3234,6 @@ const OverallAnalysis = ({
                         <Tooltip content={<CustomTooltip />} />
                         <Bar 
                           dataKey="count" 
-                          fill="#8b5cf6" 
                           radius={[4, 4, 0, 0]}
                           style={{ cursor: 'pointer' }}
                           onClick={(data) => {
@@ -3262,6 +3261,10 @@ const OverallAnalysis = ({
                             }
                           }}
                         >
+                          {visitAgingGroups.map((entry, index) => {
+                            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#e11d48'];
+                            return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                          })}
                           <LabelList 
                             dataKey="count" 
                             position="top" 
@@ -3274,10 +3277,10 @@ const OverallAnalysis = ({
                 </div>
 
                 <div className="portal-card p-3 bg-white dark:bg-slate-900 lg:col-span-2">
-                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Planned vs Completed Visits</h4>
+                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Target vs Completed Visits</h4>
                   {isVisitActive ? (
                     (() => {
-                      const plannedVsCompletedData = treemapData.map(t => {
+                      const targetVsCompletedData = treemapData.map(t => {
                         const blockName = t.name;
                         const blockSchools = finalEnriched.filter(s => s.block === blockName);
                         
@@ -3298,7 +3301,7 @@ const OverallAnalysis = ({
                         
                         return {
                           name: blockName,
-                          Planned: Math.max(1, t.size * 2),
+                          Target: Math.max(1, t.size * 2),
                           Completed: totalCompleted
                         };
                       });
@@ -3330,20 +3333,20 @@ const OverallAnalysis = ({
                               'lastVisitDate': s.lastVisitDate
                             };
                           });
-                          onDrillDown(`${blockName} - Planned vs Completed Visits Detail`, drillDownData);
+                          onDrillDown(`${blockName} - Target vs Completed Visits Detail`, drillDownData);
                         }
                       };
 
                       return (
-                        <div className="h-44 relative" id="planned-vs-completed-chart-container">
+                        <div className="h-44 relative" id="target-vs-completed-chart-container">
                           <ChartToolbar
-                            chartId="planned-vs-completed-chart-container"
-                            csvData={plannedVsCompletedData}
-                            filename="planned_vs_completed_visits"
+                            chartId="target-vs-completed-chart-container"
+                            csvData={targetVsCompletedData}
+                            filename="target_vs_completed_visits"
                           />
                           <ResponsiveContainer width="100%" height="100%">
                              <BarChart
-                              data={plannedVsCompletedData}
+                              data={targetVsCompletedData}
                               margin={{ top: 20, right: 10, left: -20, bottom: 5 }}
                             >
                               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -3352,21 +3355,21 @@ const OverallAnalysis = ({
                               <Tooltip content={<CustomTooltip />} />
                               <Legend wrapperStyle={{ fontSize: 9 }} />
                               <Bar 
-                                dataKey="Planned" 
-                                fill="#cbd5e1" 
+                                dataKey="Target" 
+                                fill="#FFA825" 
                                 radius={[4, 4, 0, 0]}
                                 style={{ cursor: 'pointer' }}
                                 onClick={handleBarClick}
                               >
                                 <LabelList 
-                                  dataKey="Planned" 
+                                  dataKey="Target" 
                                   position="top" 
                                   style={{ fontSize: 9, fontWeight: 'bold', fill: darkMode ? '#cbd5e1' : '#1e293b' }} 
                                 />
                               </Bar>
                               <Bar 
                                 dataKey="Completed" 
-                                fill="#7c3aed" 
+                                fill="#05CD99" 
                                 radius={[4, 4, 0, 0]}
                                 style={{ cursor: 'pointer' }}
                                 onClick={handleBarClick}
