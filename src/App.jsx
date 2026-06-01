@@ -16,6 +16,7 @@ import SchoolPerformance from './components/SchoolPerformance';
 import ProfileCreation from './components/ProfileCreation';
 import OverallAnalysis from './components/OverallAnalysis';
 import Helpdesk from './components/Helpdesk';
+import Chatbot from './components/Chatbot';
 import MultiSelect from './components/MultiSelect';
 import signatureLogo from './vijay_ray_signature.png';
 import {
@@ -1366,6 +1367,27 @@ const App = () => {
             />
         );
 
+        if (activeTab === 'chatbot') {
+            return (
+                <Chatbot
+                    schools={schools}
+                    visits={visits}
+                    jhpmsLab={jhpmsLab}
+                    edustat={edustat}
+                    manpower={manpower}
+                    startDate={startDate}
+                    endDate={endDate}
+                    selProjects={selProjects}
+                    selDistricts={selDistricts}
+                    selBlocks={selBlocks}
+                    selCCs={selCCs}
+                    ccNameMapping={ccNameMapping}
+                    workingDays={workingDays}
+                    darkMode={darkMode}
+                />
+            );
+        }
+
         if (activeTab === 'helpdesk') {
             return (
                 <Helpdesk
@@ -1792,6 +1814,21 @@ const App = () => {
                                 </div>
                             );
                         })}
+
+                        {/* AI Analytics Copilot Chatbot */}
+                        <button
+                            onClick={() => setActiveTab('chatbot')}
+                            className={`w-full flex items-center justify-between py-2 px-3 rounded-none text-[14.5px] font-bold text-white hover:bg-white/5 transition duration-150 font-sans ${
+                                activeTab === 'chatbot' ? 'bg-black/15 text-white font-extrabold border-l-4 border-white' : ''
+                            }`}
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <span className="p-0.5 rounded text-white shrink-0">
+                                    <Icons.Robot className="w-5 h-5" />
+                                </span>
+                                <span>AI Copilot Chatbot</span>
+                            </div>
+                        </button>
 
                         {/* Helpdesk Menu Item */}
                         <button
