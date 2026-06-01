@@ -542,6 +542,111 @@ const OverallAnalysis = ({
     return list;
   }, [edustat, parsedStartDate, parsedEndDate]);
 
+  const edustatTrendData = useMemo(() => {
+    if (!isEdustatActive || !currentEdustat || currentEdustat.length === 0) {
+      return [];
+    }
+
+    const start = parsedStartDate || new Date('2025-06-01');
+    const end = parsedEndDate || new Date();
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    const getRowHours = (r) => {
+      return r.hours !== undefined ? Number(r.hours) : parseHours(r['total used hours'] || getVal(r, 'hours') || 0);
+    };
+
+    // Daily view
+    if (diffDays <= 40) {
+      const dailyMap = {};
+      currentEdustat.forEach(row => {
+        const d = parseDateRobust(row.date);
+        if (!d) return;
+        const dateStr = d.toISOString().split('T')[0];
+        dailyMap[dateStr] = (dailyMap[dateStr] || 0) + getRowHours(row);
+      });
+
+      const sortedDates = Object.keys(dailyMap).sort();
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return sortedDates.map(dStr => {
+        const d = new Date(dStr);
+        const day = d.getDate();
+        const mon = months[d.getMonth()];
+        return {
+          name: `${day} ${mon}`,
+          hours: Math.round(dailyMap[dStr])
+        };
+      });
+    }
+
+    // Weekly view
+    if (diffDays <= 180) {
+      const weeklyBuckets = [];
+      let tempStart = new Date(start);
+      while (tempStart <= end) {
+        const tempEnd = new Date(tempStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+        const limitEnd = tempEnd > end ? new Date(end) : tempEnd;
+        weeklyBuckets.push({
+          start: new Date(tempStart),
+          end: limitEnd,
+          hours: 0
+        });
+        tempStart = new Date(tempEnd.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      currentEdustat.forEach(row => {
+        const d = parseDateRobust(row.date);
+        if (!d) return;
+        const time = d.getTime();
+        for (let bucket of weeklyBuckets) {
+          if (time >= bucket.start.getTime() && time <= bucket.end.getTime()) {
+            bucket.hours += getRowHours(row);
+            break;
+          }
+        }
+      });
+
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return weeklyBuckets.map((bucket, idx) => {
+        const fs = `${bucket.start.getDate()} ${months[bucket.start.getMonth()]}`;
+        const fe = `${bucket.end.getDate()} ${months[bucket.end.getMonth()]}`;
+        return {
+          name: `Wk ${idx + 1} (${fs}-${fe})`,
+          hours: Math.round(bucket.hours)
+        };
+      });
+    }
+
+    // Monthly view
+    const monthlyMap = {};
+    currentEdustat.forEach(row => {
+      const d = parseDateRobust(row.date);
+      if (!d) return;
+      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthlyMap[monthStr] = (monthlyMap[monthStr] || 0) + getRowHours(row);
+    });
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const sortedMonths = Object.keys(monthlyMap).sort();
+    return sortedMonths.map(mStr => {
+      const [yr, mo] = mStr.split('-');
+      const monName = months[parseInt(mo) - 1];
+      return {
+        name: `${monName} ${yr.substring(2)}`,
+        hours: Math.round(monthlyMap[mStr])
+      };
+    });
+  }, [isEdustatActive, currentEdustat, parsedStartDate, parsedEndDate]);
+
+  const edustatTrendLabel = useMemo(() => {
+    const start = parsedStartDate || new Date('2025-06-01');
+    const end = parsedEndDate || new Date();
+    const diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 40) return 'Daily';
+    if (diffDays <= 180) return 'Weekly';
+    return 'Monthly';
+  }, [parsedStartDate, parsedEndDate]);
+
   // Mock / Filtered EduStat map for previous period to enable realistic comparisons
   const prevEdustat = useMemo(() => {
     let list = edustat || [];
@@ -3196,28 +3301,18 @@ const OverallAnalysis = ({
                 </div>
 
                 <div className="portal-card p-3 bg-white dark:bg-slate-900 lg:col-span-2">
-                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Weekly PC Utilization Trend (Hours)</h4>
-                  {isEdustatActive ? (
+                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">{edustatTrendLabel} PC Utilization Trend (Hours)</h4>
+                  {isEdustatActive && edustatTrendData.length > 0 ? (
                     <div className="h-44 relative" id="edustat-weekly-trend-container">
                       <ChartToolbar
                         chartId="edustat-weekly-trend-container"
-                        csvData={[
-                          { Week: 'Wk 1', Hours: Math.round(currentKPIs.deviceHours * 0.22) },
-                          { Week: 'Wk 2', Hours: Math.round(currentKPIs.deviceHours * 0.25) },
-                          { Week: 'Wk 3', Hours: Math.round(currentKPIs.deviceHours * 0.28) },
-                          { Week: 'Wk 4', Hours: Math.round(currentKPIs.deviceHours * 0.25) }
-                        ]}
-                        filename="edustat_weekly_utilization"
+                        csvData={edustatTrendData.map(item => ({ Period: item.name, Hours: item.hours }))}
+                        filename="edustat_pc_utilization_trend"
                       />
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
-                          data={[
-                            { name: 'Wk 1', hours: currentKPIs.deviceHours * 0.22 },
-                            { name: 'Wk 2', hours: currentKPIs.deviceHours * 0.25 },
-                            { name: 'Wk 3', hours: currentKPIs.deviceHours * 0.28 },
-                            { name: 'Wk 4', hours: currentKPIs.deviceHours * 0.25 }
-                          ]}
-                          margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+                          data={edustatTrendData}
+                          margin={{ top: 15, right: 10, left: -20, bottom: 5 }}
                         >
                           <defs>
                             <linearGradient id="weeklyUtilGrad" x1="0" y1="0" x2="0" y2="1">
@@ -3236,7 +3331,7 @@ const OverallAnalysis = ({
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <p className="text-slate-400 italic text-xs py-10 text-center">No EduStat utilization data available.</p>
+                    <p className="text-slate-400 italic text-xs py-10 text-center">No EduStat utilization data available for the selected range.</p>
                   )}
                 </div>
               </div>
