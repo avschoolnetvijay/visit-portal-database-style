@@ -3312,7 +3312,7 @@ const OverallAnalysis = ({
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           data={edustatTrendData}
-                          margin={{ top: 15, right: 10, left: -20, bottom: 5 }}
+                          margin={{ top: 15, right: 10, left: -20, bottom: 40 }}
                         >
                           <defs>
                             <linearGradient id="weeklyUtilGrad" x1="0" y1="0" x2="0" y2="1">
@@ -3321,7 +3321,11 @@ const OverallAnalysis = ({
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                          <XAxis 
+                            dataKey="name" 
+                            tick={{ fontSize: 8, angle: -35, textAnchor: 'end' }} 
+                            interval={0} 
+                          />
                           <YAxis tick={{ fontSize: 9 }} />
                           <Tooltip content={<CustomTooltip />} />
                           <Bar dataKey="hours" name="Usage Hours" fill="url(#weeklyUtilGrad)" radius={[6, 6, 0, 0]} barSize={40}>
