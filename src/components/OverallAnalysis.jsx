@@ -1679,6 +1679,406 @@ const OverallAnalysis = ({
     ],
   }), [monthlyClassStatusData, darkMode, startDate, endDate]);
 
+  // --- PROJECT-WISE PERFORMANCE METRICS FOR CHARTS ---
+  const projectStatsData = useMemo(() => {
+    const stats = {};
+    
+    fSchools.forEach(s => {
+      const p = s.project_name || 'Unassigned';
+      if (!stats[p]) {
+        stats[p] = { 
+          projectName: p,
+          ictClasses: 0, 
+          smartClasses: 0, 
+          eduHours: 0,
+          ictVisits: 0,
+          smartVisits: 0,
+          schools: []
+        };
+      }
+    });
+
+    finalEnriched.forEach(s => {
+      const p = s.project || 'Unassigned';
+      if (!stats[p]) {
+        stats[p] = { 
+          projectName: p,
+          ictClasses: 0, 
+          smartClasses: 0, 
+          eduHours: 0,
+          ictVisits: 0,
+          smartVisits: 0,
+          schools: []
+        };
+      }
+      stats[p].ictClasses += s.ictClasses || 0;
+      stats[p].smartClasses += s.smartClasses || 0;
+      stats[p].eduHours += s.eduHours || 0;
+      stats[p].schools.push(s);
+    });
+
+    const schoolProjectMap = {};
+    fSchools.forEach(s => {
+      schoolProjectMap[cleanUdise(s.udise_code)] = s.project_name || 'Unassigned';
+    });
+
+    currentVisits.forEach(v => {
+      const udise = cleanUdise(v.udise_code);
+      const p = schoolProjectMap[udise];
+      if (p && stats[p]) {
+        const type = (v.visit_type || '').toLowerCase();
+        if (type.includes('smart')) {
+          stats[p].smartVisits++;
+        } else if (type.includes('ict') || type.includes('lab')) {
+          stats[p].ictVisits++;
+        }
+      }
+    });
+
+    return Object.values(stats);
+  }, [finalEnriched, fSchools, currentVisits]);
+
+  const labUsesSeries = useMemo(() => {
+    return [
+      { name: 'ICT Classes', data: projectStatsData.map(d => d.ictClasses) },
+      { name: 'Smart Classes', data: projectStatsData.map(d => d.smartClasses) }
+    ];
+  }, [projectStatsData]);
+
+  const labUsesOptions = useMemo(() => ({
+    chart: {
+      type: 'bar',
+      height: 220,
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          zoom: false,
+          pan: false,
+          reset: false,
+          selection: false,
+          zoomin: false,
+          zoomout: false,
+        }
+      },
+      events: {
+        dataPointSelection: (event, chartContext, config) => {
+          if (config && config.dataPointIndex !== undefined && onDrillDown) {
+            const projectName = config.w.config.xaxis.categories[config.dataPointIndex];
+            const matchingSchools = finalEnriched.filter(s => s.project === projectName);
+            const formattedData = matchingSchools.map((s, idx) => ({
+              'Sl No': idx + 1,
+              'School Name': s.schoolName,
+              'UDISE Code': s.udise,
+              'District': s.district,
+              'Block': s.block,
+              'CC / DEF Name': s.visitorName,
+              'Field Visits': s.fieldVisits,
+              'Last Visit Date': formatDate(s.lastVisitDate) === '-' ? 'No Visits' : formatDate(s.lastVisitDate),
+              'JHPMS Classes': s.jhpmsClasses,
+              'EduStat Hours': Math.round(s.eduHours),
+              'Composite Score %': `${Math.round(s.compositeScore)}%`,
+              'Action Recommendation': s.recommendation
+            }));
+            onDrillDown(`Project: ${projectName} - Lab Classes Details`, formattedData);
+          }
+        }
+      },
+      fontFamily: 'inherit',
+      background: 'transparent',
+    },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: '55%',
+        endingShape: 'rounded',
+        dataLabels: { position: 'top' }
+      },
+    },
+    dataLabels: {
+      enabled: true,
+      formatter: (val) => {
+        if (!val || val === 0) return '';
+        return val.toLocaleString('en-IN');
+      },
+      offsetY: -20,
+      style: {
+        fontSize: '9px',
+        colors: [darkMode ? '#e2e8f0' : '#475569']
+      }
+    },
+    stroke: {
+      show: true,
+      width: 2,
+      colors: ['transparent']
+    },
+    colors: ['#0f766e', '#3b82f6'],
+    xaxis: {
+      categories: projectStatsData.map(d => d.projectName),
+      labels: {
+        style: {
+          fontSize: '9px',
+          colors: darkMode ? '#94a3b8' : '#64748b'
+        }
+      }
+    },
+    yaxis: {
+      labels: {
+        style: {
+          fontSize: '9px',
+          colors: darkMode ? '#94a3b8' : '#64748b'
+        },
+        formatter: (val) => Math.round(val).toLocaleString('en-IN')
+      }
+    },
+    grid: {
+      borderColor: gridStroke,
+      strokeDashArray: 4,
+      padding: { left: 45, right: 10 }
+    },
+    tooltip: {
+      theme: darkMode ? 'dark' : 'light',
+      y: {
+        formatter: (val) => `${val.toLocaleString('en-IN')} Classes`
+      }
+    },
+    legend: {
+      position: 'top',
+      horizontalAlign: 'center',
+      fontSize: '11px',
+      labels: { colors: darkMode ? '#e2e8f0' : '#475569' }
+    }
+  }), [projectStatsData, finalEnriched, darkMode, gridStroke, onDrillDown]);
+
+  const eduHoursSeries = useMemo(() => {
+    return [
+      { name: 'Usage Hours', data: projectStatsData.map(d => d.eduHours) }
+    ];
+  }, [projectStatsData]);
+
+  const eduHoursOptions = useMemo(() => ({
+    chart: {
+      type: 'bar',
+      height: 220,
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          zoom: false,
+          pan: false,
+          reset: false,
+          selection: false,
+          zoomin: false,
+          zoomout: false,
+        }
+      },
+      events: {
+        dataPointSelection: (event, chartContext, config) => {
+          if (config && config.dataPointIndex !== undefined && onDrillDown) {
+            const projectName = config.w.config.xaxis.categories[config.dataPointIndex];
+            const matchingSchools = finalEnriched.filter(s => s.project === projectName);
+            const formattedData = matchingSchools.map((s, idx) => ({
+              'Sl No': idx + 1,
+              'School Name': s.schoolName,
+              'UDISE Code': s.udise,
+              'District': s.district,
+              'Block': s.block,
+              'CC / DEF Name': s.visitorName,
+              'Field Visits': s.fieldVisits,
+              'Last Visit Date': formatDate(s.lastVisitDate) === '-' ? 'No Visits' : formatDate(s.lastVisitDate),
+              'JHPMS Classes': s.jhpmsClasses,
+              'EduStat Hours': Math.round(s.eduHours),
+              'Composite Score %': `${Math.round(s.compositeScore)}%`,
+              'Action Recommendation': s.recommendation
+            }));
+            onDrillDown(`Project: ${projectName} - EduStat Usage Details`, formattedData);
+          }
+        }
+      },
+      fontFamily: 'inherit',
+      background: 'transparent',
+    },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: '45%',
+        endingShape: 'rounded',
+        dataLabels: { position: 'top' }
+      },
+    },
+    dataLabels: {
+      enabled: true,
+      formatter: (val) => {
+        if (!val || val === 0) return '';
+        return Math.round(val).toLocaleString('en-IN');
+      },
+      offsetY: -20,
+      style: {
+        fontSize: '9px',
+        colors: [darkMode ? '#e2e8f0' : '#475569']
+      }
+    },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shade: 'light',
+        type: 'vertical',
+        shadeIntensity: 0.3,
+        opacityFrom: 0.85,
+        opacityTo: 0.55,
+        stops: [0, 95, 100],
+      }
+    },
+    colors: ['#d97706'],
+    xaxis: {
+      categories: projectStatsData.map(d => d.projectName),
+      labels: {
+        style: {
+          fontSize: '9px',
+          colors: darkMode ? '#94a3b8' : '#64748b'
+        }
+      }
+    },
+    yaxis: {
+      labels: {
+        style: {
+          fontSize: '9px',
+          colors: darkMode ? '#94a3b8' : '#64748b'
+        },
+        formatter: (val) => Math.round(val).toLocaleString('en-IN')
+      }
+    },
+    grid: {
+      borderColor: gridStroke,
+      strokeDashArray: 4,
+      padding: { left: 45, right: 10 }
+    },
+    tooltip: {
+      theme: darkMode ? 'dark' : 'light',
+      y: {
+        formatter: (val) => `${Math.round(val).toLocaleString('en-IN')} Hours`
+      }
+    },
+    legend: {
+      position: 'top',
+      horizontalAlign: 'center',
+      fontSize: '11px',
+      labels: { colors: darkMode ? '#e2e8f0' : '#475569' }
+    }
+  }), [projectStatsData, finalEnriched, darkMode, gridStroke, onDrillDown]);
+
+  const visitsSeries = useMemo(() => {
+    return [
+      { name: 'ICT Lab Visits', data: projectStatsData.map(d => d.ictVisits) },
+      { name: 'Smart Class Visits', data: projectStatsData.map(d => d.smartVisits) }
+    ];
+  }, [projectStatsData]);
+
+  const visitsOptions = useMemo(() => ({
+    chart: {
+      type: 'bar',
+      height: 220,
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          zoom: false,
+          pan: false,
+          reset: false,
+          selection: false,
+          zoomin: false,
+          zoomout: false,
+        }
+      },
+      events: {
+        dataPointSelection: (event, chartContext, config) => {
+          if (config && config.dataPointIndex !== undefined && onDrillDown) {
+            const projectName = config.w.config.xaxis.categories[config.dataPointIndex];
+            const matchingSchools = finalEnriched.filter(s => s.project === projectName);
+            const formattedData = matchingSchools.map((s, idx) => ({
+              'Sl No': idx + 1,
+              'School Name': s.schoolName,
+              'UDISE Code': s.udise,
+              'District': s.district,
+              'Block': s.block,
+              'CC / DEF Name': s.visitorName,
+              'Field Visits': s.fieldVisits,
+              'Last Visit Date': formatDate(s.lastVisitDate) === '-' ? 'No Visits' : formatDate(s.lastVisitDate),
+              'JHPMS Classes': s.jhpmsClasses,
+              'EduStat Hours': Math.round(s.eduHours),
+              'Composite Score %': `${Math.round(s.compositeScore)}%`,
+              'Action Recommendation': s.recommendation
+            }));
+            onDrillDown(`Project: ${projectName} - CC/DEF Field Visits Details`, formattedData);
+          }
+        }
+      },
+      fontFamily: 'inherit',
+      background: 'transparent',
+    },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: '55%',
+        endingShape: 'rounded',
+        dataLabels: { position: 'top' }
+      },
+    },
+    dataLabels: {
+      enabled: true,
+      formatter: (val) => {
+        if (!val || val === 0) return '';
+        return val.toLocaleString('en-IN');
+      },
+      offsetY: -20,
+      style: {
+        fontSize: '9px',
+        colors: [darkMode ? '#e2e8f0' : '#475569']
+      }
+    },
+    stroke: {
+      show: true,
+      width: 2,
+      colors: ['transparent']
+    },
+    colors: ['#10b981', '#6366f1'],
+    xaxis: {
+      categories: projectStatsData.map(d => d.projectName),
+      labels: {
+        style: {
+          fontSize: '9px',
+          colors: darkMode ? '#94a3b8' : '#64748b'
+        }
+      }
+    },
+    yaxis: {
+      labels: {
+        style: {
+          fontSize: '9px',
+          colors: darkMode ? '#94a3b8' : '#64748b'
+        },
+        formatter: (val) => Math.round(val).toLocaleString('en-IN')
+      }
+    },
+    grid: {
+      borderColor: gridStroke,
+      strokeDashArray: 4,
+      padding: { left: 45, right: 10 }
+    },
+    tooltip: {
+      theme: darkMode ? 'dark' : 'light',
+      y: {
+        formatter: (val) => `${val.toLocaleString('en-IN')} Visits`
+      }
+    },
+    legend: {
+      position: 'top',
+      horizontalAlign: 'center',
+      fontSize: '11px',
+      labels: { colors: darkMode ? '#e2e8f0' : '#475569' }
+    }
+  }), [projectStatsData, finalEnriched, darkMode, gridStroke, onDrillDown]);
+
   // Treemap Custom Card Renderer with Smart Auto-Scaling and Contrast
   const TreemapContent = (props) => {
     const { x, y, width, height, name, score } = props;
@@ -2280,6 +2680,67 @@ const OverallAnalysis = ({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ═══════ SECTION 1.5: PROJECT-WISE PERFORMANCE VISUALIZATION ═══════ */}
+      {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.kpis) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5 no-print">
+          
+          {/* Card 1: Project-wise Lab Uses */}
+          <div className="portal-card p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative flex flex-col justify-between">
+            <div>
+              <h3 className="text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-widest mb-1.5 select-none">
+                Lab Usage by Project (Classes)
+              </h3>
+              <p className="text-[10px] text-slate-400 mb-3 select-none">Project-wise comparison of ICT and Smart classes conducted.</p>
+            </div>
+            <div id="project-lab-uses-chart" className="relative">
+              <ReactApexChart 
+                options={labUsesOptions} 
+                series={labUsesSeries} 
+                type="bar" 
+                height={220} 
+              />
+            </div>
+          </div>
+
+          {/* Card 2: Project-wise EduStat Hours */}
+          <div className="portal-card p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative flex flex-col justify-between">
+            <div>
+              <h3 className="text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-widest mb-1.5 select-none">
+                EduStat Hours by Project
+              </h3>
+              <p className="text-[10px] text-slate-400 mb-3 select-none">Total device runtime hours accumulated per project.</p>
+            </div>
+            <div id="project-edustat-hours-chart" className="relative">
+              <ReactApexChart 
+                options={eduHoursOptions} 
+                series={eduHoursSeries} 
+                type="bar" 
+                height={220} 
+              />
+            </div>
+          </div>
+
+          {/* Card 3: Project-wise Visits */}
+          <div className="portal-card p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative flex flex-col justify-between">
+            <div>
+              <h3 className="text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-widest mb-1.5 select-none">
+                CC/DEF Visits by Project
+              </h3>
+              <p className="text-[10px] text-slate-400 mb-3 select-none">Field monitoring visits completed (ICT vs Smart visits).</p>
+            </div>
+            <div id="project-visits-chart" className="relative">
+              <ReactApexChart 
+                options={visitsOptions} 
+                series={visitsSeries} 
+                type="bar" 
+                height={220} 
+              />
+            </div>
+          </div>
+
         </div>
       )}
 
