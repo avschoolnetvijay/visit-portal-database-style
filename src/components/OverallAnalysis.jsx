@@ -2260,11 +2260,17 @@ const OverallAnalysis = ({
       }
     });
 
+    // Check if any IFP devices exist in master inventory
+    const hasIFPDevices = (edustatMaster || []).some(m =>
+      String(m.device || '').toUpperCase() === 'INTERACTIVE FLAT PANEL'
+    );
+
     const result = [
       { name: 'Traditional CPU', value: Math.round(cpuHours), color: '#3b82f6' },
       { name: 'Mini PC/Thin Client', value: Math.round(miniPcHours), color: '#10b981' },
     ];
-    if (panelHours > 0) {
+    // Always show Panel slice if IFP devices exist in master (even with 0 hours)
+    if (hasIFPDevices || panelHours > 0) {
       result.push({ name: 'Panel (IFP)', value: Math.round(panelHours), color: '#8b5cf6' });
     }
     return result;
