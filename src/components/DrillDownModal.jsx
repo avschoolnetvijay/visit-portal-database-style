@@ -39,7 +39,14 @@ const mapKeyToHeader = (key) => {
         gap_reason: 'Gap Cause Details',
         formatteddates: 'Dates Logged',
         label: 'Reference / Group',
-        value: 'Value'
+        value: 'Value',
+        intime: 'In Time',
+        in_time: 'In Time',
+        outtime: 'Out Time',
+        out_time: 'Out Time',
+        totalhour: 'Total Hour',
+        total_hour: 'Total Hour',
+        total_hours: 'Total Hours'
     };
     
     const lowerKey = key.toLowerCase().replace(/[^a-z0-9_]/g, '');

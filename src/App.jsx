@@ -68,6 +68,24 @@ const normalizeRowHeaders = (row, isSheetValueArray = false, headersList = null)
     return newRow;
 };
 
+const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr) return null;
+    const num = Number(timeStr);
+    if (!isNaN(num) && num > 0 && num < 1) {
+        return num * 24 * 60;
+    }
+    const cleanStr = String(timeStr).trim().toUpperCase();
+    const match = cleanStr.match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/);
+    if (!match) return null;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const seconds = match[3] ? parseInt(match[3], 10) : 0;
+    const ampm = match[4];
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes + (seconds / 60);
+};
+
 const deduplicateVisits = (visitList) => {
     if (!Array.isArray(visitList)) return [];
     const seen = new Set();
@@ -1181,14 +1199,31 @@ const App = () => {
                             
                             if (!labKey || !subKey) missingKeysAlert = true;
                             
+                            const inTimeVal = inTimeKey ? String(r[inTimeKey]).trim() : '';
+                            const outTimeVal = outTimeKey ? String(r[outTimeKey]).trim() : '';
+                            
+                            const totalHourKey = cleanKeys.find(k => k.clean.includes('totalhour') || k.clean.includes('usedhour') || k.clean.includes('duration') || (k.clean.includes('total') && k.clean.includes('hour')) || k.clean === 'hours')?.orig;
+                            
+                            let totalHourVal = '';
+                            if (totalHourKey) {
+                                totalHourVal = String(r[totalHourKey]).trim();
+                            } else {
+                                const inMin = parseTimeToMinutes(inTimeVal);
+                                const outMin = parseTimeToMinutes(outTimeVal);
+                                if (inMin !== null && outMin !== null && outMin >= inMin) {
+                                    totalHourVal = ((outMin - inMin) / 60).toFixed(2);
+                                }
+                            }
+                            
                             return { 
                                 udise: uKey ? r[uKey] : '', 
                                 date: dKey ? r[dKey] : '',
                                 labType: labKey ? r[labKey] : '',
                                 subject: subKey ? r[subKey] : '',
                                 subjectTeacher: teacherKey ? String(r[teacherKey]).trim() : '',
-                                inTime: inTimeKey ? String(r[inTimeKey]).trim() : '',
-                                outTime: outTimeKey ? String(r[outTimeKey]).trim() : ''
+                                inTime: inTimeVal,
+                                outTime: outTimeVal,
+                                totalHour: totalHourVal
                             };
                         });
                         

@@ -352,6 +352,8 @@ const OverallAnalysis = ({
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [isTreemapExpanded, setIsTreemapExpanded] = useState(false);
   const [deckPMName, setDeckPMName] = useState('Suvendu Shekhar Jana');
+  const [moversDetailModal, setMoversDetailModal] = useState(null); // { type: 'gains' | 'decliners', list: [] }
+  const [moversSearchQuery, setMoversSearchQuery] = useState('');
   const gridStroke = darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9';
   const axisStroke = darkMode ? 'rgba(255,255,255,0.1)' : '#e2e8f0';
   const textStroke = darkMode ? '#94a3b8' : '#64748b';
@@ -1394,7 +1396,7 @@ const OverallAnalysis = ({
 
   // Movers & Shakers compilation
   const moversAndShakers = useMemo(() => {
-    if (!compareMode) return { gainers: [], decliners: [] };
+    if (!compareMode) return { gainers: [], decliners: [], allGainers: [], allDecliners: [] };
     const currentMap = calculateSchoolScoresMap(fSchools, currentJhpms, edustat, manpower, currentVisits);
     const prevMap = calculateSchoolScoresMap(fSchools, prevJhpms, prevEdustat, manpower, prevVisits);
 
@@ -1402,9 +1404,12 @@ const OverallAnalysis = ({
     Object.keys(currentMap).forEach(udise => {
       const cScore = currentMap[udise].score;
       const pScore = prevMap[udise]?.score || 0;
+      const schoolInfo = fSchools.find(s => String(s.udise_code || s.udise) === String(udise)) || {};
       deltas.push({
         udise,
-        name: currentMap[udise].schoolName,
+        name: currentMap[udise].schoolName || schoolInfo.school_name || schoolInfo.school || 'Unknown School',
+        block: schoolInfo.block || 'N/A',
+        district: schoolInfo.district || 'N/A',
         delta: cScore - pScore,
         current: Math.round(cScore),
         previous: Math.round(pScore)
@@ -1412,11 +1417,67 @@ const OverallAnalysis = ({
     });
 
     const sortedDeltas = [...deltas].sort((a, b) => b.delta - a.delta);
-    const gainers = sortedDeltas.slice(0, 5).filter(d => d.delta > 0);
-    const decliners = [...deltas].sort((a, b) => a.delta - b.delta).slice(0, 5).filter(d => d.delta < 0);
+    const allGainers = sortedDeltas.filter(d => d.delta > 0);
+    const allDecliners = [...deltas].sort((a, b) => a.delta - b.delta).filter(d => d.delta < 0);
 
-    return { gainers, decliners };
+    return { 
+      gainers: allGainers.slice(0, 5), 
+      decliners: allDecliners.slice(0, 5),
+      allGainers: allGainers.slice(0, 25),
+      allDecliners: allDecliners.slice(0, 25)
+    };
   }, [compareMode, fSchools, currentJhpms, prevJhpms, edustat, prevEdustat, manpower, currentVisits, prevVisits]);
+
+  const formatDateRangeShort = (start, end) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const fs = `${String(start.getDate()).padStart(2, '0')} ${months[start.getMonth()]}`;
+    const fe = `${String(end.getDate()).padStart(2, '0')} ${months[end.getMonth()]}`;
+    const yr = String(start.getFullYear()).substring(2);
+    return `${fs}-${fe} '${yr}`;
+  };
+
+  // 6 Periods Historical Trend compilation
+  const historicalPeriodsData = useMemo(() => {
+    if (!parsedStartDate || !parsedEndDate) {
+      return [];
+    }
+
+    const durationMs = parsedEndDate.getTime() - parsedStartDate.getTime();
+    const periods = [];
+
+    // Generate 6 periods going backward
+    for (let i = 5; i >= 0; i--) {
+      const startOffset = i * (durationMs + 24 * 60 * 60 * 1000);
+      const start = new Date(parsedStartDate.getTime() - startOffset);
+      const end = new Date(parsedEndDate.getTime() - startOffset);
+      periods.push({ index: i, start, end });
+    }
+
+    return periods.map(p => {
+      const pJhpms = (jhpmsLab || []).filter(row => {
+        const d = parseDateRobust(row.date);
+        return d && d >= p.start && d <= p.end;
+      });
+
+      const pEdustat = (edustat || []).filter(row => {
+        const d = parseDateRobust(row.date);
+        return d && d >= p.start && d <= p.end;
+      });
+
+      const pVisits = (visits || []).filter(row => {
+        const d = parseDateRobust(row.visit_date);
+        return d && d >= p.start && d <= p.end;
+      });
+
+      const kpis = calculateKpiSet(fSchools, pJhpms, pEdustat, manpower, pVisits);
+      const label = p.index === 0 ? 'Current' : formatDateRangeShort(p.start, p.end);
+
+      return {
+        month: label, // keep key as 'month' to match recharts references
+        score: Math.round(kpis.avgScore)
+      };
+    });
+  }, [parsedStartDate, parsedEndDate, fSchools, jhpmsLab, edustat, visits, manpower]);
 
   // Band Migration compilation
   const bandMigrationData = useMemo(() => {
@@ -1450,6 +1511,42 @@ const OverallAnalysis = ({
       { band: 'Excellent', Current: bands.Excellent, Previous: prevBands.Excellent }
     ];
   }, [compareMode, fSchools, currentJhpms, prevJhpms, edustat, prevEdustat, manpower, currentVisits, prevVisits]);
+
+  const renderCustomBarLabel = (props) => {
+    const { x, y, width, height, value, index } = props;
+    if (value === undefined || value === null) return null;
+    const isCount = (index === 3); // Active CCs is count
+    const formattedVal = isCount ? Math.round(value) : `${Math.round(value)}%`;
+    return (
+      <text 
+        x={x + width / 2} 
+        y={y - 6} 
+        fill={darkMode ? '#cbd5e1' : '#1e293b'} 
+        fontSize={8} 
+        fontWeight="bold" 
+        textAnchor="middle"
+      >
+        {formattedVal}
+      </text>
+    );
+  };
+
+  const renderCustomBandLabel = (props) => {
+    const { x, y, width, height, value } = props;
+    if (value === undefined || value === null || value === 0) return null;
+    return (
+      <text 
+        x={x + width / 2} 
+        y={y - 6} 
+        fill={darkMode ? '#cbd5e1' : '#1e293b'} 
+        fontSize={8} 
+        fontWeight="bold" 
+        textAnchor="middle"
+      >
+        {value}
+      </text>
+    );
+  };
 
   // 9. Data Quality & Trust Index metrics (respecting ccNameMapping name corrections!)
   const dqMetrics = useMemo(() => {
@@ -2967,8 +3064,10 @@ const OverallAnalysis = ({
 
       {/* ═══════ PERIOD OVER PERIOD COMPARE PANEL (MoM) ═══════ */}
       {compareMode && prevKPIs && (!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.mom) && (
-        <div className="portal-card p-5 bg-white dark:bg-slate-900 border border-teal-200 font-sans page-break-after">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3 mb-4">
+        <div className="space-y-6 font-sans page-break-after">
+          
+          {/* Header Panel */}
+          <div className="portal-card p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="font-extrabold text-sm text-teal-900 dark:text-teal-400 uppercase tracking-wider font-serif">MoM Period-over-Period Performance</h3>
               <p className="text-[10px] text-slate-400 font-sans">Evaluating current evaluation period against equal prior window.</p>
@@ -2980,7 +3079,7 @@ const OverallAnalysis = ({
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Compare Bar Chart */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 portal-card p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl relative">
               <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Key KPI MoM Matrix</h4>
               <div className="h-56 relative" id="mom-kpi-chart-container">
                 <ChartToolbar
@@ -3001,28 +3100,40 @@ const OverallAnalysis = ({
                       { name: 'Visits %', Current: currentKPIs.visitPct, Previous: prevKPIs.visitPct },
                       { name: 'Active CCs', Current: currentKPIs.activeCCs, Previous: prevKPIs.activeCCs }
                     ]}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+                    margin={{ top: 15, right: 10, left: -20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
                     <XAxis dataKey="name" tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
                     <YAxis tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
                     <Tooltip cursor={{ fill: 'transparent' }} content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 10 }} />
-                    <Bar dataKey="Current" fill="#0d9488" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Previous" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Current" fill="#05cd99" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="Current" content={renderCustomBarLabel} />
+                    </Bar>
+                    <Bar dataKey="Previous" fill="#ffa825" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="Previous" content={renderCustomBarLabel} />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* Movers and Shakers List */}
-            <div className="space-y-4">
+            <div className="space-y-4 portal-card p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl relative">
               <div>
-                <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 mb-2">🚀 TOP 5 MOVERS (GAINS)</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">🚀 TOP 5 MOVERS (GAINS)</h4>
+                  <button 
+                    onClick={() => setMoversDetailModal({ type: 'gains', list: moversAndShakers.allGainers })}
+                    className="text-[9px] text-teal-650 dark:text-teal-400 hover:text-teal-800 font-bold uppercase hover:underline"
+                  >
+                    View Top 25
+                  </button>
+                </div>
                 <div className="space-y-1.5">
                   {moversAndShakers.gainers.map((m, i) => (
                     <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
-                      <span className="font-bold text-slate-700 dark:text-slate-300 truncate w-36" title={m.name}>{m.name}</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300 truncate flex-1 min-w-0 pr-2" title={m.name}>{m.name}</span>
                       <span className="font-extrabold text-emerald-700">+{m.delta.toFixed(1)}%</span>
                     </div>
                   ))}
@@ -3033,11 +3144,19 @@ const OverallAnalysis = ({
               </div>
 
               <div>
-                <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-rose-800 mb-2">⚠️ TOP 5 DECLINERS</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-rose-800">⚠️ TOP 5 DECLINERS</h4>
+                  <button 
+                    onClick={() => setMoversDetailModal({ type: 'decliners', list: moversAndShakers.allDecliners })}
+                    className="text-[9px] text-rose-655 dark:text-rose-400 hover:text-rose-800 font-bold uppercase hover:underline"
+                  >
+                    View Top 25
+                  </button>
+                </div>
                 <div className="space-y-1.5">
                   {moversAndShakers.decliners.map((m, i) => (
                     <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
-                      <span className="font-bold text-slate-700 dark:text-slate-300 truncate w-36" title={m.name}>{m.name}</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300 truncate flex-1 min-w-0 pr-2" title={m.name}>{m.name}</span>
                       <span className="font-extrabold text-rose-700">{m.delta.toFixed(1)}%</span>
                     </div>
                   ))}
@@ -3049,9 +3168,9 @@ const OverallAnalysis = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6 border-t pt-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Band migrations stacked bar */}
-            <div>
+            <div className="portal-card p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl relative">
               <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Performance Band Migration Shift</h4>
               <div className="h-48 relative" id="band-migration-chart-container">
                 <ChartToolbar
@@ -3060,58 +3179,50 @@ const OverallAnalysis = ({
                   filename="performance_band_migration"
                 />
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={bandMigrationData} margin={{ top: 10, right: 10, left: -25, bottom: 5 }}>
+                  <BarChart data={bandMigrationData} margin={{ top: 15, right: 10, left: -25, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
                     <XAxis dataKey="band" tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
                     <YAxis tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
                     <Tooltip cursor={{ fill: 'transparent' }} content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 10 }} />
-                    <Bar dataKey="Current" fill="#0d9488" stackId="a" />
-                    <Bar dataKey="Previous" fill="#cbd5e1" stackId="a" />
+                    <Bar dataKey="Current" fill="#05cd99" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="Current" content={renderCustomBandLabel} />
+                    </Bar>
+                    <Bar dataKey="Previous" fill="#ffa825" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey="Previous" content={renderCustomBandLabel} />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* Historical composite scores line graph */}
-            <div>
+            <div className="portal-card p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl relative">
               <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Historical Composite Score Trend (Last 6 Periods)</h4>
               <div className="h-48 relative" id="historical-trend-chart-container">
                 <ChartToolbar
                   chartId="historical-trend-chart-container"
-                  csvData={[
-                    { month: 'Period 1', score: Math.round(currentKPIs.avgScore * 0.9) },
-                    { month: 'Period 2', score: Math.round(currentKPIs.avgScore * 0.94) },
-                    { month: 'Period 3', score: Math.round(currentKPIs.avgScore * 0.92) },
-                    { month: 'Period 4', score: Math.round(currentKPIs.avgScore * 0.96) },
-                    { month: 'Period 5', score: Math.round(currentKPIs.avgScore * 0.98) },
-                    { month: 'Current', score: Math.round(currentKPIs.avgScore) }
-                  ]}
+                  csvData={historicalPeriodsData}
                   filename="historical_composite_trend"
                 />
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
-                    data={[
-                      { month: 'Period 1', score: Math.round(currentKPIs.avgScore * 0.9) },
-                      { month: 'Period 2', score: Math.round(currentKPIs.avgScore * 0.94) },
-                      { month: 'Period 3', score: Math.round(currentKPIs.avgScore * 0.92) },
-                      { month: 'Period 4', score: Math.round(currentKPIs.avgScore * 0.96) },
-                      { month: 'Period 5', score: Math.round(currentKPIs.avgScore * 0.98) },
-                      { month: 'Current', score: Math.round(currentKPIs.avgScore) }
-                    ]}
-                    margin={{ top: 10, right: 10, left: -25, bottom: 5 }}
+                    data={historicalPeriodsData}
+                    margin={{ top: 15, right: 10, left: -25, bottom: 5 }}
                   >
                     <defs>
                       <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0d9488" stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#05cd99" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#05cd99" stopOpacity={0.02}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
+                    <XAxis dataKey="month" tick={{ fontSize: 8, fill: textStroke }} axisLine={{ stroke: axisStroke }} angle={-25} textAnchor="end" height={45} />
                     <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="score" stroke="#0d9488" strokeWidth={2.5} fillOpacity={1} fill="url(#colorScore)" />
+                    <Area type="monotone" dataKey="score" stroke="#05cd99" strokeWidth={2.5} fillOpacity={1} fill="url(#colorScore)">
+                      <LabelList dataKey="score" position="top" formatter={(val) => Math.round(val)} style={{ fontSize: 9, fontWeight: 'bold', fill: darkMode ? '#cbd5e1' : '#1e293b' }} />
+                    </Area>
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -4296,6 +4407,132 @@ const OverallAnalysis = ({
             <div className="bg-slate-50 dark:bg-slate-805/40 px-6 py-3.5 border-t border-slate-150 dark:border-slate-800 flex justify-end">
               <button
                 onClick={() => setIsTreemapExpanded(false)}
+                className="px-4 py-2 bg-slate-150 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-xs font-black rounded-lg transition active:scale-95 duration-100 uppercase tracking-wider"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════ TOP 25 MOVERS/DECLINERS DETAILS INTERACTIVE MODAL ═══════ */}
+      {moversDetailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/65 backdrop-blur-md p-4 animate-fade-in font-sans">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-150 dark:border-slate-800 flex flex-col overflow-hidden max-h-[90vh] animate-zoom-in text-slate-850 dark:text-slate-100">
+            <div className="bg-slate-50 dark:bg-slate-800/40 px-6 py-4 border-b border-slate-150 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-850 dark:text-slate-150 uppercase tracking-wider font-serif">
+                  {moversDetailModal.type === 'gains' ? '🚀 Top 25 Performance Movers (Gains)' : '⚠️ Top 25 Performance Decliners'}
+                </h3>
+                <p className="text-xs text-slate-400 font-bold mt-0.5">
+                  {moversDetailModal.type === 'gains' 
+                    ? 'Showing schools with the highest health score improvement compared to the previous period.' 
+                    : 'Showing schools with the highest health score drop compared to the previous period.'}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setMoversDetailModal(null);
+                  setMoversSearchQuery('');
+                }}
+                title="Close"
+                className="p-1.5 text-slate-450 hover:text-slate-650 dark:hover:text-slate-200 rounded-lg hover:bg-slate-150 dark:hover:bg-slate-800 transition font-sans text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Toolbar: Search & Export */}
+            <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="relative w-full sm:w-72">
+                <input
+                  type="text"
+                  placeholder="Search school, UDISE or block..."
+                  value={moversSearchQuery}
+                  onChange={(e) => setMoversSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 font-sans"
+                />
+                <span className="absolute left-2.5 top-2.5 text-slate-400">🔍</span>
+              </div>
+
+              <button
+                onClick={() => {
+                  const filtered = moversDetailModal.list.filter(item => {
+                    const q = moversSearchQuery.toLowerCase();
+                    return item.name.toLowerCase().includes(q) || item.udise.includes(q) || item.block.toLowerCase().includes(q);
+                  });
+                  const downloadData = filtered.map((item, idx) => ({
+                    'Rank': idx + 1,
+                    'School Name': item.name,
+                    'UDISE Code': item.udise,
+                    'Block': item.block,
+                    'District': item.district,
+                    'Previous Score %': `${item.previous}%`,
+                    'Current Score %': `${item.current}%`,
+                    'Change Delta %': `${item.delta > 0 ? '+' : ''}${item.delta.toFixed(1)}%`
+                  }));
+                  exportToExcel(downloadData, moversDetailModal.type === 'gains' ? 'Top_Movers_Gains' : 'Top_Decliners');
+                }}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-teal-700 hover:bg-teal-800 active:scale-95 text-white text-xs font-bold rounded-lg transition uppercase tracking-wider font-sans select-none"
+              >
+                📥 Download Excel
+              </button>
+            </div>
+
+            {/* Tabular Roster */}
+            <div className="overflow-y-auto flex-1 p-4">
+              <table className="w-full text-xs text-left border-collapse portal-table">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-350 font-bold border-b border-slate-150 dark:border-slate-800">
+                    <th className="py-2.5 px-3 w-12 text-center font-sans">Rank</th>
+                    <th className="py-2.5 px-3 font-sans">School Name</th>
+                    <th className="py-2.5 px-3 font-sans">UDISE Code</th>
+                    <th className="py-2.5 px-3 font-sans">Block</th>
+                    <th className="py-2.5 px-3 font-sans">District</th>
+                    <th className="py-2.5 px-3 text-center font-sans">Previous</th>
+                    <th className="py-2.5 px-3 text-center font-sans">Current</th>
+                    <th className="py-2.5 px-3 text-right font-sans">Delta (%)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {moversDetailModal.list
+                    .filter(item => {
+                      const q = moversSearchQuery.toLowerCase();
+                      return item.name.toLowerCase().includes(q) || item.udise.includes(q) || item.block.toLowerCase().includes(q);
+                    })
+                    .map((item, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 font-sans">
+                        <td className="py-3 px-3 text-center font-mono font-bold text-slate-400">{idx + 1}</td>
+                        <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-200">{item.name}</td>
+                        <td className="py-3 px-3 font-mono font-medium text-slate-500">{item.udise}</td>
+                        <td className="py-3 px-3 font-semibold text-slate-600 dark:text-slate-400">{item.block}</td>
+                        <td className="py-3 px-3 text-slate-500 font-medium">{item.district}</td>
+                        <td className="py-3 px-3 text-center font-mono font-bold text-slate-500">{item.previous}%</td>
+                        <td className="py-3 px-3 text-center font-mono font-bold text-teal-700">{item.current}%</td>
+                        <td className={`py-3 px-3 text-right font-mono font-extrabold ${item.delta > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {item.delta > 0 ? '+' : ''}{item.delta.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  {moversDetailModal.list.filter(item => {
+                    const q = moversSearchQuery.toLowerCase();
+                    return item.name.toLowerCase().includes(q) || item.udise.includes(q) || item.block.toLowerCase().includes(q);
+                  }).length === 0 && (
+                    <tr>
+                      <td colSpan="8" className="text-center text-slate-400 py-10 italic font-sans">No schools found matching search criteria.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-805/40 px-6 py-3.5 border-t border-slate-150 dark:border-slate-800 flex justify-end">
+              <button
+                onClick={() => {
+                  setMoversDetailModal(null);
+                  setMoversSearchQuery('');
+                }}
                 className="px-4 py-2 bg-slate-150 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-xs font-black rounded-lg transition active:scale-95 duration-100 uppercase tracking-wider"
               >
                 Close
