@@ -105,6 +105,42 @@ const deduplicateVisits = (visitList) => {
     return unique;
 };
 
+const mergeEdustat = (existing, newRows) => {
+    const seen = new Set();
+    const merged = [];
+    const addRow = (r) => {
+        const normDate = r.date ? String(r.date).split('T')[0] : '';
+        const sig = `${r.udise || ''}_${r.serial || ''}_${normDate}_${Number(r.hours || 0).toFixed(4)}`;
+        if (!seen.has(sig)) {
+            seen.add(sig);
+            merged.push(r);
+        }
+    };
+    if (Array.isArray(existing)) existing.forEach(addRow);
+    if (Array.isArray(newRows)) newRows.forEach(addRow);
+    return merged;
+};
+
+const mergeJhpms = (existing, newRows) => {
+    const seen = new Set();
+    const merged = [];
+    const addRow = (r) => {
+        const normDate = r.date ? String(r.date).split('T')[0] : '';
+        const sig = `${r.udise || ''}_${normDate}_${(r.labType || '').trim()}_${(r.subject || '').trim()}_${(r.subjectTeacher || '').trim()}_${(r.inTime || '').trim()}_${(r.outTime || '').trim()}`;
+        if (!seen.has(sig)) {
+            seen.add(sig);
+            merged.push(r);
+        }
+    };
+    if (Array.isArray(existing)) existing.forEach(addRow);
+    if (Array.isArray(newRows)) newRows.forEach(addRow);
+    return merged;
+};
+
+const mergeVisits = (existing, newRows) => {
+    return deduplicateVisits([...(existing || []), ...(newRows || [])]);
+};
+
 const App = () => {
     const [transparentSignature, setTransparentSignature] = useState(null);
 
@@ -166,6 +202,22 @@ const App = () => {
     const [edustat, setEdustat] = useState([]);
     const [edustatMaster, setEdustatMaster] = useState([]);
     const [manpower, setManpower] = useState([]);
+    
+    // Temporary Session states (Hybrid Sandbox)
+    const [tempVisits, setTempVisits] = useState(() => JSON.parse(sessionStorage.getItem('snet_temp_visits') || '[]'));
+    const [tempJhpmsLab, setTempJhpmsLab] = useState(() => JSON.parse(sessionStorage.getItem('snet_temp_jhpms_lab') || '[]'));
+    const [tempEdustat, setTempEdustat] = useState(() => JSON.parse(sessionStorage.getItem('snet_temp_edustat') || '[]'));
+
+    // Combined states (Supabase + Session)
+    const combinedVisits = useMemo(() => mergeVisits(visits, tempVisits), [visits, tempVisits]);
+    const combinedJhpmsLab = useMemo(() => mergeJhpms(jhpmsLab, tempJhpmsLab), [jhpmsLab, tempJhpmsLab]);
+    const combinedEdustat = useMemo(() => mergeEdustat(edustat, tempEdustat), [edustat, tempEdustat]);
+
+    // Metadata states
+    const [visitsMeta, setVisitsMeta] = useState(null);
+    const [jhpmsLabMeta, setJhpmsLabMeta] = useState(null);
+    const [edustatMeta, setEdustatMeta] = useState(null);
+
     const [drillDownData, setDrillDownData] = useState(null);
 
     const [isAuthenticated, setIsAuthenticated] = useState(
@@ -224,6 +276,7 @@ const App = () => {
     const [selSchools, setSelSchools] = useState([]);
 
     const [profilePhoto, setProfilePhoto] = useState(() => localStorage.getItem('snet_profile_photo') || null);
+    const [uploadAsSession, setUploadAsSession] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const fileInputRef = useRef(null);
 
@@ -687,14 +740,17 @@ const App = () => {
                 }
 
                 // 2. Load baseline datasets from storage in parallel to eliminate waterfall latency
-                const [s, v, jl, e, em, m, p] = await Promise.all([
+                const [s, v, jl, e, em, m, p, vMeta, jlMeta, eMeta] = await Promise.all([
                     get('schools'),
                     get('visits'),
                     get('jhpms_lab'),
                     get('edustat'),
                     get('edustat_master'),
                     get('manpower'),
-                    get('profile_photo')
+                    get('profile_photo'),
+                    get('visits_meta'),
+                    get('jhpms_lab_meta'),
+                    get('edustat_meta')
                 ]);
                 if (p) {
                     localStorage.setItem('snet_profile_photo', p);
@@ -704,6 +760,19 @@ const App = () => {
                     setProfilePhoto(null);
                 }
                 
+                // Initialize metadata states from session storage or cloud
+                const sVisitsMeta = sessionStorage.getItem('snet_temp_visits_meta');
+                if (sVisitsMeta) setVisitsMeta(JSON.parse(sVisitsMeta));
+                else if (vMeta) setVisitsMeta(vMeta);
+
+                const sJhpmsMeta = sessionStorage.getItem('snet_temp_jhpms_lab_meta');
+                if (sJhpmsMeta) setJhpmsLabMeta(JSON.parse(sJhpmsMeta));
+                else if (jlMeta) setJhpmsLabMeta(jlMeta);
+
+                const sEdustatMeta = sessionStorage.getItem('snet_temp_edustat_meta');
+                if (sEdustatMeta) setEdustatMeta(JSON.parse(sEdustatMeta));
+                else if (eMeta) setEdustatMeta(eMeta);
+
                 // 3. Enforce global district-level data gating (jurisdiction isolation)
                 let filteredSchools = s || [];
                 let filteredVisits = v || [];
@@ -747,6 +816,42 @@ const App = () => {
                         return udise && filteredUdise.has(String(udise));
                     });
                 }
+
+                // Temporary storage conflict checks
+                const checkConflictAndResolve = (type, cloudList, tempStorageKey, setTempState, setMetaState, cloudMeta) => {
+                    const tempStr = sessionStorage.getItem(tempStorageKey);
+                    if (!tempStr) return;
+                    try {
+                        const tempRows = JSON.parse(tempStr);
+                        if (tempRows.length === 0) return;
+                        
+                        const tempDates = tempRows.map(r => r.date || r.visit_date).filter(Boolean).map(d => new Date(d).getTime());
+                        if (tempDates.length === 0) return;
+                        const minTempTime = Math.min(...tempDates);
+                        
+                        const cloudDates = (cloudList || []).map(r => r.date || r.visit_date).filter(Boolean).map(d => new Date(d).getTime());
+                        if (cloudDates.length === 0) return;
+                        const maxCloudTime = Math.max(...cloudDates);
+                        
+                        if (maxCloudTime >= minTempTime) {
+                            sessionStorage.removeItem(tempStorageKey);
+                            sessionStorage.removeItem(`${tempStorageKey}_meta`);
+                            setTempState([]);
+                            if (cloudMeta) setMetaState(cloudMeta);
+                            else setMetaState(null);
+                            
+                            setTimeout(() => {
+                                alert(`⚠️ Sync Warning: Admin has updated the central database for ${type}. Your local temporary session data has been cleared to prevent overlap conflict.`);
+                            }, 1000);
+                        }
+                    } catch (err) {
+                        console.error("Conflict checking error:", err);
+                    }
+                };
+
+                checkConflictAndResolve('Visits', filteredVisits, 'snet_temp_visits', setTempVisits, setVisitsMeta, vMeta);
+                checkConflictAndResolve('JHPMS Lab Logs', filteredJhpms, 'snet_temp_jhpms_lab', setTempJhpmsLab, setJhpmsLabMeta, jlMeta);
+                checkConflictAndResolve('EduStat Daily Logs', filteredEdustat, 'snet_temp_edustat', setTempEdustat, setEdustatMeta, eMeta);
 
                 if (filteredSchools.length > 0) setSchools(filteredSchools);
                 if (filteredVisits.length > 0) {
@@ -794,7 +899,7 @@ const App = () => {
         if (selSchools.length) fSchools = fSchools.filter(s => selSchools.includes(s.school_name));
 
         const validUdise = new Set(fSchools.map(s => String(s.udise_code)));
-        const fVisits = visits.filter(v => {
+        const fVisits = combinedVisits.filter(v => {
             const d = new Date(v.visit_date);
             if (isNaN(d.getTime())) return false;
             const yyyy = d.getFullYear();
@@ -878,7 +983,7 @@ const App = () => {
             totalUnique: finalSchools.reduce((a, b) => a + b.uniqueVisits, 0),
             totalRecords: fVisits.length
         };
-    }, [schools, visits, startDate, endDate, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, selSchools]);
+    }, [schools, combinedVisits, startDate, endDate, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, selSchools]);
 
     // Secure Auto-Fetch from Google Sheets (via Netlify proxy)
     const fetchFromGoogleSheet = async () => {
@@ -1069,10 +1174,10 @@ const App = () => {
                             const uKey = cleanKeys.find(k => k.clean.includes('udise'))?.orig;
                             const dKey = cleanKeys.find(k => k.clean === 'date' || k.clean.includes('date'))?.orig;
                             const labKey = cleanKeys.find(k => k.clean.includes('lab'))?.orig;
-                            // Find "Subject Teacher" column first (more specific match)
                             const teacherKey = cleanKeys.find(k => k.clean.includes('subjectteacher'))?.orig;
-                            // Find "Subject" column, excluding the "Subject Teacher" column
                             const subKey = cleanKeys.find(k => k.orig !== teacherKey && k.clean.includes('sub'))?.orig;
+                            const inTimeKey = cleanKeys.find(k => k.clean.includes('intime') || k.clean.includes('login'))?.orig;
+                            const outTimeKey = cleanKeys.find(k => k.clean.includes('outtime') || k.clean.includes('logout'))?.orig;
                             
                             if (!labKey || !subKey) missingKeysAlert = true;
                             
@@ -1081,7 +1186,9 @@ const App = () => {
                                 date: dKey ? r[dKey] : '',
                                 labType: labKey ? r[labKey] : '',
                                 subject: subKey ? r[subKey] : '',
-                                subjectTeacher: teacherKey ? String(r[teacherKey]).trim() : ''
+                                subjectTeacher: teacherKey ? String(r[teacherKey]).trim() : '',
+                                inTime: inTimeKey ? String(r[inTimeKey]).trim() : '',
+                                outTime: outTimeKey ? String(r[outTimeKey]).trim() : ''
                             };
                         });
                         
@@ -1170,14 +1277,35 @@ const App = () => {
                         await set('schools', normalized);
                         alert(`Successfully uploaded ${normalized.length} schools master records!`);
                     } else if (type === 'visits') {
-                        const cleanVisits = deduplicateVisits(normalized);
-                        setVisits(cleanVisits);
-                        await set('visits', cleanVisits);
-                        alert(`Successfully uploaded ${cleanVisits.length} unique visit reports!`);
+                        const isTemp = uploadAsSession || userRole !== 'admin';
+                        const meta = {
+                            last_uploaded_at: new Date().toISOString(),
+                            last_uploaded_by: localStorage.getItem('snet_username') || 'admin',
+                            is_temp: isTemp
+                        };
+                        
+                        let merged;
+                        if (isTemp) {
+                            merged = mergeVisits(tempVisits, normalized);
+                            setTempVisits(merged);
+                            sessionStorage.setItem('snet_temp_visits', JSON.stringify(merged));
+                            sessionStorage.setItem('snet_temp_visits_meta', JSON.stringify(meta));
+                            setVisitsMeta(meta);
+                            alert(`Successfully uploaded ${normalized.length} visit reports to temporary session!`);
+                        } else {
+                            const existing = await get('visits') || [];
+                            merged = mergeVisits(existing, normalized);
+                            setVisits(merged);
+                            await set('visits', merged);
+                            await set('visits_meta', meta);
+                            setVisitsMeta(meta);
+                            alert(`Successfully uploaded and merged ${normalized.length} visit reports to Central Cloud!`);
+                        }
 
-                        // Auto-fill Dates Logic
-                        if (cleanVisits.length > 0) {
-                            const dates = cleanVisits
+                        // Auto-fill Dates Logic using combined visits
+                        const newCombined = isTemp ? mergeVisits(visits, merged) : mergeVisits(merged, tempVisits);
+                        if (newCombined.length > 0) {
+                            const dates = newCombined
                                 .map(v => new Date(v.visit_date))
                                 .filter(d => !isNaN(d.getTime()))
                                 .sort((a, b) => a - b);
@@ -1187,13 +1315,53 @@ const App = () => {
                             }
                         }
                     } else if (type === 'jhpms_lab') {
-                        setJhpmsLab(normalized);
-                        await set('jhpms_lab', normalized);
-                        alert(`Successfully uploaded ${normalized.length} JHPMS Lab usage records!`);
+                        const isTemp = uploadAsSession || userRole !== 'admin';
+                        const meta = {
+                            last_uploaded_at: new Date().toISOString(),
+                            last_uploaded_by: localStorage.getItem('snet_username') || 'admin',
+                            is_temp: isTemp
+                        };
+                        
+                        if (isTemp) {
+                            const merged = mergeJhpms(tempJhpmsLab, normalized);
+                            setTempJhpmsLab(merged);
+                            sessionStorage.setItem('snet_temp_jhpms_lab', JSON.stringify(merged));
+                            sessionStorage.setItem('snet_temp_jhpms_lab_meta', JSON.stringify(meta));
+                            setJhpmsLabMeta(meta);
+                            alert(`Successfully uploaded ${normalized.length} JHPMS Lab logs to temporary session!`);
+                        } else {
+                            const existing = await get('jhpms_lab') || [];
+                            const merged = mergeJhpms(existing, normalized);
+                            setJhpmsLab(merged);
+                            await set('jhpms_lab', merged);
+                            await set('jhpms_lab_meta', meta);
+                            setJhpmsLabMeta(meta);
+                            alert(`Successfully uploaded and merged ${normalized.length} JHPMS Lab logs to Central Cloud!`);
+                        }
                     } else if (type === 'edustat') {
-                        setEdustat(normalized);
-                        await set('edustat', normalized);
-                        alert(`Successfully uploaded ${normalized.length} Edustat Daily utilization records!`);
+                        const isTemp = uploadAsSession || userRole !== 'admin';
+                        const meta = {
+                            last_uploaded_at: new Date().toISOString(),
+                            last_uploaded_by: localStorage.getItem('snet_username') || 'admin',
+                            is_temp: isTemp
+                        };
+                        
+                        if (isTemp) {
+                            const merged = mergeEdustat(tempEdustat, normalized);
+                            setTempEdustat(merged);
+                            sessionStorage.setItem('snet_temp_edustat', JSON.stringify(merged));
+                            sessionStorage.setItem('snet_temp_edustat_meta', JSON.stringify(meta));
+                            setEdustatMeta(meta);
+                            alert(`Successfully uploaded ${normalized.length} EduStat daily logs to temporary session!`);
+                        } else {
+                            const existing = await get('edustat') || [];
+                            const merged = mergeEdustat(existing, normalized);
+                            setEdustat(merged);
+                            await set('edustat', merged);
+                            await set('edustat_meta', meta);
+                            setEdustatMeta(meta);
+                            alert(`Successfully uploaded and merged ${normalized.length} EduStat daily logs to Central Cloud!`);
+                        }
                     } else if (type === 'edustat_master') {
                         setEdustatMaster(normalized);
                         await set('edustat_master', normalized);
@@ -1257,9 +1425,9 @@ const App = () => {
                     }}
                     status={{ 
                         schools: schools.length, 
-                        visits: visits.length,
-                        jhpms_lab: jhpmsLab.length,
-                        edustat: edustat.length,
+                        visits: combinedVisits.length,
+                        jhpms_lab: combinedJhpmsLab.length,
+                        edustat: combinedEdustat.length,
                         edustat_master: edustatMaster.length,
                         manpower: manpower.length
                     }}
@@ -1269,10 +1437,17 @@ const App = () => {
                     jhpmsLoading={jhpmsLoading}
                     userRole={userRole}
                     schools={schools}
-                    visits={visits}
+                    visits={combinedVisits}
+                    jhpmsLab={combinedJhpmsLab}
+                    edustat={combinedEdustat}
                     manpower={manpower}
                     ccNameMapping={ccNameMapping}
                     onUpdateNameMapping={handleUpdateNameMapping}
+                    uploadAsSession={uploadAsSession}
+                    setUploadAsSession={setUploadAsSession}
+                    visitsMeta={visitsMeta}
+                    jhpmsLabMeta={jhpmsLabMeta}
+                    edustatMeta={edustatMeta}
                 />
             );
         }
@@ -1310,8 +1485,8 @@ const App = () => {
             return (
                 <Dashboard
                     data={processedData}
-                    jhpmsLab={jhpmsLab}
-                    edustat={edustat}
+                    jhpmsLab={combinedJhpmsLab}
+                    edustat={combinedEdustat}
                     manpower={manpower}
                     onDrillDown={(t, d) => setDrillDownData({ title: t, data: d })}
                     startDate={startDate}
@@ -1325,7 +1500,7 @@ const App = () => {
             return (
                 <SearchView
                     schools={processedData.schools}
-                    visits={visits}
+                    visits={combinedVisits}
                     startDate={startDate}
                     endDate={endDate}
                     onDrillDown={(t, d) => setDrillDownData({ title: t, data: d })}
@@ -1335,17 +1510,17 @@ const App = () => {
         }
 
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
-        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={visits} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
-        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={jhpmsLab} edustat={edustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
+        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
+        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
         if (activeTab === 'plan') return <PlanView data={processedData} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
         if (activeTab === 'overall-analysis') return (
             <OverallAnalysis 
                 schools={schools} 
-                visits={visits} 
-                jhpmsLab={jhpmsLab} 
-                edustat={edustat} 
+                visits={combinedVisits} 
+                jhpmsLab={combinedJhpmsLab} 
+                edustat={combinedEdustat} 
                 edustatMaster={edustatMaster} 
                 manpower={manpower} 
                 startDate={startDate} 
@@ -1371,9 +1546,9 @@ const App = () => {
             return (
                 <Chatbot
                     schools={schools}
-                    visits={visits}
-                    jhpmsLab={jhpmsLab}
-                    edustat={edustat}
+                    visits={combinedVisits}
+                    jhpmsLab={combinedJhpmsLab}
+                    edustat={combinedEdustat}
                     manpower={manpower}
                     startDate={startDate}
                     endDate={endDate}

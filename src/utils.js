@@ -286,4 +286,46 @@ export const downloadCSV = (data, filename) => {
     console.error('Error exporting CSV', err);
   }
 };
+export const calculateDateRanges = (data, dateField = 'date', gapThresholdDays = 10) => {
+  if (!Array.isArray(data) || data.length === 0) return 'No Data';
+  
+  const times = data
+    .map(row => {
+      const rawVal = row[dateField];
+      if (!rawVal) return null;
+      const d = parseDateRobust(rawVal);
+      return d && !isNaN(d.getTime()) ? new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() : null;
+    })
+    .filter(Boolean);
+    
+  if (times.length === 0) return 'No Data';
+  
+  const uniqueTimes = [...new Set(times)].sort((a, b) => a - b);
+  
+  const ranges = [];
+  let start = uniqueTimes[0];
+  let prev = uniqueTimes[0];
+  
+  for (let i = 1; i < uniqueTimes.length; i++) {
+    const curr = uniqueTimes[i];
+    const gapDays = (curr - prev) / (1000 * 60 * 60 * 24);
+    if (gapDays > gapThresholdDays) {
+      ranges.push({ start: new Date(start), end: new Date(prev) });
+      start = curr;
+    }
+    prev = curr;
+  }
+  ranges.push({ start: new Date(start), end: new Date(prev) });
+  
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmt = (d) => {
+    const day = String(d.getDate()).padStart(2, '0');
+    const mon = months[d.getMonth()];
+    const yr = d.getFullYear();
+    return `${day}-${mon}-${yr}`;
+  };
+  
+  return ranges.map(r => `${fmt(r.start)} to ${fmt(r.end)}`).join(', ');
+};
+
 

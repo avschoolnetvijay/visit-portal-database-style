@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icons } from './Icons';
+import { calculateDateRanges, formatDate } from '../utils';
 
 const Setup = ({
     onUpload,
@@ -12,9 +13,16 @@ const Setup = ({
     userRole,
     schools = [],
     visits = [],
+    jhpmsLab = [],
+    edustat = [],
     manpower = [],
     ccNameMapping = {},
-    onUpdateNameMapping
+    onUpdateNameMapping,
+    uploadAsSession,
+    setUploadAsSession,
+    visitsMeta,
+    jhpmsLabMeta,
+    edustatMeta
 }) => {
     const mismatchList = React.useMemo(() => {
         const mismatchListLocal = [];
@@ -65,6 +73,15 @@ const Setup = ({
         alert(`Successfully auto-resolved ${mismatchList.length} CC/UDISE name mismatches! Name trust established.`);
     };
 
+    const getMetaString = (meta) => {
+        if (!meta || !meta.last_uploaded_at) return 'No Upload History';
+        const d = new Date(meta.last_uploaded_at);
+        const timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = formatDate(d);
+        const userStr = meta.last_uploaded_by || 'Unknown';
+        return `${dateStr} ${timeStr} by ${userStr}`;
+    };
+
     return (
         <div className="max-w-4xl mx-auto p-6 animate-fade-in space-y-6">
             {/* Setup & Import Card */}
@@ -76,6 +93,36 @@ const Setup = ({
                 <div className="p-8 text-center bg-white">
                     <Icons.Setup className="w-12 h-12 text-teal-600 mx-auto mb-4 animate-spin-slow" />
                     <p className="text-gray-500 mb-6 text-xs">Upload your Excel files to populate the portal. Data is securely stored in the Cloud Database (Supabase).</p>
+
+                    {/* Sandbox Mode / Upload Session Mode Banner */}
+                    <div className="mb-6 max-w-lg mx-auto bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-left">
+                        {userRole === 'admin' ? (
+                            <label className="flex items-start gap-3 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={uploadAsSession}
+                                    onChange={(e) => setUploadAsSession(e.target.checked)}
+                                    className="w-4 h-4 mt-0.5 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+                                />
+                                <div>
+                                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">Enable Session Sandbox Mode</span>
+                                    <span className="text-[10px] text-slate-500 block mt-0.5 font-medium leading-relaxed">
+                                        Check this to upload files temporarily to browser cache only. Ideal for sandbox testing or viewing local files without overwriting/committing to Central Cloud.
+                                    </span>
+                                </div>
+                            </label>
+                        ) : (
+                            <div className="flex items-start gap-2.5">
+                                <span className="text-amber-500 text-sm">⚠️</span>
+                                <div>
+                                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wider block">Session Sandbox Upload Active</span>
+                                    <span className="text-[10px] text-amber-700 block mt-0.5 font-medium leading-relaxed">
+                                        Commit privileges are restricted to Administrator. Any spreadsheet you upload will be stored as local session data for this browser tab only.
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="border border-dashed border-gray-300 rounded p-6 hover:border-teal-500 bg-gray-50 transition relative">
@@ -173,6 +220,110 @@ const Setup = ({
                     ) : (
                         <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Cloud Secured</div>
                     )}
+                </div>
+            </div>
+
+            {/* Database Status & Timeline Analyzer Panel */}
+            <div className="portal-card bg-white/80 backdrop-blur-md border border-white/60 shadow-xl rounded-2xl overflow-hidden mt-6">
+                <div className="portal-card-header text-sm py-3 px-6 bg-gradient-to-r from-teal-800 to-cyan-900 text-white font-semibold flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-serif">
+                        <Icons.ExecutiveClipboard className="w-4 h-4 text-teal-300 animate-pulse" />
+                        <span>Database Status & Timeline Analyzer</span>
+                    </div>
+                    <span className="text-[10px] bg-teal-900/60 text-teal-200 border border-teal-700/50 px-2 py-0.5 rounded font-bold uppercase tracking-wider font-sans">Bilingual Console</span>
+                </div>
+                <div className="p-6 bg-white overflow-x-auto">
+                    <table className="w-full text-left border-collapse font-sans text-xs">
+                        <thead>
+                            <tr className="border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
+                                <th className="pb-3 px-2">Table Name</th>
+                                <th className="pb-3 px-2 text-center">Data Scope</th>
+                                <th className="pb-3 px-2 text-right">Total Rows</th>
+                                <th className="pb-3 px-2">Timeline Coverage (Gaps &gt; 10 Days Split)</th>
+                                <th className="pb-3 px-2">Last Upload Log</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 text-gray-700">
+                            {/* Schools Roster */}
+                            <tr>
+                                <td className="py-3 px-2 font-semibold">1. School Master Baseline</td>
+                                <td className="py-3 px-2 text-center">
+                                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase">Cloud</span>
+                                </td>
+                                <td className="py-3 px-2 text-right font-mono font-bold text-teal-700">{schools.length.toLocaleString('en-IN')}</td>
+                                <td className="py-3 px-2 text-gray-400 italic">N/A (Geographic baseline)</td>
+                                <td className="py-3 px-2 text-gray-500 font-medium">Synced from cloud baseline</td>
+                            </tr>
+                            {/* Visits Roster */}
+                            <tr>
+                                <td className="py-3 px-2 font-semibold">2. Coordinator Visit Reports</td>
+                                <td className="py-3 px-2 text-center">
+                                    {visitsMeta?.is_temp ? (
+                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase animate-pulse">Session</span>
+                                    ) : (
+                                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase">Cloud</span>
+                                    )}
+                                </td>
+                                <td className="py-3 px-2 text-right font-mono font-bold text-teal-700">{visits.length.toLocaleString('en-IN')}</td>
+                                <td className="py-3 px-2 text-slate-800 font-semibold tracking-wide">
+                                    {calculateDateRanges(visits, 'visit_date')}
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 font-medium">{getMetaString(visitsMeta)}</td>
+                            </tr>
+                            {/* JHPMS Lab Log */}
+                            <tr>
+                                <td className="py-3 px-2 font-semibold">3. JHPMS Lab Usage Logs</td>
+                                <td className="py-3 px-2 text-center">
+                                    {jhpmsLabMeta?.is_temp ? (
+                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase animate-pulse">Session</span>
+                                    ) : (
+                                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase">Cloud</span>
+                                    )}
+                                </td>
+                                <td className="py-3 px-2 text-right font-mono font-bold text-teal-700">{jhpmsLab.length.toLocaleString('en-IN')}</td>
+                                <td className="py-3 px-2 text-slate-800 font-semibold tracking-wide">
+                                    {calculateDateRanges(jhpmsLab, 'date')}
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 font-medium">{getMetaString(jhpmsLabMeta)}</td>
+                            </tr>
+                            {/* Edustat Master Inventory */}
+                            <tr>
+                                <td className="py-3 px-2 font-semibold">4a. EduStat Master Inventory</td>
+                                <td className="py-3 px-2 text-center">
+                                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase">Cloud</span>
+                                </td>
+                                <td className="py-3 px-2 text-right font-mono font-bold text-teal-700">{status.edustat_master.toLocaleString('en-IN')}</td>
+                                <td className="py-3 px-2 text-gray-400 italic">N/A (Hardware mapping reference)</td>
+                                <td className="py-3 px-2 text-gray-500 font-medium">Synced from cloud inventory</td>
+                            </tr>
+                            {/* Edustat Daily Logs */}
+                            <tr>
+                                <td className="py-3 px-2 font-semibold">4b. EduStat Daily PC Logs</td>
+                                <td className="py-3 px-2 text-center">
+                                    {edustatMeta?.is_temp ? (
+                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase animate-pulse">Session</span>
+                                    ) : (
+                                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase">Cloud</span>
+                                    )}
+                                </td>
+                                <td className="py-3 px-2 text-right font-mono font-bold text-teal-700">{edustat.length.toLocaleString('en-IN')}</td>
+                                <td className="py-3 px-2 text-slate-800 font-semibold tracking-wide">
+                                    {calculateDateRanges(edustat, 'date')}
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 font-medium">{getMetaString(edustatMeta)}</td>
+                            </tr>
+                            {/* Manpower Roster */}
+                            <tr>
+                                <td className="py-3 px-2 font-semibold">5. Instructor Profile Roster</td>
+                                <td className="py-3 px-2 text-center">
+                                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase">Cloud</span>
+                                </td>
+                                <td className="py-3 px-2 text-right font-mono font-bold text-teal-700">{manpower.length.toLocaleString('en-IN')}</td>
+                                <td className="py-3 px-2 text-gray-400 italic">N/A (Manpower profile list)</td>
+                                <td className="py-3 px-2 text-gray-500 font-medium">Synced from cloud roster</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
