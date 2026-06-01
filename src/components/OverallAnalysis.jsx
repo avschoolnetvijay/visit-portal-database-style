@@ -1405,11 +1405,14 @@ const OverallAnalysis = ({
       const cScore = currentMap[udise].score;
       const pScore = prevMap[udise]?.score || 0;
       const schoolInfo = fSchools.find(s => String(s.udise_code || s.udise) === String(udise)) || {};
+      const rawCC = schoolInfo.visitor_name || schoolInfo.visitorName || '';
+      const resolvedCC = ccNameMapping[rawCC] || rawCC || 'Unassigned';
       deltas.push({
         udise,
         name: currentMap[udise].schoolName || schoolInfo.school_name || schoolInfo.school || 'Unknown School',
         block: schoolInfo.block || 'N/A',
         district: schoolInfo.district || 'N/A',
+        visitorName: resolvedCC,
         delta: cScore - pScore,
         current: Math.round(cScore),
         previous: Math.round(pScore)
@@ -1426,7 +1429,7 @@ const OverallAnalysis = ({
       allGainers: allGainers.slice(0, 25),
       allDecliners: allDecliners.slice(0, 25)
     };
-  }, [compareMode, fSchools, currentJhpms, prevJhpms, edustat, prevEdustat, manpower, currentVisits, prevVisits]);
+  }, [compareMode, fSchools, currentJhpms, prevJhpms, edustat, prevEdustat, manpower, currentVisits, prevVisits, ccNameMapping]);
 
   const formatDateRangeShort = (start, end) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -4460,7 +4463,7 @@ const OverallAnalysis = ({
                 onClick={() => {
                   const filtered = moversDetailModal.list.filter(item => {
                     const q = moversSearchQuery.toLowerCase();
-                    return item.name.toLowerCase().includes(q) || item.udise.includes(q) || item.block.toLowerCase().includes(q);
+                    return item.name.toLowerCase().includes(q) || item.udise.includes(q) || item.block.toLowerCase().includes(q) || (item.visitorName && item.visitorName.toLowerCase().includes(q));
                   });
                   const downloadData = filtered.map((item, idx) => ({
                     'Rank': idx + 1,
@@ -4468,6 +4471,7 @@ const OverallAnalysis = ({
                     'UDISE Code': item.udise,
                     'Block': item.block,
                     'District': item.district,
+                    'CC / DEF Name': item.visitorName || 'Unassigned',
                     'Previous Score %': `${item.previous}%`,
                     'Current Score %': `${item.current}%`,
                     'Change Delta %': `${item.delta > 0 ? '+' : ''}${item.delta.toFixed(1)}%`
@@ -4490,6 +4494,7 @@ const OverallAnalysis = ({
                     <th className="py-2.5 px-3 font-sans">UDISE Code</th>
                     <th className="py-2.5 px-3 font-sans">Block</th>
                     <th className="py-2.5 px-3 font-sans">District</th>
+                    <th className="py-2.5 px-3 font-sans">CC / DEF Name</th>
                     <th className="py-2.5 px-3 text-center font-sans">Previous</th>
                     <th className="py-2.5 px-3 text-center font-sans">Current</th>
                     <th className="py-2.5 px-3 text-right font-sans">Delta (%)</th>
@@ -4499,7 +4504,7 @@ const OverallAnalysis = ({
                   {moversDetailModal.list
                     .filter(item => {
                       const q = moversSearchQuery.toLowerCase();
-                      return item.name.toLowerCase().includes(q) || item.udise.includes(q) || item.block.toLowerCase().includes(q);
+                      return item.name.toLowerCase().includes(q) || item.udise.includes(q) || item.block.toLowerCase().includes(q) || (item.visitorName && item.visitorName.toLowerCase().includes(q));
                     })
                     .map((item, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 font-sans">
@@ -4508,6 +4513,7 @@ const OverallAnalysis = ({
                         <td className="py-3 px-3 font-mono font-medium text-slate-500">{item.udise}</td>
                         <td className="py-3 px-3 font-semibold text-slate-600 dark:text-slate-400">{item.block}</td>
                         <td className="py-3 px-3 text-slate-500 font-medium">{item.district}</td>
+                        <td className="py-3 px-3 font-semibold text-slate-600 dark:text-slate-400">{item.visitorName || 'Unassigned'}</td>
                         <td className="py-3 px-3 text-center font-mono font-bold text-slate-500">{item.previous}%</td>
                         <td className="py-3 px-3 text-center font-mono font-bold text-teal-700">{item.current}%</td>
                         <td className={`py-3 px-3 text-right font-mono font-extrabold ${item.delta > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -4517,10 +4523,10 @@ const OverallAnalysis = ({
                     ))}
                   {moversDetailModal.list.filter(item => {
                     const q = moversSearchQuery.toLowerCase();
-                    return item.name.toLowerCase().includes(q) || item.udise.includes(q) || item.block.toLowerCase().includes(q);
+                    return item.name.toLowerCase().includes(q) || item.udise.includes(q) || item.block.toLowerCase().includes(q) || (item.visitorName && item.visitorName.toLowerCase().includes(q));
                   }).length === 0 && (
                     <tr>
-                      <td colSpan="8" className="text-center text-slate-400 py-10 italic font-sans">No schools found matching search criteria.</td>
+                      <td colSpan="9" className="text-center text-slate-400 py-10 italic font-sans">No schools found matching search criteria.</td>
                     </tr>
                   )}
                 </tbody>
