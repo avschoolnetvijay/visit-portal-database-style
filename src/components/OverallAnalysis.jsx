@@ -2012,7 +2012,7 @@ const OverallAnalysis = ({
       bar: {
         horizontal: false,
         columnWidth: '55%',
-        endingShape: 'rounded',
+        borderRadius: 5,
         dataLabels: { position: 'top' }
       },
     },
@@ -2033,7 +2033,17 @@ const OverallAnalysis = ({
       width: 2,
       colors: ['transparent']
     },
-    colors: ['#0f766e', '#3b82f6'],
+    colors: ['#00e396', '#008ffb'],
+    fill: {
+      type: 'gradient',
+      gradient: {
+        type: 'vertical',
+        shadeIntensity: 0.1,
+        opacityFrom: 0.85,
+        opacityTo: 0.35,
+        stops: [0, 90, 100]
+      }
+    },
     xaxis: {
       categories: projectStatsData.map(d => d.projectName),
       labels: {
@@ -2123,7 +2133,7 @@ const OverallAnalysis = ({
       bar: {
         horizontal: false,
         columnWidth: '45%',
-        endingShape: 'rounded',
+        borderRadius: 5,
         dataLabels: { position: 'top' }
       },
     },
@@ -2142,15 +2152,14 @@ const OverallAnalysis = ({
     fill: {
       type: 'gradient',
       gradient: {
-        shade: 'light',
         type: 'vertical',
-        shadeIntensity: 0.3,
+        shadeIntensity: 0.1,
         opacityFrom: 0.85,
-        opacityTo: 0.55,
-        stops: [0, 95, 100],
+        opacityTo: 0.35,
+        stops: [0, 90, 100],
       }
     },
-    colors: ['#d97706'],
+    colors: ['#feb019'],
     xaxis: {
       categories: projectStatsData.map(d => d.projectName),
       labels: {
@@ -2241,7 +2250,7 @@ const OverallAnalysis = ({
       bar: {
         horizontal: false,
         columnWidth: '55%',
-        endingShape: 'rounded',
+        borderRadius: 5,
         dataLabels: { position: 'top' }
       },
     },
@@ -2262,7 +2271,17 @@ const OverallAnalysis = ({
       width: 2,
       colors: ['transparent']
     },
-    colors: ['#10b981', '#6366f1'],
+    colors: ['#00e396', '#775dd0'],
+    fill: {
+      type: 'gradient',
+      gradient: {
+        type: 'vertical',
+        shadeIntensity: 0.1,
+        opacityFrom: 0.85,
+        opacityTo: 0.35,
+        stops: [0, 90, 100]
+      }
+    },
     xaxis: {
       categories: projectStatsData.map(d => d.projectName),
       labels: {
@@ -3040,47 +3059,53 @@ const OverallAnalysis = ({
 
       {/* ═══════ EXECUTIVE REVIEW SUB-TAB NAVIGATION (Corporate Mode Only) ═══════ */}
       {displayMode === 'corporate' && (
-        <div className="flex flex-wrap items-center gap-2 bg-gradient-to-r from-teal-50/30 to-emerald-50/30 dark:from-slate-900 dark:to-slate-950 p-2.5 rounded-xl border border-teal-100/50 dark:border-slate-800 mb-6 shadow-sm no-print font-sans">
-          <button
-            onClick={() => setActiveExecutiveTab('strategic')}
-            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
-              activeExecutiveTab === 'strategic'
-                ? 'bg-gradient-to-r from-teal-700 to-teal-650 text-white shadow hover:shadow-md scale-[1.02] transform'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            📊 Strategic Summary
-          </button>
-          <button
-            onClick={() => setActiveExecutiveTab('operations')}
-            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
-              activeExecutiveTab === 'operations'
-                ? 'bg-gradient-to-r from-teal-700 to-teal-650 text-white shadow hover:shadow-md scale-[1.02] transform'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            👥 Operations & HR
-          </button>
-          <button
-            onClick={() => setActiveExecutiveTab('quality')}
-            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
-              activeExecutiveTab === 'quality'
-                ? 'bg-gradient-to-r from-teal-700 to-teal-650 text-white shadow hover:shadow-md scale-[1.02] transform'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            🛡️ Data Quality & Audit
-          </button>
-          <button
-            onClick={() => setActiveExecutiveTab('roi')}
-            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
-              activeExecutiveTab === 'roi'
-                ? 'bg-gradient-to-r from-teal-700 to-teal-650 text-white shadow hover:shadow-md scale-[1.02] transform'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            💼 Project ROI & Run-Rate
-          </button>
+        <div className="mb-6 no-print font-sans select-none">
+          <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-1 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+            EXECUTIVE AUDIT PORTAL SECTIONS
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-inner">
+            <button
+              onClick={() => setActiveExecutiveTab('strategic')}
+              className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
+                activeExecutiveTab === 'strategic'
+                  ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              📊 Strategic Summary
+            </button>
+            <button
+              onClick={() => setActiveExecutiveTab('operations')}
+              className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
+                activeExecutiveTab === 'operations'
+                  ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              👥 Operations & HR
+            </button>
+            <button
+              onClick={() => setActiveExecutiveTab('quality')}
+              className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
+                activeExecutiveTab === 'quality'
+                  ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              🛡️ Data Quality & Audit
+            </button>
+            <button
+              onClick={() => setActiveExecutiveTab('roi')}
+              className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
+                activeExecutiveTab === 'roi'
+                  ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              💼 Project ROI & Run-Rate
+            </button>
+          </div>
         </div>
       )}
 
@@ -3553,54 +3578,58 @@ const OverallAnalysis = ({
       )}
 
       {/* ═══════ EXECUTIVE AI NARRATIVE & TROPHY PANEL ═══════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        
-        {/* Executive narrative panel */}
-        {(displayMode !== 'corporate' && selectedSlides.health) && (
-          <div className="portal-card bg-indigo-50/20 dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 font-sans">
-            <div className="portal-card-header !bg-gradient-to-r !from-indigo-700 !to-blue-700 flex items-center gap-2 text-white font-serif">
-              <Icons.Robot className="w-6 h-6 shrink-0" />
-              AI EXECUTIVE NARRATIVE REPORT
+      {((displayMode !== 'corporate' && (selectedSlides.health || selectedSlides.kpis)) || (displayMode === 'corporate' && activeExecutiveTab === 'strategic')) && (
+        <div className={`grid gap-5 font-sans mb-6 ${
+          displayMode === 'corporate' ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'
+        }`}>
+          
+          {/* Executive narrative panel */}
+          {(displayMode !== 'corporate' && selectedSlides.health) && (
+            <div className="portal-card bg-indigo-50/20 dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 font-sans">
+              <div className="portal-card-header !bg-gradient-to-r !from-indigo-700 !to-blue-700 flex items-center gap-2 text-white font-serif">
+                <Icons.Robot className="w-6 h-6 shrink-0" />
+                AI EXECUTIVE NARRATIVE REPORT
+              </div>
+              <div className="p-5 font-serif text-[13.5px] leading-relaxed text-slate-700 dark:text-slate-300 space-y-2.5">
+                {narrative.map((p, idx) => (
+                  <p key={idx}>{p}</p>
+                ))}
+              </div>
             </div>
-            <div className="p-5 font-serif text-[13.5px] leading-relaxed text-slate-700 dark:text-slate-300 space-y-2.5">
-              {narrative.map((p, idx) => (
-                <p key={idx}>{p}</p>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Trophies achievements */}
-        {((displayMode !== 'corporate' && selectedSlides.kpis) || (displayMode === 'corporate' && activeExecutiveTab === 'strategic')) && (
-          <div className="portal-card bg-emerald-50/20 dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 font-sans">
-            <div className="portal-card-header !bg-gradient-to-r !from-emerald-700 !to-teal-700 flex items-center gap-2 text-white font-serif">
-              <Icons.Trophy className="w-6 h-6 shrink-0" />
-              What's Going Well
-            </div>
-            <div className="p-4 space-y-3.5">
-              {achievements.map((item, idx) => (
-                <div key={idx} className="bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-900/40 rounded-xl p-3 shadow-sm flex items-start gap-3 font-sans">
-                  <span className="text-xl shrink-0 mt-0.5">{['🏆', '🌟', '🎖️'][idx % 3]}</span>
-                  <div>
-                    <span className="text-[10px] font-black uppercase text-emerald-800 dark:text-emerald-400 tracking-wider">
-                      {item.label}
-                    </span>
-                    <div className="text-sm font-extrabold text-slate-800 dark:text-slate-200 truncate w-72 md:w-96" title={item.value}>
-                      {item.value}
+          {/* Trophies achievements */}
+          {((displayMode !== 'corporate' && selectedSlides.kpis) || (displayMode === 'corporate' && activeExecutiveTab === 'strategic')) && (
+            <div className="portal-card bg-emerald-50/20 dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 font-sans">
+              <div className="portal-card-header !bg-gradient-to-r !from-emerald-700 !to-teal-700 flex items-center gap-2 text-white font-serif">
+                <Icons.Trophy className="w-6 h-6 shrink-0" />
+                What's Going Well
+              </div>
+              <div className={`p-4 ${displayMode === 'corporate' ? 'grid grid-cols-1 md:grid-cols-3 gap-4 space-y-0' : 'space-y-3.5'}`}>
+                {achievements.map((item, idx) => (
+                  <div key={idx} className="bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-900/40 rounded-xl p-3.5 shadow-sm flex items-start gap-3.5 font-sans animate-scale-up">
+                    <span className="text-xl shrink-0 mt-0.5">{['🏆', '🌟', '🎖️'][idx % 3]}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] font-black uppercase text-emerald-800 dark:text-emerald-400 tracking-wider">
+                        {item.label}
+                      </span>
+                      <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200 truncate w-full" title={item.value}>
+                        {item.value}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-medium mt-0.5 leading-normal">{item.detail}</div>
                     </div>
-                    <div className="text-[10.5px] text-slate-400 font-medium mt-0.5">{item.detail}</div>
                   </div>
-                </div>
-              ))}
-              {achievements.length === 0 && (
-                <div className="text-slate-400 italic text-xs py-10 text-center font-medium font-sans">
-                  Insufficent data matrix to declare wins.
-                </div>
-              )}
+                ))}
+                {achievements.length === 0 && (
+                  <div className="text-slate-400 italic text-xs py-10 text-center font-medium font-sans w-full col-span-3">
+                    Insufficent data matrix to declare wins.
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* ═══════ DATA SOURCE DEEP-DIVE TABBED VIEWS ═══════ */}
       {((displayMode !== 'corporate' && selectedSlides.deepdive) || (displayMode === 'corporate' && activeExecutiveTab === 'operations')) && (
