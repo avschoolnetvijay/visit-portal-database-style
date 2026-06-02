@@ -348,6 +348,7 @@ const OverallAnalysis = ({
   const [sortDir, setSortDir] = useState('desc');
   const [showAll, setShowAll] = useState(false);
   const [activeDeepDiveTab, setActiveDeepDiveTab] = useState('jhpms');
+  const [activeExecutiveTab, setActiveExecutiveTab] = useState('strategic'); // 'strategic', 'operations', 'quality', 'roi'
   const [displayMode, setDisplayMode] = useState('corporate'); // 'corporate', '16-9', 'print'
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [isTreemapExpanded, setIsTreemapExpanded] = useState(false);
@@ -381,7 +382,7 @@ const OverallAnalysis = ({
 
   const handleExportUrgentSchools = () => {
     const list = finalEnriched
-      .filter((s) => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0))
+      .filter((s) => s.compositeScore < 30)
       .sort((a, b) => a.compositeScore - b.compositeScore);
       
     const exportFormat = list.map((s, idx) => ({
@@ -845,7 +846,15 @@ const OverallAnalysis = ({
       let rootCause = 'Normal';
       let recommendation = 'Continue monitoring';
 
-      if (isJhpmsActive && isEdustatActive && jhpmsClasses > 0 && eduHours === 0 && installedDevices > 0) {
+      const activeDataCheck = (isJhpmsActive ? jhpmsClasses === 0 : true) &&
+                              (isEdustatActive ? eduHours === 0 : true) &&
+                              (isVisitActive ? fieldVisits === 0 : true);
+      const atLeastOneActive = isJhpmsActive || isEdustatActive || isVisitActive;
+
+      if (atLeastOneActive && activeDataCheck) {
+        rootCause = 'Zero Activity / Onboarding Gap';
+        recommendation = 'Check onboarding status, assign instructor, and schedule initial visit immediately';
+      } else if (isJhpmsActive && isEdustatActive && jhpmsClasses > 0 && eduHours === 0 && installedDevices > 0) {
         rootCause = 'Power Failure';
         recommendation = 'Investigate device/power issues at school';
       } else if (isJhpmsActive && isEdustatActive && jhpmsClasses === 0 && eduHours === 0 && (mp.status === 'Vacant' || mp.status === 'Pending')) {
@@ -922,7 +931,7 @@ const OverallAnalysis = ({
   const finalEnriched = useMemo(() => {
     let list = enriched;
     if (showExceptions) {
-      list = list.filter(s => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0));
+      list = list.filter(s => s.compositeScore < 30);
     }
     if (perfBands?.length) {
       list = list.filter(s => {
@@ -950,7 +959,7 @@ const OverallAnalysis = ({
       if (s.rootCause === 'Not Visited') blockFindings[s.block].notVisited++;
       else if (s.rootCause === 'Power Failure') blockFindings[s.block].powerFailure++;
       else if (s.rootCause === 'Manpower Vacant') blockFindings[s.block].vacancy++;
-      if (s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0)) blockFindings[s.block].critical++;
+      if (s.compositeScore < 30) blockFindings[s.block].critical++;
     });
 
     Object.entries(blockFindings).forEach(([blockName, f]) => {
@@ -987,7 +996,7 @@ const OverallAnalysis = ({
       
       // Top Critical schools in this block get individual action items
       f.schools
-        .filter(s => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0))
+        .filter(s => s.compositeScore < 30)
         .slice(0, 2)
         .forEach(s => {
           actions.push({
@@ -1162,17 +1171,11 @@ const OverallAnalysis = ({
       return acc;
     }, 0);
 
-    // Critical Count local (using same canonical logic: score < 30 and has data, excluding no-data schools)
+    // Critical Count local (using same canonical logic: score < 30)
     const criticalCount = schoolList.filter(s => {
       const udise = cleanUdise(s.udise_code);
       const score = scoresMap[udise]?.score || 0;
-      
-      const jClasses = jhpmsLocalMap[udise] || 0;
-      const eHours = edustatLocalMap[udise] || 0;
-      const fVisits = visitLocalMap[udise]?.count || 0;
-      
-      const isNoData = jClasses === 0 && eHours === 0 && fVisits === 0;
-      return score < 30 && !isNoData;
+      return score < 30;
     }).length;
 
     return {
@@ -1192,7 +1195,7 @@ const OverallAnalysis = ({
     const labPct = pct(targetSchools.filter(s => s.jhpmsClasses > 0).length, total);
     const visitPct = pct(targetSchools.filter(s => s.fieldVisits >= s.targetVisits).length, total);
     const deviceHours = targetSchools.reduce((acc, s) => acc + s.eduHours, 0);
-    const criticalCount = targetSchools.filter(s => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0)).length;
+    const criticalCount = targetSchools.filter(s => s.compositeScore < 30).length;
     
     // Count distinct assigned visitor/coordinator CC names in filtered scope (using mapping)
     const activeCCs = [...new Set(targetSchools.map(s => s.visitorName).filter(name => name && name !== '-' && name.trim() !== '' && name.toLowerCase() !== 'unassigned'))].length;
@@ -1330,7 +1333,7 @@ const OverallAnalysis = ({
         formula: 'Percentage of schools conducting at least 1 JHPMS academic class during this period.'
       },
       {
-        label: 'Schools Actually Visited',
+        label: 'Target Visit Completed',
         value: isVisitActive ? `${visitPct}% (${finalEnriched.filter(s => s.fieldVisits >= s.targetVisits).length}/${total})` : 'Not Reporting',
         rawPct: visitPct,
         icon: '✅',
@@ -1353,7 +1356,7 @@ const OverallAnalysis = ({
             'Composite Score %': `${Math.round(s.compositeScore)}%`,
             'Action Recommendation': s.recommendation
           }));
-          onDrillDown('Visited Schools (Target Met) - Actually Visited KPI', data);
+          onDrillDown('Schools Meeting Target Visits - Target Visit Completed KPI', data);
         } : null,
         formula: 'Percentage of schools where completed visits meet or exceed target visits (target = monthly_target * duration).'
       },
@@ -1374,7 +1377,7 @@ const OverallAnalysis = ({
         isActive: true,
         mom: compareMode && prevKPIs ? getMoMChange(criticalCount, prevKPIs.criticalCount) : null,
         onClick: onDrillDown ? () => {
-          const criticalSchools = finalEnriched.filter(s => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0));
+          const criticalSchools = finalEnriched.filter(s => s.compositeScore < 30);
           const data = criticalSchools.map((s, index) => ({
             'Sl No': index + 1,
             'School Name': s.schoolName,
@@ -2536,6 +2539,175 @@ const OverallAnalysis = ({
       .slice(0, 10);
   }, [finalEnriched]);
 
+  // Coordinator Workload & Compliance data for Tab 2
+  const coordinatorWorkloadData = useMemo(() => {
+    const ccMap = {};
+    finalEnriched.forEach(s => {
+      const ccName = s.visitorName || 'Unassigned';
+      if (!ccMap[ccName]) {
+        ccMap[ccName] = {
+          name: ccName,
+          assignedSchools: 0,
+          totalTarget: 0,
+          completedVisits: 0,
+          projects: new Set()
+        };
+      }
+      ccMap[ccName].assignedSchools++;
+      ccMap[ccName].totalTarget += s.targetVisits || 0;
+      ccMap[ccName].completedVisits += s.fieldVisits || 0;
+      if (s.project) ccMap[ccName].projects.add(s.project);
+    });
+
+    return Object.values(ccMap).map(cc => ({
+      name: cc.name,
+      assignedSchools: cc.assignedSchools,
+      totalTarget: cc.totalTarget,
+      completedVisits: cc.completedVisits,
+      complianceRate: cc.totalTarget > 0 ? clamp((cc.completedVisits / cc.totalTarget) * 100) : (cc.completedVisits > 0 ? 100 : 0),
+      projects: Array.from(cc.projects).join(', ')
+    })).sort((a, b) => b.complianceRate - a.complianceRate);
+  }, [finalEnriched]);
+
+  // EduStat Outlier Sanitizer (Usage > 12h/24h, Sundays) for Tab 3
+  const edustatAnomalies = useMemo(() => {
+    if (!activeSources.includes('edustat') || !edustat || edustat.length === 0) return [];
+    const anomalies = [];
+    
+    edustat.forEach(row => {
+      const hours = row.hours !== undefined ? Number(row.hours) : parseHours(row['total used hours'] || row.hours || 0);
+      const dateStr = row.date || row.sync_date || '';
+      if (!dateStr) return;
+      const d = new Date(dateStr);
+      const isSunday = d.getDay() === 0;
+      
+      if (hours > 12 || (isSunday && hours > 0)) {
+        const udise = cleanUdise(row.udise || row.udise_code);
+        if (!validUdises.has(udise)) return;
+        const school = schools.find(s => cleanUdise(s.udise_code) === udise);
+        if (!school) return;
+        
+        let anomalyType = '';
+        let severity = 'Medium';
+        if (hours > 24) {
+          anomalyType = 'System Clock Error (Usage > 24h)';
+          severity = 'High';
+        } else if (hours > 12) {
+          anomalyType = 'Session Limit Exceeded (Usage > 12h)';
+          severity = 'Medium';
+        } else if (isSunday) {
+          anomalyType = 'Sunday Activity Logged';
+          severity = 'Low';
+        }
+        
+        anomalies.push({
+          udise,
+          schoolName: school.school_name || 'Unknown',
+          block: school.block || '-',
+          district: school.district || '-',
+          date: new Date(dateStr).toLocaleDateString('en-IN'),
+          hours: hours.toFixed(1),
+          type: anomalyType,
+          severity
+        });
+      }
+    });
+    
+    return anomalies.slice(0, 50);
+  }, [edustat, activeSources, validUdises, schools]);
+
+  // Orphaned Assets Alert for Tab 3
+  const orphanedAssets = useMemo(() => {
+    return finalEnriched.filter(s => {
+      const isStaffVacant = s.staffStatus === 'Vacant' || s.staffStatus === 'Pending' || !s.visitorName || s.visitorName === 'Unassigned' || s.visitorName === '-';
+      const hasHardwareOrClasses = s.installedDevices > 0 && (s.eduHours > 0 || s.jhpmsClasses > 0);
+      return isStaffVacant && hasHardwareOrClasses;
+    });
+  }, [finalEnriched]);
+
+  // Project ROI Matrix Grid for Tab 4
+  const projectRoiMatrix = useMemo(() => {
+    const projectsList = ['AV-439', 'ICT-627+127', 'ICT-254'];
+    
+    return projectsList.map(proj => {
+      const projSchools = finalEnriched.filter(s => {
+        const p = (s.project || '').toUpperCase();
+        if (proj === 'ICT-627+127') return p.includes('627') || p.includes('127');
+        return p.includes(proj.toUpperCase());
+      });
+      
+      const totalSchools = projSchools.length;
+      const installedDevices = projSchools.reduce((acc, s) => acc + (s.installedDevices || 0), 0);
+      const activeCCs = [...new Set(projSchools.map(s => s.visitorName).filter(name => name && name !== '-' && name !== 'Unassigned'))].length;
+      
+      const avgScore = totalSchools > 0 ? (projSchools.reduce((acc, s) => acc + s.compositeScore, 0) / totalSchools) : 0;
+      
+      const totalClasses = projSchools.reduce((acc, s) => acc + (s.jhpmsClasses || 0), 0);
+      const classesPerSchool = totalSchools > 0 ? (totalClasses / totalSchools) : 0;
+      
+      const totalHours = projSchools.reduce((acc, s) => acc + (s.eduHours || 0), 0);
+      const hoursPerDevice = installedDevices > 0 ? (totalHours / installedDevices) : 0;
+      
+      const totalVisits = projSchools.reduce((acc, s) => acc + (s.fieldVisits || 0), 0);
+      const totalTarget = projSchools.reduce((acc, s) => acc + (s.targetVisits || 0), 0);
+      const compliance = totalTarget > 0 ? (totalVisits / totalTarget) * 100 : (totalVisits > 0 ? 100 : 0);
+      
+      return {
+        project: proj,
+        schoolsCount: totalSchools,
+        devices: installedDevices,
+        coordinators: activeCCs,
+        score: avgScore,
+        classes: classesPerSchool,
+        hours: hoursPerDevice,
+        visitCompliance: compliance
+      };
+    });
+  }, [finalEnriched]);
+
+  // Target Burn-down Run-rate Tracker data for Tab 4
+  const burnDownData = useMemo(() => {
+    if (!startDate || !endDate) return [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    const diffTime = Math.abs(end - start);
+    const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
+    if (totalDays <= 0 || totalDays > 100) return [];
+    
+    const totalTarget = finalEnriched.reduce((acc, s) => acc + (s.targetVisits || 0), 0);
+    
+    const days = [];
+    let cumulativeVisits = 0;
+    
+    const sortedVisits = [...currentVisits].sort((a, b) => new Date(a.visit_date) - new Date(b.visit_date));
+    
+    for (let i = 0; i < totalDays; i++) {
+      const currentDay = new Date(start);
+      currentDay.setDate(start.getDate() + i);
+      
+      const dayStr = currentDay.toISOString().split('T')[0];
+      
+      const dayVisitsCount = sortedVisits.filter(v => {
+        const vDateStr = (v.visit_date || '').split('T')[0];
+        return vDateStr === dayStr;
+      }).length;
+      
+      cumulativeVisits += dayVisitsCount;
+      
+      const linearTarget = totalTarget > 0 ? ((i + 1) / totalDays) * totalTarget : 0;
+      
+      days.push({
+        day: currentDay.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+        visits: cumulativeVisits,
+        target: Math.round(linearTarget)
+      });
+    }
+    
+    return days;
+  }, [startDate, endDate, currentVisits, finalEnriched]);
+
   // Cross-Source Agreement Matrix Anomalies List
   const anomaliesMatrix = useMemo(() => {
     const anomalies = [];
@@ -2866,8 +3038,54 @@ const OverallAnalysis = ({
         </div>
       </div>
 
+      {/* ═══════ EXECUTIVE REVIEW SUB-TAB NAVIGATION (Corporate Mode Only) ═══════ */}
+      {displayMode === 'corporate' && (
+        <div className="flex flex-wrap items-center gap-2 bg-gradient-to-r from-teal-50/30 to-emerald-50/30 dark:from-slate-900 dark:to-slate-950 p-2.5 rounded-xl border border-teal-100/50 dark:border-slate-800 mb-6 shadow-sm no-print font-sans">
+          <button
+            onClick={() => setActiveExecutiveTab('strategic')}
+            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
+              activeExecutiveTab === 'strategic'
+                ? 'bg-gradient-to-r from-teal-700 to-teal-650 text-white shadow hover:shadow-md scale-[1.02] transform'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            📊 Strategic Summary
+          </button>
+          <button
+            onClick={() => setActiveExecutiveTab('operations')}
+            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
+              activeExecutiveTab === 'operations'
+                ? 'bg-gradient-to-r from-teal-700 to-teal-650 text-white shadow hover:shadow-md scale-[1.02] transform'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            👥 Operations & HR
+          </button>
+          <button
+            onClick={() => setActiveExecutiveTab('quality')}
+            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
+              activeExecutiveTab === 'quality'
+                ? 'bg-gradient-to-r from-teal-700 to-teal-650 text-white shadow hover:shadow-md scale-[1.02] transform'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            🛡️ Data Quality & Audit
+          </button>
+          <button
+            onClick={() => setActiveExecutiveTab('roi')}
+            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 ${
+              activeExecutiveTab === 'roi'
+                ? 'bg-gradient-to-r from-teal-700 to-teal-650 text-white shadow hover:shadow-md scale-[1.02] transform'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            💼 Project ROI & Run-Rate
+          </button>
+        </div>
+      )}
+
       {/* ═══════ SECTION 1: KEY PERFORMANCE INDICATORS ═══════ */}
-      {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.kpis) && (
+      {((displayMode !== 'corporate' && selectedSlides.kpis) || (displayMode === 'corporate' && activeExecutiveTab === 'strategic')) && (
         <div className="page-break-after">
           <h2 className="text-sm font-extrabold text-teal-900 dark:text-teal-400 uppercase tracking-wider mb-3 flex items-center gap-2 font-serif">
             <Icons.Dashboard className="w-5 h-5" /> Key Numbers at a Glance
@@ -2922,7 +3140,7 @@ const OverallAnalysis = ({
       )}
 
       {/* ═══════ SECTION 1.5: PROJECT-WISE PERFORMANCE VISUALIZATION ═══════ */}
-      {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.kpis) && (
+      {(displayMode !== 'corporate' && selectedSlides.kpis) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5 no-print">
           
           {/* Card 1: Project-wise Lab Uses */}
@@ -2983,96 +3201,190 @@ const OverallAnalysis = ({
       )}
 
       {/* ═══════ SECTION 2: HEALTH GAUGE & DATA QUALITY INDEX ═══════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        
-        {/* Semi-Circle composite gauge */}
-        {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.health) && (
-          <div className="portal-card lg:col-span-1 p-4 flex flex-col items-center justify-start bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative">
-            <ChartToolbar
-              chartId="health-gauge-svg"
-              csvData={[
-                { Metric: 'Overall Health Score', Value: `${Math.round(healthData.composite)}%` },
-                { Metric: 'JHPMS Labs', Value: `${Math.round(healthData.jhpmsGlobal)}%` },
-                { Metric: 'EduStat Hours', Value: `${Math.round(healthData.edustatGlobal)}%` },
-                { Metric: 'Visit Coverage', Value: `${Math.round(healthData.visitGlobal)}%` },
-                { Metric: 'CC Manpower', Value: `${Math.round(healthData.manpowerGlobal)}%` }
-              ]}
-              filename="overall_health_score"
-            />
-            <SemiGauge
-              value={healthData.composite}
-              size={180}
-              label="Overall Health Score"
-              grade={healthData.grade}
-              gradeColor={healthData.gradeColor}
-              isReporting={isJhpmsActive || isEdustatActive || isVisitActive || isManpowerActive}
-            />
-            <div className="w-full space-y-1.5 mt-3">
-              <MiniBar label="JHPMS Labs" value={healthData.jhpmsGlobal} weight={weights.jhpms} color="#0f766e" isReporting={isJhpmsActive} />
-              <MiniBar label="EduStat Hours" value={healthData.edustatGlobal} weight={weights.edustat} color="#2563eb" isReporting={isEdustatActive} />
-              <MiniBar label="Visit Coverage" value={healthData.visitGlobal} weight={weights.visit} color="#7c3aed" isReporting={isVisitActive} />
-              <MiniBar label="CC Manpower" value={healthData.manpowerGlobal} weight={weights.manpower} color="#d97706" isReporting={isManpowerActive} />
+      {displayMode !== 'corporate' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+          {selectedSlides.health && (
+            <div className="portal-card lg:col-span-1 p-4 flex flex-col items-center justify-start bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative">
+              <ChartToolbar
+                chartId="health-gauge-svg"
+                csvData={[
+                  { Metric: 'Overall Health Score', Value: `${Math.round(healthData.composite)}%` },
+                  { Metric: 'JHPMS Labs', Value: `${Math.round(healthData.jhpmsGlobal)}%` },
+                  { Metric: 'EduStat Hours', Value: `${Math.round(healthData.edustatGlobal)}%` },
+                  { Metric: 'Visit Coverage', Value: `${Math.round(healthData.visitGlobal)}%` },
+                  { Metric: 'CC Manpower', Value: `${Math.round(healthData.manpowerGlobal)}%` }
+                ]}
+                filename="overall_health_score"
+              />
+              <SemiGauge
+                value={healthData.composite}
+                size={180}
+                label="Overall Health Score"
+                grade={healthData.grade}
+                gradeColor={healthData.gradeColor}
+                isReporting={isJhpmsActive || isEdustatActive || isVisitActive || isManpowerActive}
+              />
+              <div className="w-full space-y-1.5 mt-3">
+                <MiniBar label="JHPMS Labs" value={healthData.jhpmsGlobal} weight={weights.jhpms} color="#0f766e" isReporting={isJhpmsActive} />
+                <MiniBar label="EduStat Hours" value={healthData.edustatGlobal} weight={weights.edustat} color="#2563eb" isReporting={isEdustatActive} />
+                <MiniBar label="Visit Coverage" value={healthData.visitGlobal} weight={weights.visit} color="#7c3aed" isReporting={isVisitActive} />
+                <MiniBar label="CC Manpower" value={healthData.manpowerGlobal} weight={weights.manpower} color="#d97706" isReporting={isManpowerActive} />
+              </div>
+              <p className="text-[9px] text-slate-400 mt-3 italic text-center leading-normal font-sans" title="Composite Formula = (JHPMS Labs Score * 30%) + (EduStat Hours Score * 25%) + (Visit Coverage Score * 25%) + (CC Manpower Score * 20%)">
+                *Composite Health Score = (JHPMS Labs Score × 30%) + (EduStat Hours Score × 25%) + (Visit Coverage Score × 25%) + (CC Manpower Score × 20%). Weights are redistributed proportionally if a database stream is inactive. ⓘ
+              </p>
             </div>
-            <p className="text-[9px] text-slate-400 mt-3 italic text-center leading-normal font-sans" title="Composite Formula = (JHPMS Labs Score * 30%) + (EduStat Hours Score * 25%) + (Visit Coverage Score * 25%) + (CC Manpower Score * 20%)">
-              *Composite Health Score = (JHPMS Labs Score × 30%) + (EduStat Hours Score × 25%) + (Visit Coverage Score × 25%) + (CC Manpower Score × 20%). Weights are redistributed proportionally if a database stream is inactive. ⓘ
-            </p>
-          </div>
-        )}
+          )}
 
-        {/* Data Quality and Reliability Index Panel */}
-        {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.quality) && (
-          <div className="portal-card lg:col-span-2 p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800 font-sans">
-            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
-              <Icons.Reports className="w-6 h-6 text-teal-700" />
-              <div>
-                <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Data Quality & Trust Index</h3>
-                <p className="text-[10px] text-slate-400">Shows how complete and reliable each data source is before you trust its numbers.</p>
+          {selectedSlides.quality && (
+            <div className="portal-card lg:col-span-2 p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800 font-sans">
+              <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+                <Icons.Reports className="w-6 h-6 text-teal-700" />
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Data Quality & Trust Index</h3>
+                  <p className="text-[10px] text-slate-400">Shows how complete and reliable each data source is before you trust its numbers.</p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto flex-1">
+                <table className="w-full text-xs text-left portal-table">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                      <th className="py-2.5 px-3">Data Stream Name</th>
+                      <th className="py-2.5 px-3 text-center">Compliance</th>
+                      <th className="py-2.5 px-3 text-center">Last Sync</th>
+                      <th className="py-2.5 px-3 text-center">Stale/Missing</th>
+                      <th className="py-2.5 px-3 text-center">Name Mismatches</th>
+                      <th className="py-2.5 px-3 text-center">Trust Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {dqMetrics.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td className="py-3 px-3 font-bold text-slate-700 dark:text-slate-300">{row.name}</td>
+                        <td className="py-3 px-3 text-center font-mono font-bold text-teal-700">{row.compliance.toFixed(1)}%</td>
+                        <td className="py-3 px-3 text-center text-slate-500 font-medium">{row.sync}</td>
+                        <td className="py-3 px-3 text-center text-rose-600 font-bold">{row.stale}</td>
+                        <td className="py-3 px-3 text-center text-amber-600 font-bold">{row.mismatches}</td>
+                        <td className="py-3 px-3 text-center">
+                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${row.badge.color}`}>
+                            {row.badge.label}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 leading-normal flex items-start gap-2 mt-4 font-sans">
+                <span className="text-base leading-none">💡</span>
+                <span>
+                  <strong>Cross-Source Sync Check:</strong> High trust requires compliant UDISE matching records, non-stale updates, and matching personnel rosters. Fix anomalies in the Setup tab.
+                </span>
               </div>
             </div>
-
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full text-xs text-left portal-table">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
-                    <th className="py-2.5 px-3">Data Stream Name</th>
-                    <th className="py-2.5 px-3 text-center">Compliance</th>
-                    <th className="py-2.5 px-3 text-center">Last Sync</th>
-                    <th className="py-2.5 px-3 text-center">Stale/Missing</th>
-                    <th className="py-2.5 px-3 text-center">Name Mismatches</th>
-                    <th className="py-2.5 px-3 text-center">Trust Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {dqMetrics.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                      <td className="py-3 px-3 font-bold text-slate-700 dark:text-slate-300">{row.name}</td>
-                      <td className="py-3 px-3 text-center font-mono font-bold text-teal-700">{row.compliance.toFixed(1)}%</td>
-                      <td className="py-3 px-3 text-center text-slate-500 font-medium">{row.sync}</td>
-                      <td className="py-3 px-3 text-center text-rose-600 font-bold">{row.stale}</td>
-                      <td className="py-3 px-3 text-center text-amber-600 font-bold">{row.mismatches}</td>
-                      <td className="py-3 px-3 text-center">
-                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${row.badge.color}`}>
-                          {row.badge.label}
-                        </span>
-                      </td>
-                    </tr>
+          )}
+        </div>
+      ) : (
+        <>
+          {activeExecutiveTab === 'strategic' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+              <div className="portal-card lg:col-span-1 p-4 flex flex-col items-center justify-start bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative shadow-sm rounded-xl">
+                <ChartToolbar
+                  chartId="health-gauge-svg"
+                  csvData={[
+                    { Metric: 'Overall Health Score', Value: `${Math.round(healthData.composite)}%` },
+                    { Metric: 'JHPMS Labs', Value: `${Math.round(healthData.jhpmsGlobal)}%` },
+                    { Metric: 'EduStat Hours', Value: `${Math.round(healthData.edustatGlobal)}%` },
+                    { Metric: 'Visit Coverage', Value: `${Math.round(healthData.visitGlobal)}%` },
+                    { Metric: 'CC Manpower', Value: `${Math.round(healthData.manpowerGlobal)}%` }
+                  ]}
+                  filename="overall_health_score"
+                />
+                <SemiGauge
+                  value={healthData.composite}
+                  size={180}
+                  label="Overall Health Score"
+                  grade={healthData.grade}
+                  gradeColor={healthData.gradeColor}
+                  isReporting={isJhpmsActive || isEdustatActive || isVisitActive || isManpowerActive}
+                />
+                <div className="w-full space-y-1.5 mt-3">
+                  <MiniBar label="JHPMS Labs" value={healthData.jhpmsGlobal} weight={weights.jhpms} color="#0f766e" isReporting={isJhpmsActive} />
+                  <MiniBar label="EduStat Hours" value={healthData.edustatGlobal} weight={weights.edustat} color="#2563eb" isReporting={isEdustatActive} />
+                  <MiniBar label="Visit Coverage" value={healthData.visitGlobal} weight={weights.visit} color="#7c3aed" isReporting={isVisitActive} />
+                  <MiniBar label="CC Manpower" value={healthData.manpowerGlobal} weight={weights.manpower} color="#d97706" isReporting={isManpowerActive} />
+                </div>
+              </div>
+              <div className="lg:col-span-2 portal-card bg-indigo-50/20 dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 font-sans p-5 shadow-sm rounded-xl">
+                <div className="portal-card-header !bg-gradient-to-r !from-indigo-700 !to-blue-700 flex items-center gap-2 text-white font-serif rounded-t-lg -mx-5 -mt-5 mb-4 py-2.5 px-4 text-xs font-bold uppercase tracking-wider">
+                  <Icons.Robot className="w-5 h-5 shrink-0" />
+                  AI Executive Narrative Report
+                </div>
+                <div className="font-serif text-[12.5px] leading-relaxed text-slate-700 dark:text-slate-350 space-y-2.5 overflow-y-auto max-h-[220px] pr-2">
+                  {narrative.map((p, idx) => (
+                    <p key={idx}>{p}</p>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
+          )}
 
-            <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 leading-normal flex items-start gap-2 mt-4 font-sans">
-              <span className="text-base leading-none">💡</span>
-              <span>
-                <strong>Cross-Source Sync Check:</strong> High trust requires compliant UDISE matching records, non-stale updates, and matching personnel rosters. Fix anomalies in the Setup tab.
-              </span>
+          {activeExecutiveTab === 'quality' && (
+            <div className="portal-card p-5 bg-white dark:bg-slate-900 flex flex-col border border-slate-100 dark:border-slate-800 font-sans mb-6 shadow-sm rounded-xl">
+              <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+                <Icons.Reports className="w-6 h-6 text-teal-700" />
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Data Quality & Trust Index</h3>
+                  <p className="text-[10px] text-slate-400">Shows how complete and reliable each data source is before you trust its numbers.</p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto flex-1">
+                <table className="w-full text-xs text-left portal-table">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                      <th className="py-2.5 px-3">Data Stream Name</th>
+                      <th className="py-2.5 px-3 text-center">Compliance</th>
+                      <th className="py-2.5 px-3 text-center">Last Sync</th>
+                      <th className="py-2.5 px-3 text-center">Stale/Missing</th>
+                      <th className="py-2.5 px-3 text-center">Name Mismatches</th>
+                      <th className="py-2.5 px-3 text-center">Trust Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {dqMetrics.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td className="py-3 px-3 font-bold text-slate-700 dark:text-slate-300">{row.name}</td>
+                        <td className="py-3 px-3 text-center font-mono font-bold text-teal-700">{row.compliance.toFixed(1)}%</td>
+                        <td className="py-3 px-3 text-center text-slate-500 font-medium">{row.sync}</td>
+                        <td className="py-3 px-3 text-center text-rose-600 font-bold">{row.stale}</td>
+                        <td className="py-3 px-3 text-center text-amber-600 font-bold">{row.mismatches}</td>
+                        <td className="py-3 px-3 text-center">
+                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${row.badge.color}`}>
+                            {row.badge.label}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 leading-normal flex items-start gap-2 mt-4 font-sans">
+                <span className="text-base leading-none">💡</span>
+                <span>
+                  <strong>Cross-Source Sync Check:</strong> High trust requires UDISE matching records, non-stale updates, and matching personnel rosters.
+                </span>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </>
+      )}
 
       {/* ═══════ PERIOD OVER PERIOD COMPARE PANEL (MoM) ═══════ */}
-      {compareMode && prevKPIs && (!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.mom) && (
+      {compareMode && prevKPIs && ((displayMode !== 'corporate' && selectedSlides.mom) || (displayMode === 'corporate' && activeExecutiveTab === 'strategic')) && (
         <div className="space-y-6 font-sans page-break-after">
           
           {/* Header Panel */}
@@ -3244,7 +3556,7 @@ const OverallAnalysis = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         
         {/* Executive narrative panel */}
-        {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.health) && (
+        {(displayMode !== 'corporate' && selectedSlides.health) && (
           <div className="portal-card bg-indigo-50/20 dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 font-sans">
             <div className="portal-card-header !bg-gradient-to-r !from-indigo-700 !to-blue-700 flex items-center gap-2 text-white font-serif">
               <Icons.Robot className="w-6 h-6 shrink-0" />
@@ -3259,7 +3571,7 @@ const OverallAnalysis = ({
         )}
 
         {/* Trophies achievements */}
-        {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.kpis) && (
+        {((displayMode !== 'corporate' && selectedSlides.kpis) || (displayMode === 'corporate' && activeExecutiveTab === 'strategic')) && (
           <div className="portal-card bg-emerald-50/20 dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 font-sans">
             <div className="portal-card-header !bg-gradient-to-r !from-emerald-700 !to-teal-700 flex items-center gap-2 text-white font-serif">
               <Icons.Trophy className="w-6 h-6 shrink-0" />
@@ -3291,7 +3603,7 @@ const OverallAnalysis = ({
       </div>
 
       {/* ═══════ DATA SOURCE DEEP-DIVE TABBED VIEWS ═══════ */}
-      {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.deepdive) && (
+      {((displayMode !== 'corporate' && selectedSlides.deepdive) || (displayMode === 'corporate' && activeExecutiveTab === 'operations')) && (
         <div className="portal-card bg-white dark:bg-slate-900 font-sans page-break-after">
           <div className="portal-card-header flex items-center justify-between flex-wrap gap-2">
             <span className="font-serif">📊 Data Source Deep Dive</span>
@@ -3748,7 +4060,7 @@ const OverallAnalysis = ({
       )}
 
       {/* ═══════ GEOGRAPHIC TREEMAP & HEATMAP MATRIX GRID ═══════ */}
-      {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.geographic) && (
+      {((displayMode !== 'corporate' && selectedSlides.geographic) || (displayMode === 'corporate' && activeExecutiveTab === 'strategic')) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 page-break-after font-sans">
           
           {/* Treemap Panel */}
@@ -3918,7 +4230,7 @@ const OverallAnalysis = ({
       )}
 
       {/* ═══════ SECTION 5: CRITICAL PARETO BOTTLENECKS PANEL ═══════ */}
-      {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.bottlenecks) && (
+      {((displayMode !== 'corporate' && selectedSlides.bottlenecks) || (displayMode === 'corporate' && activeExecutiveTab === 'strategic')) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 page-break-after font-sans">
           
           {/* Pareto bottlenecks engine */}
@@ -4025,7 +4337,7 @@ const OverallAnalysis = ({
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {finalEnriched
-                    .filter((s) => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0))
+                    .filter((s) => s.compositeScore < 30)
                     .sort((a, b) => a.compositeScore - b.compositeScore)
                     .map((s, idx) => (
                       <tr key={idx} className="hover:bg-red-50/40">
@@ -4038,7 +4350,7 @@ const OverallAnalysis = ({
                         </td>
                       </tr>
                     ))}
-                  {finalEnriched.filter(s => s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0)).length === 0 && (
+                  {finalEnriched.filter(s => s.compositeScore < 30).length === 0 && (
                     <tr>
                       <td colSpan="3" className="text-center text-slate-400 italic py-10">No critical schools in selection!</td>
                     </tr>
@@ -4051,7 +4363,7 @@ const OverallAnalysis = ({
       )}
 
       {/* ═══════ RANKINGS & LEADERBOARDS ═══════ */}
-      {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.rankings) && (
+      {((displayMode !== 'corporate' && selectedSlides.rankings) || (displayMode === 'corporate' && activeExecutiveTab === 'strategic')) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 page-break-after font-sans">
           
           {/* Top 5 Schools */}
@@ -4095,7 +4407,7 @@ const OverallAnalysis = ({
       )}
 
       {/* ═══════ PM ASSIGNABLE RECOMMENDED ACTIONS & WORKBENCH ═══════ */}
-      {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.reviewGrid) && (
+      {((displayMode !== 'corporate' && selectedSlides.reviewGrid) || (displayMode === 'corporate' && activeExecutiveTab === 'strategic')) && (
         <div className="portal-card bg-white dark:bg-slate-900 border border-teal-100 p-5 font-sans">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
             <div className="flex items-center gap-2">
@@ -4210,7 +4522,7 @@ const OverallAnalysis = ({
       )}
 
       {/* ═══════ SECTION 7: PM EXECUTIVE REVIEW GRID TABLE ═══════ */}
-      {(!(displayMode === '16-9' || displayMode === 'print') || selectedSlides.reviewGrid) && (
+      {((displayMode !== 'corporate' && selectedSlides.reviewGrid) || (displayMode === 'corporate' && activeExecutiveTab === 'operations')) && (
         <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 font-sans">
           <div className="portal-card-header flex items-center justify-between py-3 px-4 font-serif">
             <span>📋 School-by-School Review Table</span>
@@ -4239,7 +4551,7 @@ const OverallAnalysis = ({
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {sortedRows.map((s, i) => (
-                  <tr key={i} className={s.compositeScore < 30 && !(s.jhpmsClasses === 0 && s.eduHours === 0 && s.fieldVisits === 0) ? 'bg-rose-50/40 dark:bg-red-950/10' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/10'}>
+                  <tr key={i} className={s.compositeScore < 30 ? 'bg-rose-50/40 dark:bg-red-950/10' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/10'}>
                     <td className="py-2.5 px-2 font-bold text-slate-400">{i + 1}</td>
                     <td className="py-2.5 px-2 font-bold text-left text-slate-800 dark:text-slate-200 truncate max-w-[150px]" title={s.schoolName}>{s.schoolName}</td>
                     <td className="py-2.5 px-2 font-mono text-slate-500 font-semibold">{s.udise}</td>
@@ -4420,6 +4732,340 @@ const OverallAnalysis = ({
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════ OPERATIONS & HR SUB-TAB ADDITIONAL VIEWS ═══════ */}
+      {displayMode === 'corporate' && activeExecutiveTab === 'operations' && (
+        <div className="space-y-6 font-sans mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Visit Aging Chart */}
+            <div className="portal-card p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl relative">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Field Visit Aging Status</h4>
+              <div className="h-44 relative" id="ops-visit-aging-chart-container">
+                <ChartToolbar
+                  chartId="ops-visit-aging-chart-container"
+                  csvData={visitAgingGroups}
+                  filename="ops_visit_aging_status"
+                />
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={visitAgingGroups} margin={{ top: 20, right: 10, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                    <XAxis dataKey="name" tick={{ fontSize: 8, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
+                    <YAxis tick={{ fontSize: 9, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar 
+                      dataKey="count" 
+                      radius={[4, 4, 0, 0]}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data) => {
+                        if (data && data.name && onDrillDown) {
+                          const groupName = data.name;
+                          const matchingSchools = finalEnriched.filter(s => {
+                            if (groupName === '0-30 Days') return s.daysSinceVisit <= 30;
+                            if (groupName === '31-60 Days') return s.daysSinceVisit > 30 && s.daysSinceVisit <= 60;
+                            if (groupName === '61-90 Days') return s.daysSinceVisit > 60 && s.daysSinceVisit <= 90;
+                            if (groupName === '91-120 Days') return s.daysSinceVisit > 90 && s.daysSinceVisit <= 120;
+                            if (groupName === '121-150 Days') return s.daysSinceVisit > 120 && s.daysSinceVisit <= 150;
+                            if (groupName === '150+ Days') return s.daysSinceVisit > 150;
+                            return false;
+                          });
+                          const drillDownData = matchingSchools.map((s, index) => ({
+                            'Sl No': index + 1,
+                            'School Name': s.schoolName,
+                            'UDISE Code': s.udise,
+                            'District': s.district,
+                            'Block': s.block,
+                            'Coordinator Name': s.visitorName,
+                            'Last Visit Date': formatDate(s.lastVisitDate) === '-' ? 'No Visits' : formatDate(s.lastVisitDate)
+                          }));
+                          onDrillDown(`${groupName} - Field Visit Aging Status`, drillDownData);
+                        }
+                      }}
+                    >
+                      {visitAgingGroups.map((entry, index) => {
+                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#e11d48'];
+                        return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                      })}
+                      <LabelList 
+                        dataKey="count" 
+                        position="top" 
+                        style={{ fontSize: 10, fontWeight: 'bold', fill: darkMode ? '#cbd5e1' : '#1e293b' }} 
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Coordinator Workload & Compliance Table */}
+            <div className="portal-card lg:col-span-2 p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl font-sans">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">CC Coordinator Workload & Compliance</h4>
+              <div className="overflow-x-auto max-h-[190px]">
+                <table className="w-full text-xs text-left portal-table">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                      <th className="py-2 px-3">Coordinator Name</th>
+                      <th className="py-2 px-3 text-center">Assigned Schools</th>
+                      <th className="py-2 px-3 text-center">Visits Completed / Target</th>
+                      <th className="py-2 px-3 text-center">Compliance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {coordinatorWorkloadData.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td className="py-2.5 px-3 font-bold text-slate-700 dark:text-slate-350">{row.name}</td>
+                        <td className="py-2.5 px-3 text-center font-bold text-slate-500">{row.assignedSchools}</td>
+                        <td className="py-2.5 px-3 text-center font-mono font-medium text-slate-655 dark:text-slate-400">
+                          {row.completedVisits} / {row.totalTarget}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            row.complianceRate >= 90 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                            row.complianceRate >= 50 ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                            'bg-rose-50 text-rose-700 border border-rose-100'
+                          }`}>
+                            {row.complianceRate.toFixed(1)}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {coordinatorWorkloadData.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="text-center text-slate-400 italic py-10 font-sans">No coordinator data available!</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════ DATA QUALITY & AUDIT TAB ADDITIONAL VIEWS ═══════ */}
+      {displayMode === 'corporate' && activeExecutiveTab === 'quality' && (
+        <div className="space-y-6 font-sans mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* EduStat Outlier Sanitizer */}
+            <div className="portal-card p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl flex flex-col justify-between">
+              <div>
+                <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 mb-1.5 flex items-center gap-1.5">
+                  ⚠️ EDUSTAT RUNTIME OUTLIERS (CLOCK SANITIZER)
+                </h4>
+                <p className="text-[10px] text-slate-400 mb-3">Lists machines reporting excessive runtime (&gt;12h/day) or Sunday activity logs.</p>
+              </div>
+              <div className="overflow-x-auto max-h-[220px]">
+                <table className="w-full text-xs text-left portal-table">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                      <th className="py-2 px-3">School Name</th>
+                      <th className="py-2 px-3 text-center">Date</th>
+                      <th className="py-2 px-3 text-center">Hours</th>
+                      <th className="py-2 px-3 text-center">Type</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {edustatAnomalies.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td className="py-2.5 px-3 font-bold text-slate-700 dark:text-slate-350 max-w-[150px] truncate" title={row.schoolName}>{row.schoolName}</td>
+                        <td className="py-2.5 px-3 text-center text-slate-500 font-medium">{row.date}</td>
+                        <td className="py-2.5 px-3 text-center font-mono font-bold text-amber-600">{row.hours}h</td>
+                        <td className="py-2.5 px-3 text-center text-[10px]">
+                          <span className={`px-1.5 py-0.5 rounded ${
+                            row.severity === 'High' ? 'bg-red-50 text-red-700' :
+                            row.severity === 'Medium' ? 'bg-amber-50 text-amber-700' :
+                            'bg-slate-150 text-slate-700'
+                          }`}>
+                            {row.type}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {edustatAnomalies.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="text-center text-slate-400 italic py-10 font-sans">No hardware clock/Sunday anomalies flagged!</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Orphaned Assets Alert */}
+            <div className="portal-card p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl flex flex-col justify-between">
+              <div>
+                <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-rose-800 mb-1.5 flex items-center gap-1.5">
+                  🚨 ORPHANED LAB ASSETS ALERTS
+                </h4>
+                <p className="text-[10px] text-slate-400 mb-3">Labs reporting class/usage hours while coordinator roster status is vacant/unassigned.</p>
+              </div>
+              <div className="overflow-x-auto max-h-[220px]">
+                <table className="w-full text-xs text-left portal-table">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                      <th className="py-2 px-3">School Name</th>
+                      <th className="py-2 px-3 text-center">Classes</th>
+                      <th className="py-2.5 px-3 text-center">EduStat Hours</th>
+                      <th className="py-2 px-3 text-center">CC Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {orphanedAssets.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td className="py-2.5 px-3 font-bold text-slate-700 dark:text-slate-350 max-w-[150px] truncate" title={row.schoolName}>{row.schoolName}</td>
+                        <td className="py-2.5 px-3 text-center font-mono font-bold text-teal-700">{row.jhpmsClasses}</td>
+                        <td className="py-2.5 px-3 text-center font-mono font-bold text-blue-600">{row.eduHours.toFixed(1)}h</td>
+                        <td className="py-2.5 px-3 text-center text-rose-600 font-black tracking-wider uppercase text-[10px]">
+                          ⚠️ {row.staffStatus || 'Vacant'}
+                        </td>
+                      </tr>
+                    ))}
+                    {orphanedAssets.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="text-center text-slate-400 italic py-10 font-sans">No active orphaned labs detected. All active assets have assigned personnel.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════ PROJECT ROI & RUN-RATE SUB-TAB CONTENT ═══════ */}
+      {displayMode === 'corporate' && activeExecutiveTab === 'roi' && (
+        <div className="space-y-6 font-sans mb-6">
+          
+          {/* Relocated 3 Project Comparison Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+            <div className="portal-card p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative flex flex-col justify-between shadow-sm rounded-xl">
+              <div>
+                <h3 className="text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-widest mb-1.5">
+                  Lab Usage by Project (Classes)
+                </h3>
+                <p className="text-[10px] text-slate-400 mb-3">Project-wise comparison of ICT and Smart classes conducted.</p>
+              </div>
+              <div id="project-lab-uses-chart-roi" className="relative">
+                <ReactApexChart 
+                  options={labUsesOptions} 
+                  series={labUsesSeries} 
+                  type="bar" 
+                  height={200} 
+                />
+              </div>
+            </div>
+
+            <div className="portal-card p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative flex flex-col justify-between shadow-sm rounded-xl">
+              <div>
+                <h3 className="text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-widest mb-1.5">
+                  EduStat Hours by Project
+                </h3>
+                <p className="text-[10px] text-slate-400 mb-3">Total device runtime hours accumulated per project.</p>
+              </div>
+              <div id="project-edustat-hours-chart-roi" className="relative">
+                <ReactApexChart 
+                  options={eduHoursOptions} 
+                  series={eduHoursSeries} 
+                  type="bar" 
+                  height={200} 
+                />
+              </div>
+            </div>
+
+            <div className="portal-card p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative flex flex-col justify-between shadow-sm rounded-xl">
+              <div>
+                <h3 className="text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-widest mb-1.5">
+                  CC/DEF Visits by Project
+                </h3>
+                <p className="text-[10px] text-slate-400 mb-3">Field monitoring visits completed (ICT vs Smart visits).</p>
+              </div>
+              <div id="project-visits-chart-roi" className="relative">
+                <ReactApexChart 
+                  options={visitsOptions} 
+                  series={visitsSeries} 
+                  type="bar" 
+                  height={200} 
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Project Performance ROI Matrix Grid and Target Burn-down Line Graph */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* ROI Matrix Grid */}
+            <div className="portal-card p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl flex flex-col justify-between">
+              <div>
+                <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Project Performance ROI Matrix Grid</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left portal-table border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b">
+                        <th className="py-2.5 px-3">Project</th>
+                        <th className="py-2.5 px-3 text-center">Schools</th>
+                        <th className="py-2.5 px-3 text-center">Devices</th>
+                        <th className="py-2.5 px-3 text-center">CCs</th>
+                        <th className="py-2.5 px-3 text-center">Avg Score</th>
+                        <th className="py-2.5 px-3 text-center">Classes/Sch</th>
+                        <th className="py-2.5 px-3 text-center">Hours/Dev</th>
+                        <th className="py-2.5 px-3 text-center">Visits Comp %</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                      {projectRoiMatrix.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                          <td className="py-3 px-3 font-sans font-bold text-slate-700 dark:text-slate-350">{row.project}</td>
+                          <td className="py-3 px-3 text-center text-slate-655 font-bold">{row.schoolsCount}</td>
+                          <td className="py-3 px-3 text-center text-slate-500">{row.devices}</td>
+                          <td className="py-3 px-3 text-center text-slate-500">{row.coordinators}</td>
+                          <td className="py-3 px-3 text-center">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              row.score >= 70 ? 'bg-emerald-50 text-emerald-700' :
+                              row.score >= 40 ? 'bg-amber-50 text-amber-700' :
+                              'bg-rose-50 text-rose-700'
+                            }`}>
+                              {row.score.toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-center text-teal-700 font-bold">{row.classes.toFixed(1)}</td>
+                          <td className="py-3 px-3 text-center text-blue-600 font-bold">{row.hours.toFixed(1)}h</td>
+                          <td className="py-3 px-3 text-center text-slate-600 font-semibold">{row.visitCompliance.toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Target Burn-down Run-rate Line Graph */}
+            <div className="portal-card p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">Field Visit Burn-Down & Target Run-Rate</h4>
+              <div className="h-56 relative" id="roi-burn-down-container">
+                <ChartToolbar
+                  chartId="roi-burn-down-container"
+                  csvData={burnDownData}
+                  filename="visit_burn_down_progress"
+                />
+                {burnDownData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={burnDownData} margin={{ top: 15, right: 10, left: -25, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                      <XAxis dataKey="day" tick={{ fontSize: 9, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
+                      <YAxis tick={{ fontSize: 9, fill: textStroke }} axisLine={{ stroke: axisStroke }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: 10 }} />
+                      <Area type="monotone" dataKey="visits" name="Visits Completed" stroke="#05cd99" fill="#05cd99" fillOpacity={0.1} strokeWidth={2.5} />
+                      <Area type="monotone" dataKey="target" name="Target Path" stroke="#ffa825" strokeDasharray="5 5" fill="none" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-slate-400 italic text-xs py-10 text-center font-sans">Specify start/end dates to compute target visit progress rate.</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
