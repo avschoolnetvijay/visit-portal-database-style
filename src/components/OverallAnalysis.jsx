@@ -371,6 +371,47 @@ const OverallAnalysis = ({
     geographic: true
   });
 
+  // Preprocessed collections to optimize date filtering and analysis operations
+  const preprocessedEdustat = useMemo(() => {
+    return (edustat || []).map(row => {
+      const parsedDate = parseDateRobust(row.date || row.Date);
+      const parsedTime = parsedDate ? parsedDate.getTime() : null;
+      const hours = row.hours !== undefined ? Number(row.hours) : parseHours(row['total used hours'] || getVal(row, 'hours') || 0);
+      const rawUdise = row.udise || row.udise_code || getVal(row, 'udise') || getVal(row, 'udise_code');
+      return {
+        ...row,
+        _parsedTime: parsedTime,
+        _hours: hours,
+        _cleanUdise: cleanUdise(rawUdise)
+      };
+    });
+  }, [edustat]);
+
+  const preprocessedJhpms = useMemo(() => {
+    return (jhpmsLab || []).map(row => {
+      const parsedDate = parseDateRobust(row.date || row.Date);
+      const parsedTime = parsedDate ? parsedDate.getTime() : null;
+      const rawUdise = row.udise || row.udise_code || getVal(row, 'udise') || getVal(row, 'udise_code');
+      return {
+        ...row,
+        _parsedTime: parsedTime,
+        _cleanUdise: cleanUdise(rawUdise)
+      };
+    });
+  }, [jhpmsLab]);
+
+  const preprocessedVisits = useMemo(() => {
+    return (visits || []).map(row => {
+      const parsedDate = parseDateRobust(row.visit_date);
+      const parsedTime = parsedDate ? parsedDate.getTime() : null;
+      return {
+        ...row,
+        _parsedTime: parsedTime,
+        _cleanUdise: cleanUdise(row.udise_code)
+      };
+    });
+  }, [visits]);
+
   const [isReady, setIsReady] = useState(false);
 
   React.useEffect(() => {
@@ -495,55 +536,62 @@ const OverallAnalysis = ({
 
   // 4. Current Period Filtered Collections
   const currentJhpms = useMemo(() => {
-    let list = jhpmsLab || [];
+    if (!preprocessedJhpms || preprocessedJhpms.length === 0) return [];
     if (parsedStartDate && parsedEndDate) {
-      list = list.filter(row => {
-        const d = parseDateRobust(row.date);
-        return d && d >= parsedStartDate && d <= parsedEndDate;
+      const startMs = parsedStartDate.getTime();
+      const endMs = parsedEndDate.getTime();
+      return preprocessedJhpms.filter(row => {
+        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
       });
     }
-    return list;
-  }, [jhpmsLab, parsedStartDate, parsedEndDate]);
+    return preprocessedJhpms;
+  }, [preprocessedJhpms, parsedStartDate, parsedEndDate]);
 
   const currentVisits = useMemo(() => {
-    let list = visits || [];
+    if (!preprocessedVisits || preprocessedVisits.length === 0) return [];
     if (parsedStartDate && parsedEndDate) {
-      list = list.filter(row => {
-        const d = parseDateRobust(row.visit_date);
-        return d && d >= parsedStartDate && d <= parsedEndDate;
+      const startMs = parsedStartDate.getTime();
+      const endMs = parsedEndDate.getTime();
+      return preprocessedVisits.filter(row => {
+        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
       });
     }
-    return list;
-  }, [visits, parsedStartDate, parsedEndDate]);
+    return preprocessedVisits;
+  }, [preprocessedVisits, parsedStartDate, parsedEndDate]);
 
   // Previous Period Filtered Collections (Only computed when compareMode is active)
   const prevJhpms = useMemo(() => {
+    if (!preprocessedJhpms || preprocessedJhpms.length === 0) return [];
     if (!compareMode || !prevDateRange.start || !prevDateRange.end) return [];
-    return (jhpmsLab || []).filter(row => {
-      const d = parseDateRobust(row.date);
-      return d && d >= prevDateRange.start && d <= prevDateRange.end;
+    const startMs = prevDateRange.start.getTime();
+    const endMs = prevDateRange.end.getTime();
+    return preprocessedJhpms.filter(row => {
+      return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
     });
-  }, [jhpmsLab, compareMode, prevDateRange]);
+  }, [preprocessedJhpms, compareMode, prevDateRange]);
 
   const prevVisits = useMemo(() => {
+    if (!preprocessedVisits || preprocessedVisits.length === 0) return [];
     if (!compareMode || !prevDateRange.start || !prevDateRange.end) return [];
-    return (visits || []).filter(row => {
-      const d = parseDateRobust(row.visit_date);
-      return d && d >= prevDateRange.start && d <= prevDateRange.end;
+    const startMs = prevDateRange.start.getTime();
+    const endMs = prevDateRange.end.getTime();
+    return preprocessedVisits.filter(row => {
+      return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
     });
-  }, [visits, compareMode, prevDateRange]);
+  }, [preprocessedVisits, compareMode, prevDateRange]);
 
   // 4b. Current Period Filtered Edustat Logs
   const currentEdustat = useMemo(() => {
-    let list = edustat || [];
+    if (!preprocessedEdustat || preprocessedEdustat.length === 0) return [];
     if (parsedStartDate && parsedEndDate) {
-      list = list.filter(row => {
-        const d = parseDateRobust(row.date);
-        return d && d >= parsedStartDate && d <= parsedEndDate;
+      const startMs = parsedStartDate.getTime();
+      const endMs = parsedEndDate.getTime();
+      return preprocessedEdustat.filter(row => {
+        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
       });
     }
-    return list;
-  }, [edustat, parsedStartDate, parsedEndDate]);
+    return preprocessedEdustat;
+  }, [preprocessedEdustat, parsedStartDate, parsedEndDate]);
 
   const edustatTrendData = useMemo(() => {
     if (!isEdustatActive || !currentEdustat || currentEdustat.length === 0) {
@@ -555,18 +603,13 @@ const OverallAnalysis = ({
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    const getRowHours = (r) => {
-      return r.hours !== undefined ? Number(r.hours) : parseHours(r['total used hours'] || getVal(r, 'hours') || 0);
-    };
-
     // Daily view
     if (diffDays <= 40) {
       const dailyMap = {};
       currentEdustat.forEach(row => {
-        const d = parseDateRobust(row.date);
-        if (!d) return;
-        const dateStr = d.toISOString().split('T')[0];
-        dailyMap[dateStr] = (dailyMap[dateStr] || 0) + getRowHours(row);
+        if (!row._parsedTime) return;
+        const dateStr = new Date(row._parsedTime).toISOString().split('T')[0];
+        dailyMap[dateStr] = (dailyMap[dateStr] || 0) + row._hours;
       });
 
       const sortedDates = Object.keys(dailyMap).sort();
@@ -598,12 +641,11 @@ const OverallAnalysis = ({
       }
 
       currentEdustat.forEach(row => {
-        const d = parseDateRobust(row.date);
-        if (!d) return;
-        const time = d.getTime();
+        if (!row._parsedTime) return;
+        const time = row._parsedTime;
         for (let bucket of weeklyBuckets) {
           if (time >= bucket.start.getTime() && time <= bucket.end.getTime()) {
-            bucket.hours += getRowHours(row);
+            bucket.hours += row._hours;
             break;
           }
         }
@@ -623,10 +665,10 @@ const OverallAnalysis = ({
     // Monthly view
     const monthlyMap = {};
     currentEdustat.forEach(row => {
-      const d = parseDateRobust(row.date);
-      if (!d) return;
+      if (!row._parsedTime) return;
+      const d = new Date(row._parsedTime);
       const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      monthlyMap[monthStr] = (monthlyMap[monthStr] || 0) + getRowHours(row);
+      monthlyMap[monthStr] = (monthlyMap[monthStr] || 0) + row._hours;
     });
 
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -652,29 +694,28 @@ const OverallAnalysis = ({
 
   // Mock / Filtered EduStat map for previous period to enable realistic comparisons
   const prevEdustat = useMemo(() => {
-    let list = edustat || [];
+    if (!preprocessedEdustat || preprocessedEdustat.length === 0) return [];
     const { start, end } = prevDateRange;
     if (start && end) {
-      list = list.filter(row => {
-        const d = parseDateRobust(row.date);
-        return d && d >= start && d <= end;
+      const startMs = start.getTime();
+      const endMs = end.getTime();
+      return preprocessedEdustat.filter(row => {
+        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
       });
     } else {
-      list = list.map(e => ({
+      return preprocessedEdustat.map(e => ({
         ...e,
-        hours: (e.hours !== undefined ? Number(e.hours) : parseHours(e['total used hours'] || getVal(e, 'hours') || 0)) * 0.92
+        _hours: e._hours * 0.92
       }));
     }
-    return list;
-  }, [edustat, prevDateRange]);
+  }, [preprocessedEdustat, prevDateRange]);
 
-  // 5. Normalised Maps Compilations (Current Period)
   const jhpmsMap = useMemo(() => {
     const map = {};
     currentJhpms.forEach((row) => {
-      const udise = cleanUdise(row.udise || row.udise_code || getVal(row, 'udise'));
-      if (!validUdises.has(udise)) return;
-      map[udise] = (map[udise] || 0) + 1;
+      if (row._cleanUdise && validUdises.has(row._cleanUdise)) {
+        map[row._cleanUdise] = (map[row._cleanUdise] || 0) + 1;
+      }
     });
     return map;
   }, [currentJhpms, validUdises]);
@@ -682,20 +723,21 @@ const OverallAnalysis = ({
   const jhpmsSplitMap = useMemo(() => {
     const map = {};
     currentJhpms.forEach((row) => {
-      const udise = cleanUdise(row.udise || row.udise_code || getVal(row, 'udise'));
-      if (!validUdises.has(udise)) return;
-      if (!map[udise]) {
-        map[udise] = { total: 0, ict: 0, smart: 0, mis: 0 };
-      }
-      map[udise].total++;
-      const labType = String(row.labType || row.lab_type || getVal(row, 'lab') || '').toUpperCase();
-      const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
-      if (subject.includes('MIS')) {
-        map[udise].mis++;
-      } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-        map[udise].ict++;
-      } else if (labType.includes('SMART')) {
-        map[udise].smart++;
+      if (row._cleanUdise && validUdises.has(row._cleanUdise)) {
+        const udise = row._cleanUdise;
+        if (!map[udise]) {
+          map[udise] = { total: 0, ict: 0, smart: 0, mis: 0 };
+        }
+        map[udise].total++;
+        const labType = String(row.labType || row.lab_type || getVal(row, 'lab') || '').toUpperCase();
+        const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
+        if (subject.includes('MIS')) {
+          map[udise].mis++;
+        } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+          map[udise].ict++;
+        } else if (labType.includes('SMART')) {
+          map[udise].smart++;
+        }
       }
     });
     return map;
@@ -704,10 +746,9 @@ const OverallAnalysis = ({
   const edustatMap = useMemo(() => {
     const map = {};
     (currentEdustat || []).forEach((e) => {
-      const udise = cleanUdise(e.udise);
-      if (!validUdises.has(udise)) return;
-      const hours = Number(e.hours) || 0;
-      map[udise] = (map[udise] || 0) + hours;
+      if (e._cleanUdise && validUdises.has(e._cleanUdise)) {
+        map[e._cleanUdise] = (map[e._cleanUdise] || 0) + e._hours;
+      }
     });
     return map;
   }, [currentEdustat, validUdises]);
@@ -766,24 +807,24 @@ const OverallAnalysis = ({
   const visitMap = useMemo(() => {
     const map = {};
     currentVisits.forEach((v) => {
-      const udise = cleanUdise(v.udise_code);
-      if (!validUdises.has(udise)) return;
-      
-      const type = (v.visit_type || '').toLowerCase();
-      const isIct = type.includes('ict');
-      if (!isIct) return; // Only count ICT visits for target completion!
+      if (v._cleanUdise && validUdises.has(v._cleanUdise)) {
+        const udise = v._cleanUdise;
+        const type = (v.visit_type || '').toLowerCase();
+        const isIct = type.includes('ict');
+        if (!isIct) return; // Only count ICT visits for target completion!
 
-      if (!map[udise]) map[udise] = { count: 0, lastDate: null, visitDates: new Set() };
-      
-      const dateStr = (v.visit_date || '').split('T')[0];
-      if (dateStr && !map[udise].visitDates.has(dateStr)) {
-        map[udise].visitDates.add(dateStr);
-        map[udise].count++;
-      }
-      if (v.visit_date) {
-        const d = new Date(v.visit_date);
-        if (!isNaN(d.getTime()) && (!map[udise].lastDate || d > map[udise].lastDate)) {
-          map[udise].lastDate = d;
+        if (!map[udise]) map[udise] = { count: 0, lastDate: null, visitDates: new Set() };
+        
+        const dateStr = (v.visit_date || '').split('T')[0];
+        if (dateStr && !map[udise].visitDates.has(dateStr)) {
+          map[udise].visitDates.add(dateStr);
+          map[udise].count++;
+        }
+        if (v._parsedTime) {
+          const d = new Date(v._parsedTime);
+          if (!map[udise].lastDate || d > map[udise].lastDate) {
+            map[udise].lastDate = d;
+          }
         }
       }
     });
@@ -796,10 +837,13 @@ const OverallAnalysis = ({
     const maxEdustat = Math.max(1, ...Object.values(edustatMap));
 
     let maxLogDate = new Date();
-    if (visits && visits.length > 0) {
-      const dates = visits.map(v => new Date(v.visit_date)).filter(d => !isNaN(d.getTime()));
-      if (dates.length > 0) {
-        maxLogDate = new Date(Math.max(...dates));
+    if (preprocessedVisits && preprocessedVisits.length > 0) {
+      let maxTime = 0;
+      preprocessedVisits.forEach(v => {
+        if (v._parsedTime && v._parsedTime > maxTime) maxTime = v._parsedTime;
+      });
+      if (maxTime > 0) {
+        maxLogDate = new Date(maxTime);
       }
     }
 
@@ -925,7 +969,7 @@ const OverallAnalysis = ({
         avgClassPerDay
       };
     });
-  }, [fSchools, jhpmsMap, jhpmsSplitMap, edustatMap, edustatSyncMap, manpowerMap, visitMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, weights, validWdays, ccNameMapping, durationMonths]);
+  }, [fSchools, jhpmsMap, jhpmsSplitMap, edustatMap, edustatSyncMap, manpowerMap, visitMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, weights, validWdays, ccNameMapping, durationMonths, preprocessedVisits]);
 
   // 7. Enriched dataset with Prop-Filters applied (Exceptions & Performance Bands)
   const finalEnriched = useMemo(() => {
@@ -1028,15 +1072,15 @@ const OverallAnalysis = ({
 
     const jhpmsLocalMap = {};
     jhpmsList.forEach(row => {
-      const udise = String(row.udise || row.udise_code || getVal(row, 'udise') || '').trim();
+      const udise = row._cleanUdise !== undefined ? row._cleanUdise : String(row.udise || row.udise_code || getVal(row, 'udise') || '').trim();
       if (validUdisesLocal.has(udise)) jhpmsLocalMap[udise] = (jhpmsLocalMap[udise] || 0) + 1;
     });
 
     const edustatLocalMap = {};
     edustatList.forEach(e => {
-      const udise = String(e.udise || getVal(e, 'udise') || '').trim();
+      const udise = e._cleanUdise !== undefined ? e._cleanUdise : String(e.udise || getVal(e, 'udise') || '').trim();
       if (validUdisesLocal.has(udise)) {
-        const hours = e.hours !== undefined ? Number(e.hours) : parseHours(e['total used hours'] || getVal(e, 'total used hours') || getVal(e, 'hours') || getVal(e, 'used') || 0);
+        const hours = e._hours !== undefined ? e._hours : (e.hours !== undefined ? Number(e.hours) : parseHours(e['total used hours'] || getVal(e, 'total used hours') || getVal(e, 'hours') || getVal(e, 'used') || 0));
         edustatLocalMap[udise] = (edustatLocalMap[udise] || 0) + hours;
       }
     });
@@ -1050,7 +1094,7 @@ const OverallAnalysis = ({
 
     const visitLocalMap = {};
     visitList.forEach(v => {
-      const udise = String(v.udise_code || '').trim();
+      const udise = v._cleanUdise !== undefined ? v._cleanUdise : String(v.udise_code || '').trim();
       if (validUdisesLocal.has(udise)) {
         const type = (v.visit_type || '').toLowerCase();
         if (!type.includes('ict')) return; // Only count ICT visits for target completion!
@@ -1108,22 +1152,22 @@ const OverallAnalysis = ({
     const validUdisesLocal = new Set(schoolList.map(s => cleanUdise(s.udise_code)).filter(Boolean));
     const jhpmsLocalMap = {};
     jhpmsList.forEach(row => {
-      const udise = cleanUdise(row.udise || row.udise_code || getVal(row, 'udise'));
+      const udise = row._cleanUdise !== undefined ? row._cleanUdise : cleanUdise(row.udise || row.udise_code || getVal(row, 'udise'));
       if (validUdisesLocal.has(udise)) jhpmsLocalMap[udise] = (jhpmsLocalMap[udise] || 0) + 1;
     });
 
     const edustatLocalMap = {};
     edustatList.forEach(e => {
-      const udise = cleanUdise(e.udise || getVal(e, 'udise'));
+      const udise = e._cleanUdise !== undefined ? e._cleanUdise : cleanUdise(e.udise || getVal(e, 'udise'));
       if (validUdisesLocal.has(udise)) {
-        const hours = e.hours !== undefined ? Number(e.hours) : parseHours(e['total used hours'] || getVal(e, 'hours') || 0);
+        const hours = e._hours !== undefined ? e._hours : (e.hours !== undefined ? Number(e.hours) : parseHours(e['total used hours'] || getVal(e, 'hours') || 0));
         edustatLocalMap[udise] = (edustatLocalMap[udise] || 0) + hours;
       }
     });
 
     const visitLocalMap = {};
     visitList.forEach(v => {
-      const udise = cleanUdise(v.udise_code);
+      const udise = v._cleanUdise !== undefined ? v._cleanUdise : cleanUdise(v.udise_code);
       if (validUdisesLocal.has(udise)) {
         const type = (v.visit_type || '').toLowerCase();
         if (!type.includes('ict')) return; // Only count ICT visits for target completion!
@@ -1164,9 +1208,10 @@ const OverallAnalysis = ({
                       (manpowerPct * (weights.manpower / 100));
 
     const deviceHours = edustatList.reduce((acc, curr) => {
-      const udise = cleanUdise(curr.udise || getVal(curr, 'udise'));
+      const udise = curr._cleanUdise !== undefined ? curr._cleanUdise : cleanUdise(curr.udise || getVal(curr, 'udise'));
       if (validUdisesLocal.has(udise)) {
-        return acc + (curr.hours !== undefined ? Number(curr.hours) : parseHours(curr['total used hours'] || getVal(curr, 'hours') || 0));
+        const hours = curr._hours !== undefined ? curr._hours : (curr.hours !== undefined ? Number(curr.hours) : parseHours(curr['total used hours'] || getVal(curr, 'hours') || 0));
+        return acc + hours;
       }
       return acc;
     }, 0);
@@ -1403,7 +1448,7 @@ const OverallAnalysis = ({
   // Movers & Shakers compilation
   const moversAndShakers = useMemo(() => {
     if (!compareMode) return { gainers: [], decliners: [], allGainers: [], allDecliners: [] };
-    const currentMap = calculateSchoolScoresMap(fSchools, currentJhpms, edustat, manpower, currentVisits);
+    const currentMap = calculateSchoolScoresMap(fSchools, currentJhpms, currentEdustat, manpower, currentVisits);
     const prevMap = calculateSchoolScoresMap(fSchools, prevJhpms, prevEdustat, manpower, prevVisits);
 
     const deltas = [];
@@ -1435,7 +1480,7 @@ const OverallAnalysis = ({
       allGainers: allGainers.slice(0, 25),
       allDecliners: allDecliners.slice(0, 25)
     };
-  }, [compareMode, fSchools, currentJhpms, prevJhpms, edustat, prevEdustat, manpower, currentVisits, prevVisits, ccNameMapping]);
+  }, [compareMode, fSchools, currentJhpms, prevJhpms, currentEdustat, prevEdustat, manpower, currentVisits, prevVisits, ccNameMapping]);
 
   const formatDateRangeShort = (start, end) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1463,19 +1508,19 @@ const OverallAnalysis = ({
     }
 
     return periods.map(p => {
-      const pJhpms = (jhpmsLab || []).filter(row => {
-        const d = parseDateRobust(row.date);
-        return d && d >= p.start && d <= p.end;
+      const startMs = p.start.getTime();
+      const endMs = p.end.getTime();
+
+      const pJhpms = preprocessedJhpms.filter(row => {
+        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
       });
 
-      const pEdustat = (edustat || []).filter(row => {
-        const d = parseDateRobust(row.date);
-        return d && d >= p.start && d <= p.end;
+      const pEdustat = preprocessedEdustat.filter(row => {
+        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
       });
 
-      const pVisits = (visits || []).filter(row => {
-        const d = parseDateRobust(row.visit_date);
-        return d && d >= p.start && d <= p.end;
+      const pVisits = preprocessedVisits.filter(row => {
+        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
       });
 
       const kpis = calculateKpiSet(fSchools, pJhpms, pEdustat, manpower, pVisits);
@@ -1486,12 +1531,12 @@ const OverallAnalysis = ({
         score: Math.round(kpis.avgScore)
       };
     });
-  }, [parsedStartDate, parsedEndDate, fSchools, jhpmsLab, edustat, visits, manpower]);
+  }, [parsedStartDate, parsedEndDate, fSchools, preprocessedJhpms, preprocessedEdustat, preprocessedVisits, manpower]);
 
   // Band Migration compilation
   const bandMigrationData = useMemo(() => {
     if (!compareMode) return [];
-    const currentMap = calculateSchoolScoresMap(fSchools, currentJhpms, edustat, manpower, currentVisits);
+    const currentMap = calculateSchoolScoresMap(fSchools, currentJhpms, currentEdustat, manpower, currentVisits);
     const prevMap = calculateSchoolScoresMap(fSchools, prevJhpms, prevEdustat, manpower, prevVisits);
 
     const bands = { Excellent: 0, Good: 0, Average: 0, Poor: 0 };
@@ -1519,7 +1564,7 @@ const OverallAnalysis = ({
       { band: 'Good', Current: bands.Good, Previous: prevBands.Good },
       { band: 'Excellent', Current: bands.Excellent, Previous: prevBands.Excellent }
     ];
-  }, [compareMode, fSchools, currentJhpms, prevJhpms, edustat, prevEdustat, manpower, currentVisits, prevVisits]);
+  }, [compareMode, fSchools, currentJhpms, prevJhpms, currentEdustat, prevEdustat, manpower, currentVisits, prevVisits]);
 
   const renderCustomBarLabel = (props) => {
     const { x, y, width, height, value, index } = props;
@@ -1566,33 +1611,33 @@ const OverallAnalysis = ({
     const visitComp = isVisitActive ? (fSchools.filter(s => (visitMap[s.udise_code]?.count || 0) > 0).length / total) * 100 : 0;
     const manpowerComp = isManpowerActive ? (fSchools.filter(s => manpowerMap[s.udise_code]?.status === 'Active').length / total) * 100 : 0;
     
-    const getLastSync = (sourceArr, dateKey) => {
+    const getLastSync = (sourceArr) => {
       if (!sourceArr || sourceArr.length === 0) return 'Never';
       let maxD = null;
       sourceArr.forEach(item => {
-        const d = parseDateRobust(item[dateKey] || getVal(item, dateKey));
-        if (d && (!maxD || d > maxD)) maxD = d;
+        if (item._parsedTime && (!maxD || item._parsedTime > maxD)) maxD = item._parsedTime;
       });
-      return maxD ? formatDate(maxD) : 'N/A';
+      return maxD ? formatDate(new Date(maxD)) : 'N/A';
     };
 
-    const jhpmsLast = getLastSync(jhpmsLab, 'date');
-    const visitLast = getLastSync(visits, 'visit_date');
+    const jhpmsLast = getLastSync(preprocessedJhpms);
+    const visitLast = getLastSync(preprocessedVisits);
     
     // Apply name-mapping correction BEFORE flagging mismatch!
     let mismatches = 0;
-    visits.forEach(v => {
-      const u = cleanUdise(v.udise_code);
-      if (!validUdises.has(u)) return;
-      const school = fSchools.find(s => cleanUdise(s.udise_code) === u);
-      if (school) {
-        const assignedCC = String(school.visitor_name || school.visitorName || '').trim();
-        const visitor = String(v.visitor_name || '').trim();
-        if (assignedCC && visitor && assignedCC !== '-' && visitor !== '-' && assignedCC.toLowerCase() !== visitor.toLowerCase()) {
-          const resolvedCC = ccNameMapping[visitor] || visitor;
-          const resolvedAssigned = ccNameMapping[assignedCC] || assignedCC;
-          if (resolvedCC.toLowerCase() !== resolvedAssigned.toLowerCase()) {
-            mismatches++;
+    preprocessedVisits.forEach(v => {
+      if (v._cleanUdise && validUdises.has(v._cleanUdise)) {
+        const u = v._cleanUdise;
+        const school = fSchools.find(s => cleanUdise(s.udise_code) === u);
+        if (school) {
+          const assignedCC = String(school.visitor_name || school.visitorName || '').trim();
+          const visitor = String(v.visitor_name || '').trim();
+          if (assignedCC && visitor && assignedCC !== '-' && visitor !== '-' && assignedCC.toLowerCase() !== visitor.toLowerCase()) {
+            const resolvedCC = ccNameMapping[visitor] || visitor;
+            const resolvedAssigned = ccNameMapping[assignedCC] || assignedCC;
+            if (resolvedCC.toLowerCase() !== resolvedAssigned.toLowerCase()) {
+              mismatches++;
+            }
           }
         }
       }
@@ -1626,7 +1671,7 @@ const OverallAnalysis = ({
       { name: 'Visit Reports', compliance: visitComp, sync: visitLast, mismatches: mismatches, stale: fSchools.filter(s => !(visitMap[s.udise_code]?.count > 0)).length, badge: getBadge(visitComp, isVisitActive, 'Visits') },
       { name: 'Manpower Status', compliance: manpowerComp, sync: 'Static Roster', mismatches: mismatches, stale: fSchools.filter(s => manpowerMap[s.udise_code]?.status !== 'Active').length, badge: getBadge(manpowerComp, isManpowerActive, 'Manpower') }
     ];
-  }, [fSchools, jhpmsLab, currentEdustat, visits, manpower, jhpmsMap, edustatMap, visitMap, manpowerMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, ccNameMapping]);
+  }, [fSchools, preprocessedJhpms, currentEdustat, preprocessedVisits, manpower, jhpmsMap, edustatMap, visitMap, manpowerMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, ccNameMapping, validUdises]);
 
   // 10. Pareto Bottlenecks Compilation
   const paretoData = useMemo(() => {
@@ -1699,31 +1744,28 @@ const OverallAnalysis = ({
       monthMap[m.key] = m;
     });
 
-    jhpmsLab.forEach(l => {
-      const udise = cleanUdise(l.udise || l.udise_code || getVal(l, 'udise'));
-      if (!validUdises.has(udise)) return; // Apply active project/district/block/CC filters
+    preprocessedJhpms.forEach(l => {
+      if (l._cleanUdise && validUdises.has(l._cleanUdise)) {
+        if (!l._parsedTime) return;
+        const d = new Date(l._parsedTime);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthMap[key]) return; // out of scope
 
-      const rawDate = l.date || getVal(l, 'date');
-      const d = parseDateRobust(rawDate);
-      if (!d) return;
+        const labType = String(l.labType || l.lab_type || getVal(l, 'lab') || '').toUpperCase();
+        const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
 
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!monthMap[key]) return; // out of scope
-
-      const labType = String(l.labType || l.lab_type || getVal(l, 'lab') || '').toUpperCase();
-      const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
-
-      if (subject.includes('MIS')) {
-        monthMap[key]['MIS Work']++;
-      } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-        monthMap[key]['ICT Class']++;
-      } else if (labType.includes('SMART')) {
-        monthMap[key]['Smart Class']++;
+        if (subject.includes('MIS')) {
+          monthMap[key]['MIS Work']++;
+        } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+          monthMap[key]['ICT Class']++;
+        } else if (labType.includes('SMART')) {
+          monthMap[key]['Smart Class']++;
+        }
       }
     });
 
     return monthList;
-  }, [jhpmsLab, parsedStartDate, parsedEndDate, isJhpmsActive, validUdises]);
+  }, [preprocessedJhpms, parsedStartDate, parsedEndDate, isJhpmsActive, validUdises]);
 
   const classStatusSeries = useMemo(() => [
     { name: 'ICT Class', data: (monthlyClassStatusData || []).map(d => d['ICT Class'] || 0) },
@@ -2590,19 +2632,19 @@ const OverallAnalysis = ({
 
   // EduStat Outlier Sanitizer (Usage > 12h/24h, Sundays) for Tab 3
   const edustatAnomalies = useMemo(() => {
-    if (!activeSources.includes('edustat') || !edustat || edustat.length === 0) return [];
+    if (!activeSources.includes('edustat') || !currentEdustat || currentEdustat.length === 0) return [];
     const anomalies = [];
     
-    edustat.forEach(row => {
-      const hours = row.hours !== undefined ? Number(row.hours) : parseHours(row['total used hours'] || row.hours || 0);
-      const dateStr = row.date || row.sync_date || '';
-      if (!dateStr) return;
-      const d = new Date(dateStr);
+    currentEdustat.forEach(row => {
+      const hours = row._hours;
+      const time = row._parsedTime;
+      if (!time) return;
+      const d = new Date(time);
       const isSunday = d.getDay() === 0;
       
       if (hours > 12 || (isSunday && hours > 0)) {
-        const udise = cleanUdise(row.udise || row.udise_code);
-        if (!validUdises.has(udise)) return;
+        const udise = row._cleanUdise;
+        if (!udise || !validUdises.has(udise)) return;
         const school = schools.find(s => cleanUdise(s.udise_code) === udise);
         if (!school) return;
         
@@ -2624,7 +2666,7 @@ const OverallAnalysis = ({
           schoolName: school.school_name || 'Unknown',
           block: school.block || '-',
           district: school.district || '-',
-          date: new Date(dateStr).toLocaleDateString('en-IN'),
+          date: d.toLocaleDateString('en-IN'),
           hours: hours.toFixed(1),
           type: anomalyType,
           severity
@@ -2632,8 +2674,8 @@ const OverallAnalysis = ({
       }
     });
     
-    return anomalies.slice(0, 50);
-  }, [edustat, activeSources, validUdises, schools]);
+    return anomalies.slice(0, 100);
+  }, [currentEdustat, activeSources, validUdises, schools]);
 
   // Orphaned Assets Alert for Tab 3
   const orphanedAssets = useMemo(() => {
