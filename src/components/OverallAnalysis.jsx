@@ -4873,7 +4873,14 @@ const OverallAnalysis = ({
 
             {/* Coordinator Workload & Compliance Table */}
             <div className="portal-card lg:col-span-2 p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-xl font-sans">
-              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">CC Coordinator Workload & Compliance</h4>
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">CC Coordinator Workload & Compliance</h4>
+                {onDrillDown && (
+                  <span className="text-[10px] text-indigo-500 dark:text-indigo-400 font-medium animate-pulse">
+                    💡 Click row to drill down
+                  </span>
+                )}
+              </div>
               <div className="overflow-x-auto max-h-[190px]">
                 <table className="w-full text-xs text-left portal-table">
                   <thead>
@@ -4886,7 +4893,35 @@ const OverallAnalysis = ({
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {coordinatorWorkloadData.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                      <tr 
+                        key={idx} 
+                        className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors ${onDrillDown ? 'cursor-pointer' : ''}`}
+                        onClick={() => {
+                          if (!onDrillDown) return;
+                          const ccSchools = finalEnriched.filter(s => {
+                            const sCC = s.visitorName || 'Unassigned';
+                            return sCC.trim().toLowerCase() === row.name.trim().toLowerCase();
+                          });
+                          const drillDownData = ccSchools.map((s, index) => ({
+                            'Sl No': index + 1,
+                            'School Name': s.schoolName,
+                            'UDISE Code': s.udise,
+                            'District': s.district,
+                            'Block': s.block,
+                            'Project': s.project || '-',
+                            'Field Visits': s.fieldVisits,
+                            'Target Visits': s.targetVisits,
+                            'Visit Compliance Rate %': s.targetVisits > 0 ? `${Math.round(Math.min(100, Math.max(0, (s.fieldVisits / s.targetVisits) * 100)))}%` : (s.fieldVisits > 0 ? '100%' : '0%'),
+                            'Last Visit Date': formatDate(s.lastVisitDate) === '-' ? 'No Visits' : formatDate(s.lastVisitDate),
+                            'JHPMS Classes': s.jhpmsClasses,
+                            'EduStat Hours': Math.round(s.eduHours),
+                            'Composite Score %': `${Math.round(s.compositeScore)}%`,
+                            'Primary Root Cause': s.rootCause,
+                            'Action Recommendation': s.recommendation
+                          }));
+                          onDrillDown(`Schools Assigned to CC: ${row.name} - Workload & Compliance`, drillDownData);
+                        }}
+                      >
                         <td className="py-2.5 px-3 font-bold text-slate-700 dark:text-slate-350">{row.name}</td>
                         <td className="py-2.5 px-3 text-center font-bold text-slate-500">{row.assignedSchools}</td>
                         <td className="py-2.5 px-3 text-center font-mono font-medium text-slate-655 dark:text-slate-400">
