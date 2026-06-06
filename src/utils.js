@@ -6,8 +6,30 @@ export const parseDateRobust = (input) => {
   if (typeof input === 'number') return new Date(Math.round((input - 25569) * 86400 * 1000));
   if (typeof input === 'string') {
     const clean = input.trim().replace(/["']/g, '');
-    const ddmmyyyy = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-    if (ddmmyyyy) return new Date(ddmmyyyy[3], parseInt(ddmmyyyy[2]) - 1, ddmmyyyy[1]);
+    
+    // Check for YYYY-MM-DD format
+    const yyyymmdd = clean.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    if (yyyymmdd) return new Date(parseInt(yyyymmdd[1]), parseInt(yyyymmdd[2]) - 1, parseInt(yyyymmdd[3]));
+    
+    // Check for DD/MM/YYYY or MM/DD/YYYY formats
+    const partMatch = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (partMatch) {
+      const val1 = parseInt(partMatch[1], 10);
+      const val2 = parseInt(partMatch[2], 10);
+      const year = parseInt(partMatch[3], 10);
+      
+      if (val2 > 12) {
+        // Second segment > 12 implies it must be the Day, format is MM/DD/YYYY
+        return new Date(year, val1 - 1, val2);
+      }
+      if (val1 > 12) {
+        // First segment > 12 implies it must be the Day, format is DD/MM/YYYY
+        return new Date(year, val2 - 1, val1);
+      }
+      // Fallback/Default to Indian standard DD/MM/YYYY when both <= 12
+      return new Date(year, val2 - 1, val1);
+    }
+    
     const d = new Date(clean);
     return isNaN(d.getTime()) ? null : d;
   }
