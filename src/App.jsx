@@ -156,7 +156,7 @@ const mergeJhpms = (existing, newRows) => {
 };
 
 const mergeVisits = (existing, newRows) => {
-    return deduplicateVisits([...(existing || []), ...(newRows || [])]);
+    return deduplicateVisits([...(newRows || []), ...(existing || [])]);
 };
 
 const App = () => {
