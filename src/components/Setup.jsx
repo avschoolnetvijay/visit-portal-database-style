@@ -22,8 +22,15 @@ const Setup = ({
     setUploadAsSession,
     visitsMeta,
     jhpmsLabMeta,
-    edustatMeta
+    edustatMeta,
+    activeVisits = null,
+    activeJhpmsLab = null,
+    activeEdustat = null
 }) => {
+    const timelineVisits = activeVisits || visits;
+    const timelineJhpms = activeJhpmsLab || jhpmsLab;
+    const timelineEdustat = activeEdustat || edustat;
+
     const mismatchList = React.useMemo(() => {
         const mismatchListLocal = [];
         const seenMismatches = new Set();
@@ -285,7 +292,7 @@ const Setup = ({
                                 </td>
                                 <td className="py-3 px-2 text-right font-mono font-bold text-teal-700">{visits.length.toLocaleString('en-IN')}</td>
                                 <td className="py-3 px-2 text-slate-800 font-semibold tracking-wide">
-                                    {calculateDateRanges(visits, 'visit_date')}
+                                    {calculateDateRanges(timelineVisits, 'visit_date')}
                                 </td>
                                 <td className="py-3 px-2 text-gray-500 font-medium">{getMetaString(visitsMeta)}</td>
                             </tr>
@@ -301,7 +308,7 @@ const Setup = ({
                                 </td>
                                 <td className="py-3 px-2 text-right font-mono font-bold text-teal-700">{jhpmsLab.length.toLocaleString('en-IN')}</td>
                                 <td className="py-3 px-2 text-slate-800 font-semibold tracking-wide">
-                                    {calculateDateRanges(jhpmsLab, 'date')}
+                                    {calculateDateRanges(timelineJhpms, 'date')}
                                 </td>
                                 <td className="py-3 px-2 text-gray-500 font-medium">{getMetaString(jhpmsLabMeta)}</td>
                             </tr>
@@ -327,7 +334,7 @@ const Setup = ({
                                 </td>
                                 <td className="py-3 px-2 text-right font-mono font-bold text-teal-700">{edustat.length.toLocaleString('en-IN')}</td>
                                 <td className="py-3 px-2 text-slate-800 font-semibold tracking-wide">
-                                    {calculateDateRanges(edustat, 'date')}
+                                    {calculateDateRanges(timelineEdustat, 'date')}
                                 </td>
                                 <td className="py-3 px-2 text-gray-500 font-medium">{getMetaString(edustatMeta)}</td>
                             </tr>

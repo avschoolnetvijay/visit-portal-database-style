@@ -1740,6 +1740,9 @@ const App = () => {
                     visitsMeta={userRole === 'admin' ? visitsMeta : userVisitsMeta}
                     jhpmsLabMeta={userRole === 'admin' ? jhpmsLabMeta : userJhpmsLabMeta}
                     edustatMeta={userRole === 'admin' ? edustatMeta : userEdustatMeta}
+                    activeVisits={combinedVisits}
+                    activeJhpmsLab={combinedJhpmsLab}
+                    activeEdustat={combinedEdustat}
                 />
             );
         }
