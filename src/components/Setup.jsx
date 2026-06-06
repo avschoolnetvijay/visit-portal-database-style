@@ -96,58 +96,59 @@ const Setup = ({
 
                     {/* Sandbox Mode / Upload Session Mode Banner */}
                     <div className="mb-6 max-w-lg mx-auto bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-left">
-                        {userRole === 'admin' ? (
-                            <label className="flex items-start gap-3 cursor-pointer select-none">
-                                <input
-                                    type="checkbox"
-                                    checked={uploadAsSession}
-                                    onChange={(e) => setUploadAsSession(e.target.checked)}
-                                    className="w-4 h-4 mt-0.5 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                                />
-                                <div>
-                                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">Enable Session Sandbox Mode</span>
-                                    <span className="text-[10px] text-slate-500 block mt-0.5 font-medium leading-relaxed">
-                                        Check this to upload files temporarily to browser cache only. Ideal for sandbox testing or viewing local files without overwriting/committing to Central Cloud.
-                                    </span>
-                                </div>
-                            </label>
-                        ) : (
-                            <div className="flex items-start gap-2.5">
-                                <span className="text-amber-500 text-sm">⚠️</span>
-                                <div>
-                                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wider block">Session Sandbox Upload Active</span>
-                                    <span className="text-[10px] text-amber-700 block mt-0.5 font-medium leading-relaxed">
-                                        Commit privileges are restricted to Administrator. Any spreadsheet you upload will be stored as local session data for this browser tab only.
-                                    </span>
-                                </div>
+                        <label className="flex items-start gap-3 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={uploadAsSession}
+                                onChange={(e) => setUploadAsSession(e.target.checked)}
+                                className="w-4 h-4 mt-0.5 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+                            />
+                            <div>
+                                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">Enable Session Sandbox Mode</span>
+                                <span className="text-[10px] text-slate-500 block mt-0.5 font-medium leading-relaxed">
+                                    {userRole === 'admin' 
+                                        ? "Check this to upload files temporarily to browser cache only. Ideal for sandbox testing without overwriting Central Cloud."
+                                        : "Check this to upload files temporarily to browser cache only. Otherwise, your data will be saved as your personal overlay in the Cloud."
+                                    }
+                                </span>
                             </div>
-                        )}
+                        </label>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="border border-dashed border-gray-300 rounded p-6 hover:border-teal-500 bg-gray-50 transition relative">
-                            <div className="font-bold text-teal-700 mb-2 text-xs uppercase">1. School Master Data</div>
-                            <input type="file" onChange={(e) => onUpload(e, 'schools')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
+                        {userRole === 'admin' ? (
+                            <div className="border border-dashed border-gray-300 rounded p-6 hover:border-teal-500 bg-gray-50 transition relative">
+                                <div className="font-bold text-teal-700 mb-2 text-xs uppercase">1. School Master Data</div>
+                                <input type="file" onChange={(e) => onUpload(e, 'schools')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
 
-                            <div className="mt-4 pt-4 border-t border-gray-100">
-                                <button
-                                    onClick={onGoogleFetch}
-                                    disabled={googleLoading}
-                                    className="w-full bg-blue-50 text-blue-700 text-xs font-bold py-2 rounded border border-blue-200 hover:bg-blue-100 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                                >
-                                    {googleLoading ? (
-                                        <span className="flex items-center gap-2">
-                                            <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
-                                            Fetching Securely...
-                                        </span>
-                                    ) : (
-                                        <>
-                                            <Icons.GoogleSheet className="w-4 h-4" /> Auto-Fetch from Google Sheet
-                                        </>
-                                    )}
-                                </button>
+                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                    <button
+                                        onClick={onGoogleFetch}
+                                        disabled={googleLoading}
+                                        className="w-full bg-blue-50 text-blue-700 text-xs font-bold py-2 rounded border border-blue-200 hover:bg-blue-100 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                                    >
+                                        {googleLoading ? (
+                                            <span className="flex items-center gap-2">
+                                                <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                                                Fetching Securely...
+                                            </span>
+                                        ) : (
+                                            <>
+                                                <Icons.GoogleSheet className="w-4 h-4" /> Auto-Fetch from Google Sheet
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="border border-dashed border-gray-300 rounded p-6 bg-gray-100/70 transition relative opacity-70">
+                                <div className="font-bold text-teal-700 mb-2 text-xs uppercase flex items-center justify-between">
+                                    <span>1. School Master Data</span>
+                                    <span className="text-[9px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded font-black">ADMIN-ONLY</span>
+                                </div>
+                                <div className="text-[10px] text-gray-500 mt-2 leading-relaxed">Read-Only baseline managed by Admin. Syncs automatically.</div>
+                            </div>
+                        )}
                         <div className="border border-dashed border-gray-300 rounded p-6 hover:border-cyan-500 bg-gray-50 transition">
                             <div className="font-bold text-cyan-700 mb-2 text-xs uppercase">2. Visit Reports</div>
                             <input type="file" onChange={(e) => onUpload(e, 'visits')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
@@ -177,12 +178,12 @@ const Setup = ({
                         <h3>Field Team Performance Data</h3>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="border border-dashed border-gray-300 rounded p-6 hover:border-amber-500 bg-gray-50 transition relative">
                             <div className="font-bold text-amber-700 mb-2 text-xs uppercase">3. JHPMS Lab Data</div>
                             <input type="file" onChange={(e) => onUpload(e, 'jhpms_lab')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
                         </div>
-                        {userRole === 'admin' && (
+                        {userRole === 'admin' ? (
                             <div className="border border-dashed border-gray-300 rounded p-6 hover:border-purple-600 bg-gray-50 transition relative">
                                 <div className="font-bold text-purple-800 mb-2 text-xs uppercase flex items-center justify-between">
                                     <span>4a. Edustat Master Inventory</span>
@@ -190,15 +191,33 @@ const Setup = ({
                                 </div>
                                 <input type="file" onChange={(e) => onUpload(e, 'edustat_master')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
                             </div>
+                        ) : (
+                            <div className="border border-dashed border-gray-300 rounded p-6 bg-gray-100/70 transition relative opacity-70">
+                                <div className="font-bold text-purple-800 mb-2 text-xs uppercase flex items-center justify-between">
+                                    <span>4a. Edustat Master Inventory</span>
+                                    <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-black">ADMIN-ONLY</span>
+                                </div>
+                                <div className="text-[10px] text-gray-500 mt-2 leading-relaxed">Read-Only baseline managed by Admin. Syncs automatically.</div>
+                            </div>
                         )}
                         <div className="border border-dashed border-gray-300 rounded p-6 hover:border-violet-500 bg-gray-50 transition relative">
                             <div className="font-bold text-violet-700 mb-2 text-xs uppercase">4b. Edustat Daily Logs</div>
                             <input type="file" onChange={(e) => onUpload(e, 'edustat')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
                         </div>
-                        <div className="border border-dashed border-gray-300 rounded p-6 hover:border-indigo-500 bg-gray-50 transition relative">
-                            <div className="font-bold text-indigo-700 mb-2 text-xs uppercase">5. Instructor Profile</div>
-                            <input type="file" onChange={(e) => onUpload(e, 'manpower')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
-                        </div>
+                        {userRole === 'admin' ? (
+                            <div className="border border-dashed border-gray-300 rounded p-6 hover:border-indigo-500 bg-gray-50 transition relative">
+                                <div className="font-bold text-indigo-700 mb-2 text-xs uppercase">5. Instructor Profile</div>
+                                <input type="file" onChange={(e) => onUpload(e, 'manpower')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
+                            </div>
+                        ) : (
+                            <div className="border border-dashed border-gray-300 rounded p-6 bg-gray-100/70 transition relative opacity-70">
+                                <div className="font-bold text-indigo-700 mb-2 text-xs uppercase flex items-center justify-between">
+                                    <span>5. Instructor Profile</span>
+                                    <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-black">ADMIN-ONLY</span>
+                                </div>
+                                <div className="text-[10px] text-gray-500 mt-2 leading-relaxed">Read-Only baseline managed by Admin. Syncs automatically.</div>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="bg-gray-50 p-3 border-t border-gray-200 flex justify-between items-center">

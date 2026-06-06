@@ -236,6 +236,19 @@ const App = () => {
     const [jhpmsLabMeta, setJhpmsLabMeta] = useState(null);
     const [edustatMeta, setEdustatMeta] = useState(null);
 
+    // User Specific Custom Upload Overlays
+    const [userVisits, setUserVisits] = useState([]);
+    const [userJhpmsLab, setUserJhpmsLab] = useState([]);
+    const [userEdustat, setUserEdustat] = useState([]);
+    const [userVisitsMeta, setUserVisitsMeta] = useState(null);
+    const [userJhpmsLabMeta, setUserJhpmsLabMeta] = useState(null);
+    const [userEdustatMeta, setUserEdustatMeta] = useState(null);
+
+    // Admin Baseline cache for merging (Standard User mode)
+    const [baselineVisits, setBaselineVisits] = useState([]);
+    const [baselineJhpmsLab, setBaselineJhpmsLab] = useState([]);
+    const [baselineEdustat, setBaselineEdustat] = useState([]);
+
     const [drillDownData, setDrillDownData] = useState(null);
 
     const [isAuthenticated, setIsAuthenticated] = useState(
@@ -757,19 +770,100 @@ const App = () => {
                     }
                 }
 
-                // 2. Load baseline datasets from storage in parallel to eliminate waterfall latency
-                const [s, v, jl, e, em, m, p, vMeta, jlMeta, eMeta] = await Promise.all([
-                    get('schools'),
-                    get('visits'),
-                    get('jhpms_lab'),
-                    get('edustat'),
-                    get('edustat_master'),
-                    get('manpower'),
-                    get('profile_photo'),
-                    get('visits_meta'),
-                    get('jhpms_lab_meta'),
-                    get('edustat_meta')
-                ]);
+                // 2. Load baseline datasets from storage in parallel
+                let s, v, jl, e, em, m, p, vMeta, jlMeta, eMeta;
+                let userV = [], userJl = [], userE = [];
+                let userVM = null, userJlM = null, userEM = null;
+
+                if (resolvedRole === 'admin') {
+                    const [resSchools, resVisits, resJhpms, resEdustat, resEdustatMaster, resManpower, resPhoto, resVMeta, resJlMeta, resEMeta] = await Promise.all([
+                        get('schools'),
+                        get('visits'),
+                        get('jhpms_lab'),
+                        get('edustat'),
+                        get('edustat_master'),
+                        get('manpower'),
+                        get('profile_photo'),
+                        get('visits_meta'),
+                        get('jhpms_lab_meta'),
+                        get('edustat_meta')
+                    ]);
+                    s = resSchools;
+                    v = resVisits;
+                    jl = resJhpms;
+                    e = resEdustat;
+                    em = resEdustatMaster;
+                    m = resManpower;
+                    p = resPhoto;
+                    vMeta = resVMeta;
+                    jlMeta = resJlMeta;
+                    eMeta = resEMeta;
+                } else {
+                    const [
+                        adminSchools,
+                        adminManpower,
+                        adminVisits,
+                        adminJhpms,
+                        adminEdustat,
+                        adminVMeta,
+                        adminJlMeta,
+                        adminEMeta,
+                        
+                        customVisits,
+                        customJhpms,
+                        customEdustat,
+                        customVMeta,
+                        customJlMeta,
+                        customEMeta,
+                        
+                        resPhoto,
+                        resEdustatMaster
+                    ] = await Promise.all([
+                        get('schools', 'admin_'),
+                        get('manpower', 'admin_'),
+                        get('visits', 'admin_'),
+                        get('jhpms_lab', 'admin_'),
+                        get('edustat', 'admin_'),
+                        get('visits_meta', 'admin_'),
+                        get('jhpms_lab_meta', 'admin_'),
+                        get('edustat_meta', 'admin_'),
+                        
+                        get('visits'),
+                        get('jhpms_lab'),
+                        get('edustat'),
+                        get('visits_meta'),
+                        get('jhpms_lab_meta'),
+                        get('edustat_meta'),
+                        
+                        get('profile_photo'),
+                        get('edustat_master')
+                    ]);
+                    s = adminSchools;
+                    m = adminManpower;
+                    em = resEdustatMaster;
+                    p = resPhoto;
+                    
+                    v = mergeVisits(adminVisits, customVisits);
+                    jl = mergeJhpms(adminJhpms, customJhpms);
+                    e = mergeEdustat(adminEdustat, customEdustat);
+                    
+                    setBaselineVisits(adminVisits || []);
+                    setBaselineJhpmsLab(adminJhpms || []);
+                    setBaselineEdustat(adminEdustat || []);
+
+                    userV = customVisits || [];
+                    userJl = customJhpms || [];
+                    userE = customEdustat || [];
+                    
+                    userVM = customVMeta;
+                    userJlM = customJlMeta;
+                    userEM = customEMeta;
+                    
+                    vMeta = adminVMeta;
+                    jlMeta = adminJlMeta;
+                    eMeta = adminEMeta;
+                }
+
                 if (p) {
                     localStorage.setItem('snet_profile_photo', p);
                     setProfilePhoto(p);
@@ -797,6 +891,10 @@ const App = () => {
                 let filteredJhpms = jl || [];
                 let filteredEdustat = e || [];
                 let filteredManpower = m || [];
+                
+                let filteredUserVisits = userV || [];
+                let filteredUserJhpms = userJl || [];
+                let filteredUserEdustat = userE || [];
 
                 if (resolvedRole !== 'admin') {
                     // Standard users must be restricted
@@ -806,7 +904,7 @@ const App = () => {
                         : (fallbackDistrict.length > 0 ? fallbackDistrict : ['__FORCE_EMPTY_DISTRICT__']);
                     
                     const allowedSet = new Set(districtsToGate.map(d => d.toUpperCase().trim()));
-
+                    
                     // Filter schools
                     filteredSchools = (s || []).filter(sch => sch.district && allowedSet.has(sch.district.toUpperCase().trim()));
                     const filteredUdise = new Set(filteredSchools.map(sch => String(sch.udise_code)));
@@ -831,6 +929,19 @@ const App = () => {
                     // Filter Manpower
                     filteredManpower = (m || []).filter(mp => {
                         const udise = mp.udise || mp.udise_code || '';
+                        return udise && filteredUdise.has(String(udise));
+                    });
+
+                    // Filter User Overlays for Setup Status Table
+                    filteredUserVisits = (userV || []).filter(vis => vis.udise_code && filteredUdise.has(String(vis.udise_code)));
+                    filteredUserJhpms = (userJl || []).filter(j => {
+                        const dist = j.district || '';
+                        if (dist) return allowedSet.has(dist.toUpperCase().trim());
+                        const udise = j.udise || j.udise_code || '';
+                        return udise && filteredUdise.has(String(udise));
+                    });
+                    filteredUserEdustat = (userE || []).filter(ed => {
+                        const udise = ed.udise || ed.udise_code || '';
                         return udise && filteredUdise.has(String(udise));
                     });
                 }
@@ -884,6 +995,14 @@ const App = () => {
                 if (filteredEdustat.length > 0) setEdustat(filteredEdustat);
                 if (em) setEdustatMaster(em);
                 if (filteredManpower.length > 0) setManpower(filteredManpower);
+                
+                // Save user specific overlay states
+                setUserVisits(filteredUserVisits);
+                setUserJhpmsLab(filteredUserJhpms);
+                setUserEdustat(filteredUserEdustat);
+                if (userVM) setUserVisitsMeta(userVM);
+                if (userJlM) setUserJhpmsLabMeta(userJlM);
+                if (userEM) setUserEdustatMeta(userEM);
                 
                 if (filteredSchools.length > 0 && filteredVisits.length > 0) setActiveTab('dashboard');
                 else setActiveTab('setup');
@@ -1005,6 +1124,10 @@ const App = () => {
 
     // Secure Auto-Fetch from Google Sheets (via Netlify proxy)
     const fetchFromGoogleSheet = async () => {
+        if (userRole !== 'admin') {
+            alert('Access Denied: Only Administrator can fetch baseline school master data.');
+            return;
+        }
         setGoogleLoading(true);
         try {
             // Fallback to production URL when running locally in development mode or offline
@@ -1079,8 +1202,31 @@ const App = () => {
                 .filter(r => r.visit_date);
 
             const cleanVisits = deduplicateVisits(normalized);
-            setVisits(cleanVisits);
-            await set('visits', cleanVisits);
+            const meta = {
+                last_uploaded_at: new Date().toISOString(),
+                last_uploaded_by: localStorage.getItem('snet_username') || 'admin',
+                is_temp: false
+            };
+
+            if (userRole === 'admin') {
+                setVisits(cleanVisits);
+                await set('visits', cleanVisits);
+                await set('visits_meta', meta);
+                setVisitsMeta(meta);
+            } else {
+                const existing = await get('visits') || [];
+                const merged = mergeVisits(existing, cleanVisits);
+                await set('visits', merged);
+                await set('visits_meta', meta);
+
+                const gatedUserV = gateVisits(merged);
+                setUserVisits(gatedUserV);
+                setUserVisitsMeta(meta);
+
+                const activeVisits = mergeVisits(baselineVisits, merged);
+                const gatedActive = gateVisits(activeVisits);
+                setVisits(gatedActive);
+            }
 
             // Auto-fill Dates Logic
             if (cleanVisits.length > 0) {
@@ -1104,6 +1250,44 @@ const App = () => {
             setJhpmsLoading(false);
         }
     };
+
+    const gateVisits = useCallback((list) => {
+        if (userRole === 'admin') return list;
+        const districtsToGate = (userAllowedDistricts && userAllowedDistricts.length > 0) 
+            ? userAllowedDistricts 
+            : [];
+        const allowedSet = new Set(districtsToGate.map(d => d.toUpperCase().trim()));
+        const filteredUdise = new Set(schools.filter(sch => sch.district && allowedSet.has(sch.district.toUpperCase().trim())).map(sch => String(sch.udise_code)));
+        return (list || []).filter(vis => vis.udise_code && filteredUdise.has(String(vis.udise_code)));
+    }, [userRole, userAllowedDistricts, schools]);
+
+    const gateJhpmsLab = useCallback((list) => {
+        if (userRole === 'admin') return list;
+        const districtsToGate = (userAllowedDistricts && userAllowedDistricts.length > 0) 
+            ? userAllowedDistricts 
+            : [];
+        const allowedSet = new Set(districtsToGate.map(d => d.toUpperCase().trim()));
+        const filteredUdise = new Set(schools.filter(sch => sch.district && allowedSet.has(sch.district.toUpperCase().trim())).map(sch => String(sch.udise_code)));
+        return (list || []).filter(j => {
+            const dist = j.district || '';
+            if (dist) return allowedSet.has(dist.toUpperCase().trim());
+            const udise = j.udise || j.udise_code || '';
+            return udise && filteredUdise.has(String(udise));
+        });
+    }, [userRole, userAllowedDistricts, schools]);
+
+    const gateEdustat = useCallback((list) => {
+        if (userRole === 'admin') return list;
+        const districtsToGate = (userAllowedDistricts && userAllowedDistricts.length > 0) 
+            ? userAllowedDistricts 
+            : [];
+        const allowedSet = new Set(districtsToGate.map(d => d.toUpperCase().trim()));
+        const filteredUdise = new Set(schools.filter(sch => sch.district && allowedSet.has(sch.district.toUpperCase().trim())).map(sch => String(sch.udise_code)));
+        return (list || []).filter(ed => {
+            const udise = ed.udise || ed.udise_code || '';
+            return udise && filteredUdise.has(String(udise));
+        });
+    }, [userRole, userAllowedDistricts, schools]);
 
     // Handle Local File Uploads (School master / Raw visit reports)
     const handleUpload = (e, type) => {
@@ -1308,11 +1492,15 @@ const App = () => {
                     }
 
                     if (type === 'schools') {
+                        if (userRole !== 'admin') {
+                            alert("Access Denied: Only Administrator can upload School Master Data.");
+                            return;
+                        }
                         setSchools(normalized);
                         await set('schools', normalized);
                         alert(`Successfully uploaded ${normalized.length} schools master records!`);
                     } else if (type === 'visits') {
-                        const isTemp = uploadAsSession || userRole !== 'admin';
+                        const isTemp = uploadAsSession;
                         const meta = {
                             last_uploaded_at: new Date().toISOString(),
                             last_uploaded_by: localStorage.getItem('snet_username') || 'admin',
@@ -1325,20 +1513,40 @@ const App = () => {
                             setTempVisits(merged);
                             sessionStorage.setItem('snet_temp_visits', JSON.stringify(merged));
                             sessionStorage.setItem('snet_temp_visits_meta', JSON.stringify(meta));
-                            setVisitsMeta(meta);
+                            if (userRole === 'admin') {
+                                setVisitsMeta(meta);
+                            } else {
+                                setUserVisitsMeta(meta);
+                            }
                             alert(`Successfully uploaded ${normalized.length} visit reports to temporary session!`);
                         } else {
                             const existing = await get('visits') || [];
                             merged = mergeVisits(existing, normalized);
-                            setVisits(merged);
                             await set('visits', merged);
                             await set('visits_meta', meta);
-                            setVisitsMeta(meta);
-                            alert(`Successfully uploaded and merged ${normalized.length} visit reports to Central Cloud!`);
+                            
+                            if (userRole === 'admin') {
+                                setVisits(merged);
+                                setVisitsMeta(meta);
+                                alert(`Successfully uploaded and merged ${normalized.length} visit reports to Central Cloud!`);
+                            } else {
+                                const gatedUserV = gateVisits(merged);
+                                setUserVisits(gatedUserV);
+                                setUserVisitsMeta(meta);
+
+                                const activeVisits = mergeVisits(baselineVisits, merged);
+                                const gatedActive = gateVisits(activeVisits);
+                                setVisits(gatedActive);
+                                alert(`Successfully uploaded and merged ${normalized.length} visit reports as your personal cloud overlay!`);
+                            }
                         }
 
                         // Auto-fill Dates Logic using combined visits
-                        const newCombined = isTemp ? mergeVisits(visits, merged) : mergeVisits(merged, tempVisits);
+                        const newCombined = isTemp 
+                            ? mergeVisits(visits, merged) 
+                            : (userRole === 'admin' 
+                                ? mergeVisits(merged, tempVisits) 
+                                : mergeVisits(gateVisits(mergeVisits(baselineVisits, merged)), tempVisits));
                         if (newCombined.length > 0) {
                             const dates = newCombined
                                 .map(v => new Date(v.visit_date))
@@ -1350,58 +1558,100 @@ const App = () => {
                             }
                         }
                     } else if (type === 'jhpms_lab') {
-                        const isTemp = uploadAsSession || userRole !== 'admin';
+                        const isTemp = uploadAsSession;
                         const meta = {
                             last_uploaded_at: new Date().toISOString(),
                             last_uploaded_by: localStorage.getItem('snet_username') || 'admin',
                             is_temp: isTemp
                         };
                         
+                        let merged;
                         if (isTemp) {
-                            const merged = mergeJhpms(tempJhpmsLab, normalized);
+                            merged = mergeJhpms(tempJhpmsLab, normalized);
                             setTempJhpmsLab(merged);
                             sessionStorage.setItem('snet_temp_jhpms_lab', JSON.stringify(merged));
                             sessionStorage.setItem('snet_temp_jhpms_lab_meta', JSON.stringify(meta));
-                            setJhpmsLabMeta(meta);
+                            if (userRole === 'admin') {
+                                setJhpmsLabMeta(meta);
+                            } else {
+                                setUserJhpmsLabMeta(meta);
+                            }
                             alert(`Successfully uploaded ${normalized.length} JHPMS Lab logs to temporary session!`);
                         } else {
                             const existing = await get('jhpms_lab') || [];
-                            const merged = mergeJhpms(existing, normalized);
-                            setJhpmsLab(merged);
+                            merged = mergeJhpms(existing, normalized);
                             await set('jhpms_lab', merged);
                             await set('jhpms_lab_meta', meta);
-                            setJhpmsLabMeta(meta);
-                            alert(`Successfully uploaded and merged ${normalized.length} JHPMS Lab logs to Central Cloud!`);
+
+                            if (userRole === 'admin') {
+                                setJhpmsLab(merged);
+                                setJhpmsLabMeta(meta);
+                                alert(`Successfully uploaded and merged ${normalized.length} JHPMS Lab logs to Central Cloud!`);
+                            } else {
+                                const gatedUserJl = gateJhpmsLab(merged);
+                                setUserJhpmsLab(gatedUserJl);
+                                setUserJhpmsLabMeta(meta);
+
+                                const activeJhpms = mergeJhpms(baselineJhpmsLab, merged);
+                                const gatedActive = gateJhpmsLab(activeJhpms);
+                                setJhpmsLab(gatedActive);
+                                alert(`Successfully uploaded and merged ${normalized.length} JHPMS Lab logs as your personal cloud overlay!`);
+                            }
                         }
                     } else if (type === 'edustat') {
-                        const isTemp = uploadAsSession || userRole !== 'admin';
+                        const isTemp = uploadAsSession;
                         const meta = {
                             last_uploaded_at: new Date().toISOString(),
                             last_uploaded_by: localStorage.getItem('snet_username') || 'admin',
                             is_temp: isTemp
                         };
                         
+                        let merged;
                         if (isTemp) {
-                            const merged = mergeEdustat(tempEdustat, normalized);
+                            merged = mergeEdustat(tempEdustat, normalized);
                             setTempEdustat(merged);
                             sessionStorage.setItem('snet_temp_edustat', JSON.stringify(merged));
                             sessionStorage.setItem('snet_temp_edustat_meta', JSON.stringify(meta));
-                            setEdustatMeta(meta);
+                            if (userRole === 'admin') {
+                                setEdustatMeta(meta);
+                            } else {
+                                setUserEdustatMeta(meta);
+                            }
                             alert(`Successfully uploaded ${normalized.length} EduStat daily logs to temporary session!`);
                         } else {
                             const existing = await get('edustat') || [];
-                            const merged = mergeEdustat(existing, normalized);
-                            setEdustat(merged);
+                            merged = mergeEdustat(existing, normalized);
                             await set('edustat', merged);
                             await set('edustat_meta', meta);
-                            setEdustatMeta(meta);
-                            alert(`Successfully uploaded and merged ${normalized.length} EduStat daily logs to Central Cloud!`);
+
+                            if (userRole === 'admin') {
+                                setEdustat(merged);
+                                setEdustatMeta(meta);
+                                alert(`Successfully uploaded and merged ${normalized.length} EduStat daily logs to Central Cloud!`);
+                            } else {
+                                const gatedUserE = gateEdustat(merged);
+                                setUserEdustat(gatedUserE);
+                                setUserEdustatMeta(meta);
+
+                                const activeEdustat = mergeEdustat(baselineEdustat, merged);
+                                const gatedActive = gateEdustat(activeEdustat);
+                                setEdustat(gatedActive);
+                                alert(`Successfully uploaded and merged ${normalized.length} EduStat daily logs as your personal cloud overlay!`);
+                            }
                         }
                     } else if (type === 'edustat_master') {
+                        if (userRole !== 'admin') {
+                            alert("Access Denied: Only Administrator can upload EduStat Master Inventory.");
+                            return;
+                        }
                         setEdustatMaster(normalized);
                         await set('edustat_master', normalized);
                         alert(`Successfully uploaded ${normalized.length} Edustat Master Inventory records!`);
                     } else if (type === 'manpower') {
+                        if (userRole !== 'admin') {
+                            alert("Access Denied: Only Administrator can upload Manpower Roster.");
+                            return;
+                        }
                         setManpower(normalized);
                         await set('manpower', normalized);
                         alert(`Successfully uploaded ${normalized.length} Instructor profiles!`);
@@ -1458,31 +1708,38 @@ const App = () => {
                             window.location.reload();
                         }
                     }}
-                    status={{ 
+                    status={userRole === 'admin' ? { 
                         schools: schools.length, 
                         visits: combinedVisits.length,
                         jhpms_lab: combinedJhpmsLab.length,
                         edustat: combinedEdustat.length,
                         edustat_master: edustatMaster.length,
                         manpower: manpower.length
+                    } : {
+                        schools: 0,
+                        visits: mergeVisits(userVisits, tempVisits).length,
+                        jhpms_lab: mergeJhpms(userJhpmsLab, tempJhpmsLab).length,
+                        edustat: mergeEdustat(userEdustat, tempEdustat).length,
+                        edustat_master: edustatMaster.length,
+                        manpower: 0
                     }}
                     onGoogleFetch={fetchFromGoogleSheet}
                     googleLoading={googleLoading}
                     onJhpmsSync={fetchJhpmsData}
                     jhpmsLoading={jhpmsLoading}
                     userRole={userRole}
-                    schools={schools}
-                    visits={combinedVisits}
-                    jhpmsLab={combinedJhpmsLab}
-                    edustat={combinedEdustat}
-                    manpower={manpower}
+                    schools={userRole === 'admin' ? schools : []}
+                    visits={userRole === 'admin' ? combinedVisits : mergeVisits(userVisits, tempVisits)}
+                    jhpmsLab={userRole === 'admin' ? combinedJhpmsLab : mergeJhpms(userJhpmsLab, tempJhpmsLab)}
+                    edustat={userRole === 'admin' ? combinedEdustat : mergeEdustat(userEdustat, tempEdustat)}
+                    manpower={userRole === 'admin' ? manpower : []}
                     ccNameMapping={ccNameMapping}
                     onUpdateNameMapping={handleUpdateNameMapping}
                     uploadAsSession={uploadAsSession}
                     setUploadAsSession={setUploadAsSession}
-                    visitsMeta={visitsMeta}
-                    jhpmsLabMeta={jhpmsLabMeta}
-                    edustatMeta={edustatMeta}
+                    visitsMeta={userRole === 'admin' ? visitsMeta : userVisitsMeta}
+                    jhpmsLabMeta={userRole === 'admin' ? jhpmsLabMeta : userJhpmsLabMeta}
+                    edustatMeta={userRole === 'admin' ? edustatMeta : userEdustatMeta}
                 />
             );
         }

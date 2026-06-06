@@ -39,9 +39,9 @@ async function decompressFromGzipBlob(blob) {
 }
 
 // Helper functions using CDN-optimized compressed storage for infinite scaling and zero timeouts
-export async function get(key) {
+export async function get(key, customPrefix) {
   try {
-    let prefix = getPrefix();
+    let prefix = customPrefix !== undefined ? customPrefix : getPrefix();
     // Edustat Master List is a globally shared baseline uploaded only by admin
     if (key === 'edustat_master') {
       prefix = 'admin_';
