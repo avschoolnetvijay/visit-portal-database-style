@@ -355,6 +355,7 @@ const OverallAnalysis = ({
   const [deckPMName, setDeckPMName] = useState('Suvendu Shekhar Jana');
   const [moversDetailModal, setMoversDetailModal] = useState(null); // { type: 'gains' | 'decliners', list: [] }
   const [moversSearchQuery, setMoversSearchQuery] = useState('');
+  const [roiMetricMode, setRoiMetricMode] = useState('absolute'); // 'absolute' | 'average'
   const gridStroke = darkMode ? 'rgba(255,255,255,0.06)' : '#f1f5f9';
   const axisStroke = darkMode ? 'rgba(255,255,255,0.1)' : '#e2e8f0';
   const textStroke = darkMode ? '#94a3b8' : '#64748b';
@@ -2002,11 +2003,24 @@ const OverallAnalysis = ({
   }, [finalEnriched, fSchools, currentVisits, showExceptions]);
 
   const labUsesSeries = useMemo(() => {
+    const isAvg = roiMetricMode === 'average';
     return [
-      { name: 'ICT Classes', data: projectStatsData.map(d => d.ictClasses) },
-      { name: 'Smart Classes', data: projectStatsData.map(d => d.smartClasses) }
+      { 
+        name: isAvg ? 'Avg ICT Classes / School' : 'ICT Classes', 
+        data: projectStatsData.map(d => {
+          const denominator = d.schools.length || 1;
+          return isAvg ? parseFloat((d.ictClasses / denominator).toFixed(1)) : d.ictClasses;
+        }) 
+      },
+      { 
+        name: isAvg ? 'Avg Smart Classes / School' : 'Smart Classes', 
+        data: projectStatsData.map(d => {
+          const denominator = d.schools.length || 1;
+          return isAvg ? parseFloat((d.smartClasses / denominator).toFixed(1)) : d.smartClasses;
+        }) 
+      }
     ];
-  }, [projectStatsData]);
+  }, [projectStatsData, roiMetricMode]);
 
   const labUsesOptions = useMemo(() => ({
     chart: {
@@ -2062,7 +2076,7 @@ const OverallAnalysis = ({
       enabled: true,
       formatter: (val) => {
         if (!val || val === 0) return '';
-        return val.toLocaleString('en-IN');
+        return roiMetricMode === 'average' ? val.toFixed(1) : val.toLocaleString('en-IN');
       },
       offsetY: -20,
       style: {
@@ -2101,7 +2115,7 @@ const OverallAnalysis = ({
           fontSize: '9px',
           colors: darkMode ? '#94a3b8' : '#64748b'
         },
-        formatter: (val) => Math.round(val).toLocaleString('en-IN')
+        formatter: (val) => roiMetricMode === 'average' ? val.toFixed(1) : Math.round(val).toLocaleString('en-IN')
       }
     },
     grid: {
@@ -2112,7 +2126,7 @@ const OverallAnalysis = ({
     tooltip: {
       theme: darkMode ? 'dark' : 'light',
       y: {
-        formatter: (val) => `${val.toLocaleString('en-IN')} Classes`
+        formatter: (val) => roiMetricMode === 'average' ? `${val.toFixed(1)} Classes/School` : `${val.toLocaleString('en-IN')} Classes`
       }
     },
     legend: {
@@ -2121,13 +2135,20 @@ const OverallAnalysis = ({
       fontSize: '11px',
       labels: { colors: darkMode ? '#e2e8f0' : '#475569' }
     }
-  }), [projectStatsData, finalEnriched, darkMode, gridStroke, onDrillDown]);
+  }), [projectStatsData, finalEnriched, darkMode, gridStroke, onDrillDown, roiMetricMode]);
 
   const eduHoursSeries = useMemo(() => {
+    const isAvg = roiMetricMode === 'average';
     return [
-      { name: 'Usage Hours', data: projectStatsData.map(d => d.eduHours) }
+      { 
+        name: isAvg ? 'Avg Hours / School' : 'Usage Hours', 
+        data: projectStatsData.map(d => {
+          const denominator = d.schools.length || 1;
+          return isAvg ? parseFloat((d.eduHours / denominator).toFixed(1)) : d.eduHours;
+        }) 
+      }
     ];
-  }, [projectStatsData]);
+  }, [projectStatsData, roiMetricMode]);
 
   const eduHoursOptions = useMemo(() => ({
     chart: {
@@ -2183,7 +2204,7 @@ const OverallAnalysis = ({
       enabled: true,
       formatter: (val) => {
         if (!val || val === 0) return '';
-        return Math.round(val).toLocaleString('en-IN');
+        return roiMetricMode === 'average' ? val.toFixed(1) : Math.round(val).toLocaleString('en-IN');
       },
       offsetY: -20,
       style: {
@@ -2217,7 +2238,7 @@ const OverallAnalysis = ({
           fontSize: '9px',
           colors: darkMode ? '#94a3b8' : '#64748b'
         },
-        formatter: (val) => Math.round(val).toLocaleString('en-IN')
+        formatter: (val) => roiMetricMode === 'average' ? val.toFixed(1) : Math.round(val).toLocaleString('en-IN')
       }
     },
     grid: {
@@ -2228,7 +2249,7 @@ const OverallAnalysis = ({
     tooltip: {
       theme: darkMode ? 'dark' : 'light',
       y: {
-        formatter: (val) => `${Math.round(val).toLocaleString('en-IN')} Hours`
+        formatter: (val) => roiMetricMode === 'average' ? `${val.toFixed(1)} Hours/School` : `${Math.round(val).toLocaleString('en-IN')} Hours`
       }
     },
     legend: {
@@ -2237,14 +2258,27 @@ const OverallAnalysis = ({
       fontSize: '11px',
       labels: { colors: darkMode ? '#e2e8f0' : '#475569' }
     }
-  }), [projectStatsData, finalEnriched, darkMode, gridStroke, onDrillDown]);
+  }), [projectStatsData, finalEnriched, darkMode, gridStroke, onDrillDown, roiMetricMode]);
 
   const visitsSeries = useMemo(() => {
+    const isAvg = roiMetricMode === 'average';
     return [
-      { name: 'ICT Lab Visits', data: projectStatsData.map(d => d.ictVisits) },
-      { name: 'Smart Class Visits', data: projectStatsData.map(d => d.smartVisits) }
+      { 
+        name: isAvg ? 'Avg Lab Visits / School' : 'ICT Lab Visits', 
+        data: projectStatsData.map(d => {
+          const denominator = d.schools.length || 1;
+          return isAvg ? parseFloat((d.ictVisits / denominator).toFixed(1)) : d.ictVisits;
+        }) 
+      },
+      { 
+        name: isAvg ? 'Avg Smart Visits / School' : 'Smart Class Visits', 
+        data: projectStatsData.map(d => {
+          const denominator = d.schools.length || 1;
+          return isAvg ? parseFloat((d.smartVisits / denominator).toFixed(1)) : d.smartVisits;
+        }) 
+      }
     ];
-  }, [projectStatsData]);
+  }, [projectStatsData, roiMetricMode]);
 
   const visitsOptions = useMemo(() => ({
     chart: {
@@ -2300,7 +2334,7 @@ const OverallAnalysis = ({
       enabled: true,
       formatter: (val) => {
         if (!val || val === 0) return '';
-        return val.toLocaleString('en-IN');
+        return roiMetricMode === 'average' ? val.toFixed(1) : val.toLocaleString('en-IN');
       },
       offsetY: -20,
       style: {
@@ -2339,7 +2373,7 @@ const OverallAnalysis = ({
           fontSize: '9px',
           colors: darkMode ? '#94a3b8' : '#64748b'
         },
-        formatter: (val) => Math.round(val).toLocaleString('en-IN')
+        formatter: (val) => roiMetricMode === 'average' ? val.toFixed(1) : Math.round(val).toLocaleString('en-IN')
       }
     },
     grid: {
@@ -2350,7 +2384,7 @@ const OverallAnalysis = ({
     tooltip: {
       theme: darkMode ? 'dark' : 'light',
       y: {
-        formatter: (val) => `${val.toLocaleString('en-IN')} Visits`
+        formatter: (val) => roiMetricMode === 'average' ? `${val.toFixed(1)} Visits/School` : `${val.toLocaleString('en-IN')} Visits`
       }
     },
     legend: {
@@ -2359,7 +2393,7 @@ const OverallAnalysis = ({
       fontSize: '11px',
       labels: { colors: darkMode ? '#e2e8f0' : '#475569' }
     }
-  }), [projectStatsData, finalEnriched, darkMode, gridStroke, onDrillDown]);
+  }), [projectStatsData, finalEnriched, darkMode, gridStroke, onDrillDown, roiMetricMode]);
 
   // Treemap Custom Card Renderer with Smart Auto-Scaling and Contrast
   const TreemapContent = (props) => {
@@ -5046,6 +5080,32 @@ const OverallAnalysis = ({
       {displayMode === 'corporate' && activeExecutiveTab === 'roi' && (
         <div className="space-y-6 font-sans mb-6">
           
+          {/* Segmented Toggle Control for Absolute vs Average Metric Modes */}
+          <div className="flex justify-end mb-2">
+            <div className="bg-slate-100 dark:bg-slate-800/80 backdrop-blur p-1 rounded-xl flex items-center gap-1 border border-slate-200/50 dark:border-slate-700/40 shadow-sm">
+              <button
+                onClick={() => setRoiMetricMode('absolute')}
+                className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all duration-205 ${
+                  roiMetricMode === 'absolute'
+                    ? 'bg-teal-700 text-white shadow-md'
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                📊 Absolute Totals
+              </button>
+              <button
+                onClick={() => setRoiMetricMode('average')}
+                className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all duration-205 ${
+                  roiMetricMode === 'average'
+                    ? 'bg-teal-700 text-white shadow-md'
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                🎯 Average per School
+              </button>
+            </div>
+          </div>
+
           {/* Relocated 3 Project Comparison Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
             <div className="portal-card p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 relative flex flex-col justify-between shadow-sm rounded-xl">
