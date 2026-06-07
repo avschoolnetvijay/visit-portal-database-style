@@ -1954,6 +1954,7 @@ const OverallAnalysis = ({
           eduHours: 0,
           ictVisits: 0,
           smartVisits: 0,
+          devices: 0,
           schools: []
         };
       }
@@ -1969,12 +1970,14 @@ const OverallAnalysis = ({
           eduHours: 0,
           ictVisits: 0,
           smartVisits: 0,
+          devices: 0,
           schools: []
         };
       }
       stats[p].ictClasses += s.ictClasses || 0;
       stats[p].smartClasses += s.smartClasses || 0;
       stats[p].eduHours += s.eduHours || 0;
+      stats[p].devices += s.installedDevices || 0;
       stats[p].schools.push(s);
     });
 
@@ -2141,9 +2144,9 @@ const OverallAnalysis = ({
     const isAvg = roiMetricMode === 'average';
     return [
       { 
-        name: isAvg ? 'Avg Hours / School' : 'Usage Hours', 
+        name: isAvg ? 'Avg Hours / Device' : 'Usage Hours', 
         data: projectStatsData.map(d => {
-          const denominator = d.schools.length || 1;
+          const denominator = isAvg ? (d.devices || 1) : 1;
           return isAvg ? parseFloat((d.eduHours / denominator).toFixed(1)) : d.eduHours;
         }) 
       }
@@ -2249,7 +2252,7 @@ const OverallAnalysis = ({
     tooltip: {
       theme: darkMode ? 'dark' : 'light',
       y: {
-        formatter: (val) => roiMetricMode === 'average' ? `${val.toFixed(1)} Hours/School` : `${Math.round(val).toLocaleString('en-IN')} Hours`
+        formatter: (val) => roiMetricMode === 'average' ? `${val.toFixed(1)} Hours/Device` : `${Math.round(val).toLocaleString('en-IN')} Hours`
       }
     },
     legend: {
@@ -3268,7 +3271,11 @@ const OverallAnalysis = ({
               <h3 className="text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-widest mb-1.5 select-none">
                 EduStat Hours by Project
               </h3>
-              <p className="text-[10px] text-slate-400 mb-3 select-none">Total device runtime hours accumulated per project.</p>
+              <p className="text-[10px] text-slate-400 mb-3 select-none">
+                {roiMetricMode === 'average' 
+                  ? 'Average runtime hours accumulated per device per project.' 
+                  : 'Total device runtime hours accumulated per project.'}
+              </p>
             </div>
             <div id="project-edustat-hours-chart" className="relative">
               <ReactApexChart 
@@ -5101,7 +5108,7 @@ const OverallAnalysis = ({
                     : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
-                🎯 Average per School
+                🎯 Average Metrics
               </button>
             </div>
           </div>
@@ -5130,7 +5137,11 @@ const OverallAnalysis = ({
                 <h3 className="text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-widest mb-1.5">
                   EduStat Hours by Project
                 </h3>
-                <p className="text-[10px] text-slate-400 mb-3">Total device runtime hours accumulated per project.</p>
+                <p className="text-[10px] text-slate-400 mb-3">
+                  {roiMetricMode === 'average' 
+                    ? 'Average runtime hours accumulated per device per project.' 
+                    : 'Total device runtime hours accumulated per project.'}
+                </p>
               </div>
               <div id="project-edustat-hours-chart-roi" className="relative">
                 <ReactApexChart 
