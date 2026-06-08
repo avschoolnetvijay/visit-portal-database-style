@@ -7,6 +7,7 @@ import {
 import { Icons } from './Icons';
 import { parseDateRobust, formatDate, downloadSVG, downloadPNG, downloadCSV, getMonthsInRange, exportToExcel } from '../utils';
 import ReactApexChart from 'react-apexcharts';
+import pptxgen from 'pptxgenjs';
 
 /* ───── Standard Chart Download Toolbar Dropdown ───── */
 const ChartToolbar = ({ chartId, csvData, filename }) => {
@@ -453,6 +454,781 @@ const OverallAnalysis = ({
       'Audit Level': item.severity
     }));
     exportToExcel(exportFormat, 'Mismatched_Data_Report');
+  };
+
+  const [exportingPPTX, setExportingPPTX] = useState(false);
+
+  const handleExportPPTX = async () => {
+    setExportingPPTX(true);
+    try {
+      const pptx = new pptxgen();
+      pptx.layout = 'LAYOUT_16x9';
+
+      const primaryColor = '0B4F48'; 
+      const primaryBg = 'F8FAFC'; 
+      const accentColor = 'D97706'; 
+      const textColor = '1E293B'; 
+      const lightTeal = 'CCFBF1'; 
+      const white = 'FFFFFF';
+
+      const loggedInUser = localStorage.getItem('snet_full_name') || localStorage.getItem('snet_username') || 'Portal Member';
+      const compilerDesignation = localStorage.getItem('snet_designation') || 'Report Compiler';
+
+      const scopeFocus = selDistricts?.length 
+        ? `Districts: ${selDistricts.join(', ')}` 
+        : selProjects?.length 
+          ? `Projects: ${selProjects.join(', ')}` 
+          : 'Statewide (All Allocated Regions)';
+      const evalWindow = startDate && endDate 
+        ? `${formatDate(startDate)} to ${formatDate(endDate)}` 
+        : 'All Available Historical Data';
+
+      const addSlideHeader = (slide, title, category) => {
+        slide.background = { fill: primaryBg };
+        
+        slide.addShape(pptx.shapes.RECTANGLE, {
+          x: 0, y: 0, w: 10, h: 0.95, fill: { color: primaryColor }
+        });
+        
+        slide.addText(category.toUpperCase(), {
+          x: 0.5, y: 0.15, w: 9.0, h: 0.2,
+          fontSize: 8, bold: true, color: '8BF8E0', tracking: 2
+        });
+        
+        slide.addText(title, {
+          x: 0.5, y: 0.35, w: 9.0, h: 0.45,
+          fontSize: 20, bold: true, color: white, fontFace: 'Georgia'
+        });
+        
+        slide.addText('JHARKHAND PERFORMANCE AUDIT', {
+          x: 7.0, y: 0.35, w: 2.5, h: 0.3,
+          fontSize: 8, bold: true, color: '8BF8E0', align: 'right', tracking: 1
+        });
+      };
+
+      // 1. Cover
+      if (selectedSlides.cover) {
+        let slide = pptx.addSlide();
+        slide.background = { fill: primaryColor };
+        
+        slide.addText('GOVERNMENT OF JHARKHAND — DEPARTMENT OF EDUCATION', {
+          x: 0.5, y: 0.6, w: 9.0, h: 0.3,
+          fontSize: 10, bold: true, color: '8BF8E0', align: 'left', tracking: 2
+        });
+        
+        slide.addText('Jharkhand ICT & Smart Class Project', {
+          x: 0.5, y: 1.2, w: 9.0, h: 1.0,
+          fontSize: 34, bold: true, color: white, align: 'left', fontFace: 'Georgia'
+        });
+        
+        slide.addText('Executive Performance & Roster Analysis Report', {
+          x: 0.5, y: 2.1, w: 9.0, h: 0.4,
+          fontSize: 18, italic: true, color: lightTeal, align: 'left', fontFace: 'Georgia'
+        });
+        
+        slide.addShape(pptx.shapes.RECTANGLE, {
+          x: 0.5, y: 2.7, w: 2.0, h: 0.04, fill: { color: accentColor }
+        });
+        
+        slide.addText('SCOPE FOCUS', {
+          x: 0.5, y: 3.1, w: 4.2, h: 0.2,
+          fontSize: 9, bold: true, color: '8BF8E0', tracking: 1
+        });
+        slide.addText(scopeFocus, {
+          x: 0.5, y: 3.3, w: 4.2, h: 0.5,
+          fontSize: 12, bold: true, color: white, align: 'left'
+        });
+
+        slide.addText('EVALUATION WINDOW', {
+          x: 5.2, y: 3.1, w: 4.2, h: 0.2,
+          fontSize: 9, bold: true, color: '8BF8E0', tracking: 1
+        });
+        slide.addText(evalWindow, {
+          x: 5.2, y: 3.3, w: 4.2, h: 0.5,
+          fontSize: 12, bold: true, color: white, align: 'left'
+        });
+        
+        slide.addShape(pptx.shapes.RECTANGLE, {
+          x: 0.5, y: 4.1, w: 9.0, h: 0.01, fill: { color: '1D6C64' }
+        });
+        
+        slide.addText('REPORT COMPILER', {
+          x: 0.5, y: 4.3, w: 4.2, h: 0.2,
+          fontSize: 9, bold: true, color: '8BF8E0', tracking: 1
+        });
+        slide.addText(loggedInUser, {
+          x: 0.5, y: 4.5, w: 4.2, h: 0.3,
+          fontSize: 13, bold: true, color: white, align: 'left'
+        });
+        slide.addText(compilerDesignation, {
+          x: 0.5, y: 4.8, w: 4.2, h: 0.2,
+          fontSize: 10, color: lightTeal, align: 'left'
+        });
+
+        slide.addText('PROJECT DIRECTOR / PM', {
+          x: 5.2, y: 4.3, w: 4.2, h: 0.2,
+          fontSize: 9, bold: true, color: '8BF8E0', tracking: 1
+        });
+        slide.addText(deckPMName || 'Suvendu Shekhar Jana', {
+          x: 5.2, y: 4.5, w: 4.2, h: 0.3,
+          fontSize: 13, bold: true, color: white, align: 'left'
+        });
+        slide.addText('Jharkhand Project Operations', {
+          x: 5.2, y: 4.8, w: 4.2, h: 0.2,
+          fontSize: 10, color: lightTeal, align: 'left'
+        });
+      }
+
+      // 2. Key Numbers (KPIs)
+      if (selectedSlides.kpis) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Key Numbers at a Glance', 'Strategic Summary');
+        
+        const activeKpis = kpis.filter(k => k.isActive).slice(0, 7);
+        activeKpis.forEach((kpi, idx) => {
+          const xPos = 0.5 + (idx * 1.3);
+          const yPos = 1.4;
+          const wSize = 1.2;
+          const hSize = 3.6;
+          
+          slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+            x: xPos, y: yPos, w: wSize, h: hSize,
+            fill: { color: 'FFFFFF' },
+            line: { color: 'E2E8F0', width: 1 }
+          });
+          
+          slide.addText(kpi.icon || '🏫', {
+            x: xPos + 0.05, y: yPos + 0.2, w: wSize - 0.1, h: 0.4,
+            fontSize: 22, align: 'center'
+          });
+          
+          slide.addText(String(kpi.value), {
+            x: xPos + 0.05, y: yPos + 0.8, w: wSize - 0.1, h: 0.6,
+            fontSize: 16, bold: true, color: primaryColor, align: 'center', fontFace: 'Courier'
+          });
+          
+          slide.addText(kpi.label, {
+            x: xPos + 0.05, y: yPos + 1.5, w: wSize - 0.1, h: 0.9,
+            fontSize: 9, bold: true, color: '475569', align: 'center'
+          });
+          
+          const pct = kpi.rawPct || 0;
+          const barColor = pct >= 70 ? '0F766E' : pct >= 40 ? 'D97706' : 'DC2626';
+          
+          slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+            x: xPos + 0.15, y: yPos + 2.7, w: wSize - 0.3, h: 0.1,
+            fill: { color: 'E2E8F0' }
+          });
+          slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+            x: xPos + 0.15, y: yPos + 2.7, w: (wSize - 0.3) * (pct / 100), h: 0.1,
+            fill: { color: barColor }
+          });
+          
+          slide.addText(`${Math.round(pct)}% Score`, {
+            x: xPos + 0.05, y: yPos + 2.9, w: wSize - 0.1, h: 0.3,
+            fontSize: 8, bold: true, color: '64748B', align: 'center'
+          });
+        });
+      }
+
+      // 3. Health & Leaderboard
+      if (selectedSlides.health) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Project Health & School Leaderboards', 'Strategic Summary');
+        
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: 0.5, y: 1.3, w: 2.8, h: 3.9,
+          fill: { color: 'FFFFFF' },
+          line: { color: 'E2E8F0', width: 1 }
+        });
+        
+        slide.addText('COMPOSITE HEALTH SCORE', {
+          x: 0.7, y: 1.5, w: 2.4, h: 0.3,
+          fontSize: 9, bold: true, color: '64748B', tracking: 1
+        });
+        
+        slide.addText(`${Math.round(healthData.composite)}%`, {
+          x: 0.7, y: 1.8, w: 2.4, h: 0.8,
+          fontSize: 48, bold: true, color: healthData.gradeColor || primaryColor, fontFace: 'Courier'
+        });
+        
+        slide.addText(`Grade: ${healthData.grade}`, {
+          x: 0.7, y: 2.7, w: 2.4, h: 0.3,
+          fontSize: 14, bold: true, color: '334155'
+        });
+        
+        const compText = 
+          `• JHPMS Labs: ${Math.round(healthData.jhpmsGlobal || 0)}%\\n` +
+          `• EduStat PC: ${Math.round(healthData.edustatGlobal || 0)}%\\n` +
+          `• CC Visits: ${Math.round(healthData.visitGlobal || 0)}%\\n` +
+          `• Manpower: ${Math.round(healthData.manpowerGlobal || 0)}%`;
+          
+        slide.addText(compText, {
+          x: 0.7, y: 3.1, w: 2.4, h: 1.8,
+          fontSize: 10, color: '475569', lineSpacing: 5
+        });
+
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: 3.5, y: 1.3, w: 2.9, h: 3.9,
+          fill: { color: 'FFFFFF' },
+          line: { color: 'E2E8F0', width: 1 }
+        });
+        slide.addText('🏆 TOP 5 SCHOOLS PERFORMANCE', {
+          x: 3.7, y: 1.5, w: 2.5, h: 0.3,
+          fontSize: 9, bold: true, color: '0F766E', tracking: 1
+        });
+        
+        rankings.top5.forEach((item, i) => {
+          const yPos = 1.9 + (i * 0.6);
+          slide.addText(`${i+1}. ${item.name}`, {
+            x: 3.7, y: yPos, w: 2.0, h: 0.3,
+            fontSize: 9, bold: true, color: '334155'
+          });
+          slide.addText(`${item.score}%`, {
+            x: 5.7, y: yPos, w: 0.5, h: 0.3,
+            fontSize: 10, bold: true, color: '0F766E', align: 'right'
+          });
+        });
+
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: 6.6, y: 1.3, w: 2.9, h: 3.9,
+          fill: { color: 'FFFFFF' },
+          line: { color: 'E2E8F0', width: 1 }
+        });
+        slide.addText('🚨 BOTTOM 5 SCHOOLS ALERTS', {
+          x: 6.8, y: 1.5, w: 2.5, h: 0.3,
+          fontSize: 9, bold: true, color: 'DC2626', tracking: 1
+        });
+        
+        rankings.bot5.forEach((item, i) => {
+          const yPos = 1.9 + (i * 0.6);
+          slide.addText(`${i+1}. ${item.name}`, {
+            x: 6.8, y: yPos, w: 2.0, h: 0.3,
+            fontSize: 9, bold: true, color: '334155'
+          });
+          slide.addText(`${item.score}%`, {
+            x: 8.8, y: yPos, w: 0.5, h: 0.3,
+            fontSize: 10, bold: true, color: 'DC2626', align: 'right'
+          });
+        });
+      }
+
+      // 4. Operations & HR (using mom Tab key for CC status & CC leaderboard)
+      if (selectedSlides.mom) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Manpower & Coordinator Allocations', 'Operations & HR');
+        
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: 0.5, y: 1.3, w: 4.2, h: 3.8,
+          fill: { color: 'FFFFFF' },
+          line: { color: 'E2E8F0', width: 1 }
+        });
+        slide.addText('INSTRUCTOR ROSTER STATUS COUNTS', {
+          x: 0.7, y: 1.5, w: 3.8, h: 0.3,
+          fontSize: 9, bold: true, color: '64748B', tracking: 1
+        });
+
+        const activeCount = finalEnriched.filter(s => s.staffStatus === 'Active').length;
+        const pendingCount = finalEnriched.filter(s => s.staffStatus === 'Pending').length;
+        const vacantCount = finalEnriched.filter(s => s.staffStatus === 'Vacant' || !s.staffStatus).length;
+        const totalInstructors = activeCount + pendingCount + vacantCount;
+        
+        slide.addShape(pptx.shapes.RECTANGLE, { x: 0.7, y: 2.0, w: 3.8, h: 0.7, fill: { color: 'ECFDF5' } });
+        slide.addText('🟢 Active CC / Instructors', { x: 0.9, y: 2.15, w: 2.5, h: 0.4, fontSize: 11, bold: true, color: '065F46' });
+        slide.addText(`${activeCount} / ${totalInstructors}`, { x: 3.4, y: 2.15, w: 0.9, h: 0.4, fontSize: 13, bold: true, color: '065F46', align: 'right' });
+
+        slide.addShape(pptx.shapes.RECTANGLE, { x: 0.7, y: 2.9, w: 3.8, h: 0.7, fill: { color: 'FFFBEB' } });
+        slide.addText('🟡 Pending Recruitment', { x: 0.9, y: 3.05, w: 2.5, h: 0.4, fontSize: 11, bold: true, color: '92400E' });
+        slide.addText(`${pendingCount} / ${totalInstructors}`, { x: 3.4, y: 3.05, w: 0.9, h: 0.4, fontSize: 13, bold: true, color: '92400E', align: 'right' });
+
+        slide.addShape(pptx.shapes.RECTANGLE, { x: 0.7, y: 3.8, w: 3.8, h: 0.7, fill: { color: 'FEF2F2' } });
+        slide.addText('🔴 Vacant CC Positions', { x: 0.9, y: 3.95, w: 2.5, h: 0.4, fontSize: 11, bold: true, color: '991B1B' });
+        slide.addText(`${vacantCount} / ${totalInstructors}`, { x: 3.4, y: 3.95, w: 0.9, h: 0.4, fontSize: 13, bold: true, color: '991B1B', align: 'right' });
+
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: 5.2, y: 1.3, w: 4.3, h: 3.8,
+          fill: { color: 'FFFFFF' },
+          line: { color: 'E2E8F0', width: 1 }
+        });
+        slide.addText('TOP PERFORMING CC LEADERBOARD', {
+          x: 5.4, y: 1.5, w: 3.9, h: 0.3,
+          fontSize: 9, bold: true, color: 'D97706', tracking: 1
+        });
+        
+        ccLeaderboard.slice(0, 5).forEach((cc, i) => {
+          const yPos = 2.0 + (i * 0.55);
+          slide.addText(`${i+1}. ${cc.name}`, {
+            x: 5.4, y: yPos, w: 2.8, h: 0.3,
+            fontSize: 10, bold: true, color: '334155'
+          });
+          slide.addText(`${cc.score}% Score (${cc.schoolsCount} Sch)`, {
+            x: 8.2, y: yPos, w: 1.1, h: 0.3,
+            fontSize: 9, bold: true, color: 'B45309', align: 'right'
+          });
+        });
+      }
+
+      // 5. Data Quality & Mismatch anomalies
+      if (selectedSlides.quality) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Data Quality & Audit Mismatches', 'Data Quality & Audit');
+        
+        const mismatchCount = anomaliesMatrix.length;
+        slide.addShape(pptx.shapes.RECTANGLE, {
+          x: 0.5, y: 1.2, w: 9.0, h: 0.6,
+          fill: { color: mismatchCount > 0 ? 'FEF2F2' : 'ECFDF5' }
+        });
+        slide.addText(
+          mismatchCount > 0 
+            ? `🚨 System Integrity Audit: Detected ${mismatchCount} active data anomalies. Verification recommended.` 
+            : '✓ System Integrity Audit: No mismatched data anomalies detected. Sync status is healthy.',
+          {
+            x: 0.7, y: 1.3, w: 8.6, h: 0.4,
+            fontSize: 11, bold: true, color: mismatchCount > 0 ? '991B1B' : '065F46', align: 'left'
+          }
+        );
+        
+        const tableRows = [
+          [
+            { text: 'School Name', options: { bold: true, color: white, fill: primaryColor } },
+            { text: 'Anomaly Class', options: { bold: true, color: white, fill: primaryColor } },
+            { text: 'Audit Details', options: { bold: true, color: white, fill: primaryColor } },
+            { text: 'Level', options: { bold: true, color: white, fill: primaryColor, align: 'center' } }
+          ]
+        ];
+        
+        anomaliesMatrix.slice(0, 6).forEach(item => {
+          tableRows.push([
+            { text: item.school, options: { fontSize: 9, bold: true } },
+            { text: item.type, options: { fontSize: 9, color: '991B1B', bold: true } },
+            { text: item.desc, options: { fontSize: 8.5 } },
+            { text: item.severity, options: { fontSize: 9, bold: true, align: 'center', color: item.severity === 'Critical' ? '991B1B' : 'D97706' } }
+          ]);
+        });
+        
+        if (tableRows.length > 1) {
+          slide.addTable(tableRows, {
+            x: 0.5, y: 2.0, w: 9.0,
+            colW: [2.2, 1.8, 4.0, 1.0],
+            border: { type: 'solid', color: 'E2E8F0', width: 1 },
+            fill: { color: 'FFFFFF' },
+            fontSize: 9,
+            color: '1E293B'
+          });
+        } else {
+          slide.addText('No data mismatches found to review.', {
+            x: 0.5, y: 2.5, w: 9.0, h: 1.0,
+            fontSize: 12, italic: true, align: 'center', color: '64748B'
+          });
+        }
+      }
+
+      // 6. Project ROI - Comparison table (using reviewGrid checkbox for ROI stats)
+      if (selectedSlides.reviewGrid) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Project Performance Comparison', 'Project ROI & Run-Rate');
+        
+        slide.addText('COMPARATIVE STATS BY EDUCATION PROJECT GROUP', {
+          x: 0.5, y: 1.3, w: 9.0, h: 0.3,
+          fontSize: 10, bold: true, color: '64748B', tracking: 1
+        });
+        
+        const tableRows = [
+          [
+            { text: 'Project Name', options: { bold: true, color: white, fill: primaryColor } },
+            { text: 'Schools', options: { bold: true, color: white, fill: primaryColor, align: 'center' } },
+            { text: 'Devices', options: { bold: true, color: white, fill: primaryColor, align: 'center' } },
+            { text: 'Avg Classes/Sch', options: { bold: true, color: white, fill: primaryColor, align: 'center' } },
+            { text: 'Avg Hours/Device', options: { bold: true, color: white, fill: primaryColor, align: 'center' } },
+            { text: 'Avg Visits/Sch', options: { bold: true, color: white, fill: primaryColor, align: 'center' } }
+          ]
+        ];
+        
+        projectStatsData.forEach(d => {
+          const numSchools = d.schools.length || 1;
+          const numDevices = d.devices || 1;
+          const avgClasses = ((d.ictClasses + d.smartClasses) / numSchools).toFixed(1);
+          const avgHours = (d.eduHours / numDevices).toFixed(1); 
+          const avgVisits = ((d.ictVisits + d.smartVisits) / numSchools).toFixed(1);
+          
+          tableRows.push([
+            { text: d.projectName, options: { fontSize: 10, bold: true } },
+            { text: String(d.schools.length), options: { fontSize: 10, align: 'center' } },
+            { text: String(d.devices || 0), options: { fontSize: 10, align: 'center' } },
+            { text: String(avgClasses), options: { fontSize: 10, align: 'center' } },
+            { text: String(avgHours), options: { fontSize: 10, align: 'center', color: 'B45309', bold: true } }, 
+            { text: String(avgVisits), options: { fontSize: 10, align: 'center' } }
+          ]);
+        });
+        
+        slide.addTable(tableRows, {
+          x: 0.5, y: 1.7, w: 9.0,
+          colW: [2.0, 1.2, 1.2, 1.6, 1.6, 1.4],
+          border: { type: 'solid', color: 'E2E8F0', width: 1 },
+          fill: { color: 'FFFFFF' },
+          fontSize: 10,
+          color: '1E293B'
+        });
+        
+        slide.addText(
+          'ℹ️ Average hours are calculated per installed device (cumulative EduStat hours divided by total devices). Classes and visits are averaged per school.',
+          {
+            x: 0.5, y: 4.3, w: 9.0, h: 0.4,
+            fontSize: 9, italic: true, color: '64748B'
+          }
+        );
+      }
+
+      // 7. Project ROI - Target burn-down run-rate (using rankings checkbox for target tracker)
+      if (selectedSlides.rankings) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Field Visit Compliance & Run-rate Tracker', 'Project ROI & Run-Rate');
+        
+        const totalTarget = finalEnriched.reduce((acc, s) => acc + (s.targetVisits || 0), 0);
+        const totalVisits = finalEnriched.reduce((acc, s) => acc + (s.fieldVisits || 0), 0);
+        const compliance = totalTarget > 0 ? (totalVisits / totalTarget) * 100 : 0;
+        
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: 0.5, y: 1.3, w: 4.2, h: 3.8,
+          fill: { color: 'FFFFFF' },
+          line: { color: 'E2E8F0', width: 1 }
+        });
+        slide.addText('FIELD VISITS COMPLIANCE OVERVIEW', {
+          x: 0.7, y: 1.5, w: 3.8, h: 0.3,
+          fontSize: 9, bold: true, color: '64748B', tracking: 1
+        });
+        
+        slide.addText(`${Math.round(compliance)}%`, {
+          x: 0.7, y: 1.9, w: 3.8, h: 1.0,
+          fontSize: 54, bold: true, color: compliance >= 80 ? '0F766E' : compliance >= 50 ? 'D97706' : 'DC2626',
+          fontFace: 'Courier'
+        });
+        slide.addText(`${totalVisits.toLocaleString('en-IN')} Visits Completed / ${totalTarget.toLocaleString('en-IN')} Target Visits`, {
+          x: 0.7, y: 3.0, w: 3.8, h: 0.4,
+          fontSize: 11, bold: true, color: '334155'
+        });
+        
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: 5.2, y: 1.3, w: 4.3, h: 3.8,
+          fill: { color: 'FFFFFF' },
+          line: { color: 'E2E8F0', width: 1 }
+        });
+        slide.addText('RUN-RATE VELOCITY ANALYSIS', {
+          x: 5.4, y: 1.5, w: 3.9, h: 0.3,
+          fontSize: 9, bold: true, color: '64748B', tracking: 1
+        });
+        
+        const remainingVisits = Math.max(0, totalTarget - totalVisits);
+        const activeCCs = ccLeaderboard.length || 1;
+        const averageRate = totalVisits / activeCCs;
+        
+        const velocityText = 
+          `• Remaining Targets: ${remainingVisits.toLocaleString('en-IN')} visits required.\\n\\n` +
+          `• Coordinator Strength: ${activeCCs} active coordinators monitored.\\n\\n` +
+          `• Avg Output: ${averageRate.toFixed(1)} visits logged per coordinator.\\n\\n` +
+          `• Projected Compliance: Field operations are running at ` +
+          `${compliance >= 80 ? 'EXCELLENT' : compliance >= 60 ? 'OPTIMAL' : 'CRITICAL'} velocity.`;
+          
+        slide.addText(velocityText, {
+          x: 5.4, y: 2.0, w: 3.9, h: 2.8,
+          fontSize: 10.5, color: '475569', lineSpacing: 5
+        });
+      }
+
+      // 8. Deep Dive - JHPMS Labs sub-category slide (triggered when deepdive selected)
+      if (selectedSlides.deepdive) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Deep Dive: JHPMS Labs Activity', 'Data Source Deep Dives');
+        
+        const totalJhpms = finalEnriched.reduce((acc, s) => acc + (s.jhpmsClasses || 0), 0);
+        const avgJhpms = totalJhpms / (finalEnriched.length || 1);
+        
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, { x: 0.5, y: 1.3, w: 3.2, h: 3.8, fill: { color: 'FFFFFF' }, line: { color: 'E2E8F0', width: 1 } });
+        slide.addText('JHPMS LAB CLASSES TOTAL', { x: 0.7, y: 1.5, w: 2.8, h: 0.3, fontSize: 9, bold: true, color: '64748B', tracking: 1 });
+        slide.addText(totalJhpms.toLocaleString('en-IN'), { x: 0.7, y: 1.8, w: 2.8, h: 0.8, fontSize: 42, bold: true, color: primaryColor, fontFace: 'Courier' });
+        slide.addText('CLASSES CONDUCTED', { x: 0.7, y: 2.6, w: 2.8, h: 0.3, fontSize: 10, bold: true, color: '475569' });
+        slide.addText(`Average classes per school: ${avgJhpms.toFixed(1)} classes. Monitoring standard academic operations.`, { x: 0.7, y: 3.1, w: 2.8, h: 1.6, fontSize: 10.5, color: '64748B', lineSpacing: 4 });
+
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, { x: 4.0, y: 1.3, w: 5.5, h: 3.8, fill: { color: 'FFFFFF' }, line: { color: 'E2E8F0', width: 1 } });
+        slide.addText('TOP 5 HIGHEST LAB CLASSES CONDUCTED', { x: 4.2, y: 1.5, w: 5.1, h: 0.3, fontSize: 9, bold: true, color: '0F766E', tracking: 1 });
+        
+        const topJhpmsSchools = [...finalEnriched].sort((a,b) => b.jhpmsClasses - a.jhpmsClasses).slice(0, 5);
+        const tableRows = [
+          [
+            { text: 'School Name', options: { bold: true, color: white, fill: primaryColor } },
+            { text: 'Block', options: { bold: true, color: white, fill: primaryColor } },
+            { text: 'Classes Conducted', options: { bold: true, color: white, fill: primaryColor, align: 'center' } }
+          ]
+        ];
+        
+        topJhpmsSchools.forEach(s => {
+          tableRows.push([
+            { text: s.schoolName, options: { fontSize: 9, bold: true } },
+            { text: s.block, options: { fontSize: 9 } },
+            { text: String(s.jhpmsClasses), options: { fontSize: 9, align: 'center', bold: true, color: '0F766E' } }
+          ]);
+        });
+        
+        slide.addTable(tableRows, {
+          x: 4.2, y: 1.9, w: 5.1,
+          colW: [2.5, 1.4, 1.2],
+          border: { type: 'solid', color: 'E2E8F0', width: 1 },
+          fill: { color: 'FFFFFF' },
+          fontSize: 9,
+          color: '1E293B'
+        });
+      }
+
+      // 9. Deep Dive - EduStat PC sub-category slide
+      if (selectedSlides.deepdive) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Deep Dive: EduStat PC Usage', 'Data Source Deep Dives');
+        
+        const totalHours = finalEnriched.reduce((acc, s) => acc + (s.eduHours || 0), 0);
+        const totalDevices = finalEnriched.reduce((acc, s) => acc + (s.installedDevices || 0), 0);
+        const avgHoursPerDevice = totalHours / (totalDevices || 1);
+        
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, { x: 0.5, y: 1.3, w: 3.2, h: 3.8, fill: { color: 'FFFFFF' }, line: { color: 'E2E8F0', width: 1 } });
+        slide.addText('EDUSTAT ACCUMULATED HOURS', { x: 0.7, y: 1.5, w: 2.8, h: 0.3, fontSize: 9, bold: true, color: '64748B', tracking: 1 });
+        slide.addText(Math.round(totalHours).toLocaleString('en-IN'), { x: 0.7, y: 1.8, w: 2.8, h: 0.8, fontSize: 42, bold: true, color: primaryColor, fontFace: 'Courier' });
+        slide.addText('DEVICE RUNTIME HOURS', { x: 0.7, y: 2.6, w: 2.8, h: 0.3, fontSize: 10, bold: true, color: '475569' });
+        slide.addText(`Total devices: ${totalDevices} active.\\nAverage hours per device: ${avgHoursPerDevice.toFixed(1)} hrs. Reflecting practical hands-on student runtime.`, { x: 0.7, y: 3.1, w: 2.8, h: 1.6, fontSize: 10, color: '64748B', lineSpacing: 4 });
+
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, { x: 4.0, y: 1.3, w: 5.5, h: 3.8, fill: { color: 'FFFFFF' }, line: { color: 'E2E8F0', width: 1 } });
+        slide.addText('TOP 5 SCHOOLS BY EDUSTAT USAGE HOURS', { x: 4.2, y: 1.5, w: 5.1, h: 0.3, fontSize: 9, bold: true, color: 'B45309', tracking: 1 });
+        
+        const topEduSchools = [...finalEnriched].sort((a,b) => b.eduHours - a.eduHours).slice(0, 5);
+        const tableRows = [
+          [
+            { text: 'School Name', options: { bold: true, color: white, fill: primaryColor } },
+            { text: 'Devices', options: { bold: true, color: white, fill: primaryColor, align: 'center' } },
+            { text: 'Usage Hours', options: { bold: true, color: white, fill: primaryColor, align: 'center' } }
+          ]
+        ];
+        
+        topEduSchools.forEach(s => {
+          tableRows.push([
+            { text: s.schoolName, options: { fontSize: 9, bold: true } },
+            { text: String(s.installedDevices || 0), options: { fontSize: 9, align: 'center' } },
+            { text: `${Math.round(s.eduHours)} hrs`, options: { fontSize: 9, align: 'center', bold: true, color: 'B45309' } }
+          ]);
+        });
+        
+        slide.addTable(tableRows, {
+          x: 4.2, y: 1.9, w: 5.1,
+          colW: [2.7, 1.0, 1.4],
+          border: { type: 'solid', color: 'E2E8F0', width: 1 },
+          fill: { color: 'FFFFFF' },
+          fontSize: 9,
+          color: '1E293B'
+        });
+      }
+
+      // 10. Deep Dive - Visit Reports sub-category slide
+      if (selectedSlides.deepdive) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Deep Dive: CC/DEF Field Visit Reports', 'Data Source Deep Dives');
+        
+        const totalVisits = finalEnriched.reduce((acc, s) => acc + (s.fieldVisits || 0), 0);
+        const avgVisits = totalVisits / (finalEnriched.length || 1);
+        
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, { x: 0.5, y: 1.3, w: 3.2, h: 3.8, fill: { color: 'FFFFFF' }, line: { color: 'E2E8F0', width: 1 } });
+        slide.addText('FIELD MONITORING VISITS LOGGED', { x: 0.7, y: 1.5, w: 2.8, h: 0.3, fontSize: 9, bold: true, color: '64748B', tracking: 1 });
+        slide.addText(totalVisits.toLocaleString('en-IN'), { x: 0.7, y: 1.8, w: 2.8, h: 0.8, fontSize: 42, bold: true, color: primaryColor, fontFace: 'Courier' });
+        slide.addText('MONITORING VISITS', { x: 0.7, y: 2.6, w: 2.8, h: 0.3, fontSize: 10, bold: true, color: '475569' });
+        slide.addText(`Average visits per school: ${avgVisits.toFixed(1)} visits.\\nThese logs evaluate field officer compliance and coordinator support status.`, { x: 0.7, y: 3.1, w: 2.8, h: 1.6, fontSize: 10, color: '64748B', lineSpacing: 4 });
+
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, { x: 4.0, y: 1.3, w: 5.5, h: 3.8, fill: { color: 'FFFFFF' }, line: { color: 'E2E8F0', width: 1 } });
+        slide.addText('TOP 5 SCHOOLS BY VISITS COMPLETED', { x: 4.2, y: 1.5, w: 5.1, h: 0.3, fontSize: 9, bold: true, color: '0F766E', tracking: 1 });
+        
+        const topVisitSchools = [...finalEnriched].sort((a,b) => b.fieldVisits - a.fieldVisits).slice(0, 5);
+        const tableRows = [
+          [
+            { text: 'School Name', options: { bold: true, color: white, fill: primaryColor } },
+            { text: 'CC / DEF Officer', options: { bold: true, color: white, fill: primaryColor } },
+            { text: 'Visits', options: { bold: true, color: white, fill: primaryColor, align: 'center' } }
+          ]
+        ];
+        
+        topVisitSchools.forEach(s => {
+          tableRows.push([
+            { text: s.schoolName, options: { fontSize: 9, bold: true } },
+            { text: s.visitorName || 'Unassigned', options: { fontSize: 9 } },
+            { text: String(s.fieldVisits), options: { fontSize: 9, align: 'center', bold: true, color: '0F766E' } }
+          ]);
+        });
+        
+        slide.addTable(tableRows, {
+          x: 4.2, y: 1.9, w: 5.1,
+          colW: [2.5, 1.6, 1.0],
+          border: { type: 'solid', color: 'E2E8F0', width: 1 },
+          fill: { color: 'FFFFFF' },
+          fontSize: 9,
+          color: '1E293B'
+        });
+      }
+
+      // 11. Deep Dive - Roster & CC sub-category slide
+      if (selectedSlides.deepdive) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Deep Dive: Coordinator Staffing Roster', 'Data Source Deep Dives');
+        
+        const activeCount = finalEnriched.filter(s => s.staffStatus === 'Active').length;
+        const pendingCount = finalEnriched.filter(s => s.staffStatus === 'Pending').length;
+        const vacantCount = finalEnriched.filter(s => s.staffStatus === 'Vacant' || !s.staffStatus).length;
+        const total = activeCount + pendingCount + vacantCount;
+        const staffingPct = total > 0 ? (activeCount / total) * 100 : 0;
+        
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, { x: 0.5, y: 1.3, w: 3.2, h: 3.8, fill: { color: 'FFFFFF' }, line: { color: 'E2E8F0', width: 1 } });
+        slide.addText('ACTIVE COORDINATOR RATIO', { x: 0.7, y: 1.5, w: 2.8, h: 0.3, fontSize: 9, bold: true, color: '64748B', tracking: 1 });
+        slide.addText(`${Math.round(staffingPct)}%`, { x: 0.7, y: 1.8, w: 2.8, h: 0.8, fontSize: 42, bold: true, color: staffingPct >= 70 ? '065F46' : '991B1B', fontFace: 'Courier' });
+        slide.addText('STAFFING LEVEL STABILITY', { x: 0.7, y: 2.6, w: 2.8, h: 0.3, fontSize: 10, bold: true, color: '475569' });
+        slide.addText(`Active: ${activeCount} schools.\\nPending: ${pendingCount} schools.\\nVacant: ${vacantCount} schools.\\nReflects manpower deployment coverage.`, { x: 0.7, y: 3.1, w: 2.8, h: 1.6, fontSize: 10, color: '64748B', lineSpacing: 4 });
+
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, { x: 4.0, y: 1.3, w: 5.5, h: 3.8, fill: { color: 'FFFFFF' }, line: { color: 'E2E8F0', width: 1 } });
+        slide.addText('VACANT COORDINATOR POSITIONS UNDER REVIEW', { x: 4.2, y: 1.5, w: 5.1, h: 0.3, fontSize: 9, bold: true, color: '991B1B', tracking: 1 });
+        
+        const vacantSchools = [...finalEnriched].filter(s => s.staffStatus === 'Vacant' || s.staffStatus === 'Pending' || !s.staffStatus).slice(0, 5);
+        const tableRows = [
+          [
+            { text: 'School Name', options: { bold: true, color: white, fill: primaryColor } },
+            { text: 'Block', options: { bold: true, color: white, fill: primaryColor } },
+            { text: 'Staff Status', options: { bold: true, color: white, fill: primaryColor, align: 'center' } }
+          ]
+        ];
+        
+        vacantSchools.forEach(s => {
+          tableRows.push([
+            { text: s.schoolName, options: { fontSize: 9, bold: true } },
+            { text: s.block, options: { fontSize: 9 } },
+            { text: s.staffStatus || 'Vacant', options: { fontSize: 9, align: 'center', bold: true, color: s.staffStatus === 'Pending' ? 'B45309' : '991B1B' } }
+          ]);
+        });
+        
+        slide.addTable(tableRows, {
+          x: 4.2, y: 1.9, w: 5.1,
+          colW: [2.5, 1.4, 1.2],
+          border: { type: 'solid', color: 'E2E8F0', width: 1 },
+          fill: { color: 'FFFFFF' },
+          fontSize: 9,
+          color: '1E293B'
+        });
+      }
+
+      // 12. Block Rankings / treemapData
+      if (selectedSlides.geographic) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Geographic Block Performance Ranks', 'Strategic Summary');
+        
+        slide.addText('BLOCK-LEVEL PERFORMANCE COMPOSITE RANKS', {
+          x: 0.5, y: 1.3, w: 9.0, h: 0.3,
+          fontSize: 10, bold: true, color: '64748B', tracking: 1
+        });
+        
+        const top5Blocks = [...treemapData].sort((a,b) => b.score - a.score).slice(0, 5);
+        const bot5Blocks = [...treemapData].sort((a,b) => a.score - b.score).slice(0, 5);
+        
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, { x: 0.5, y: 1.7, w: 4.2, h: 3.4, fill: { color: 'FFFFFF' }, line: { color: 'E2E8F0', width: 1 } });
+        slide.addText('🏆 TOP 5 PERFORMING BLOCKS', { x: 0.7, y: 1.9, w: 3.8, h: 0.3, fontSize: 9, bold: true, color: '0F766E', tracking: 1 });
+        
+        top5Blocks.forEach((item, i) => {
+          const yPos = 2.3 + (i * 0.5);
+          slide.addText(`${i+1}. ${item.name} (${item.size} Sch)`, { x: 0.7, y: yPos, w: 2.8, h: 0.3, fontSize: 9.5, bold: true, color: '334155' });
+          slide.addText(`${item.score}%`, { x: 3.6, y: yPos, w: 0.9, h: 0.3, fontSize: 10, bold: true, color: '0F766E', align: 'right' });
+        });
+
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, { x: 5.2, y: 1.7, w: 4.3, h: 3.4, fill: { color: 'FFFFFF' }, line: { color: 'E2E8F0', width: 1 } });
+        slide.addText('🚨 BOTTOM 5 COMPLIANCE BLOCKS', { x: 5.4, y: 1.9, w: 3.9, h: 0.3, fontSize: 9, bold: true, color: 'DC2626', tracking: 1 });
+        
+        bot5Blocks.forEach((item, i) => {
+          const yPos = 2.3 + (i * 0.5);
+          slide.addText(`${i+1}. ${item.name} (${item.size} Sch)`, { x: 5.4, y: yPos, w: 2.8, h: 0.3, fontSize: 9.5, bold: true, color: '334155' });
+          slide.addText(`${item.score}%`, { x: 8.3, y: yPos, w: 1.0, h: 0.3, fontSize: 10, bold: true, color: 'DC2626', align: 'right' });
+        });
+      }
+
+      // 13. Bottlenecks & Recommendations slide (selectedSlides.bottlenecks)
+      if (selectedSlides.bottlenecks) {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Recommended Actions & Bottlenecks', 'Operations & Governance');
+        
+        slide.addText('CRITICAL OPERATION ACTION WORKPLAN', {
+          x: 0.5, y: 1.3, w: 9.0, h: 0.3,
+          fontSize: 10, bold: true, color: '64748B', tracking: 1
+        });
+        
+        const recs = [
+          {
+            title: '1. Fill Staff Vacancies',
+            desc: 'Immediately deploy CC/DEF coordinators or active instructors to school locations currently marked as vacant to avoid resource idling.'
+          },
+          {
+            title: '2. Troubleshoot Offline Hardware',
+            desc: 'Schedule field visits to schools logging zero EduStat hours despite having devices installed to resolve sync and database connection issues.'
+          },
+          {
+            title: '3. Standardize Roster Records',
+            desc: 'Update manpower databases for schools where active JHPMS classes are being recorded but the CC allocation is marked vacant.'
+          },
+          {
+            title: '4. Perform Target Audits',
+            desc: 'Deploy field compliance officers to blocks in the bottom 5 ranks to audit visit efficacy and local infrastructure barriers.'
+          }
+        ];
+        
+        recs.forEach((rec, idx) => {
+          const xPos = 0.5 + (idx % 2) * 4.6;
+          const yPos = 1.7 + Math.floor(idx / 2) * 1.7;
+          
+          slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+            x: xPos, y: yPos, w: 4.4, h: 1.5,
+            fill: { color: 'FFFFFF' },
+            line: { color: 'E2E8F0', width: 1 }
+          });
+          
+          slide.addText(rec.title, {
+            x: xPos + 0.2, y: yPos + 0.15, w: 4.0, h: 0.3,
+            fontSize: 11, bold: true, color: primaryColor
+          });
+          
+          slide.addText(rec.desc, {
+            x: xPos + 0.2, y: yPos + 0.45, w: 4.0, h: 0.9,
+            fontSize: 9, color: '475569', lineSpacing: 4
+          });
+        });
+      }
+
+      // 14. Closing Slide
+      let closeSlide = pptx.addSlide();
+      closeSlide.background = { fill: primaryColor };
+      
+      closeSlide.addText('Jharkhand ICT & Smart Class Project', {
+        x: 0.5, y: 1.8, w: 9.0, h: 0.8,
+        fontSize: 28, bold: true, color: white, align: 'center', fontFace: 'Georgia'
+      });
+      closeSlide.addText('End of Performance Audit Report', {
+        x: 0.5, y: 2.6, w: 9.0, h: 0.4,
+        fontSize: 16, italic: true, color: lightTeal, align: 'center', fontFace: 'Georgia'
+      });
+      
+      closeSlide.addShape(pptx.shapes.RECTANGLE, {
+        x: 4.0, y: 3.2, w: 2.0, h: 0.02, fill: { color: accentColor }
+      });
+      
+      closeSlide.addText('For administrative reviews or queries, contact the Department of Education, Jharkhand.', {
+        x: 0.5, y: 3.5, w: 9.0, h: 0.4,
+        fontSize: 10, color: '8BF8E0', align: 'center'
+      });
+
+      const filename = `Jharkhand_ICT_Performance_Report_${new Date().toISOString().slice(0,10)}.pptx`;
+      await pptx.writeFile({ fileName: filename });
+      setShowDeckModal(false);
+    } catch (err) {
+      console.error('Error generating PPTX presentation:', err);
+      alert('Failed to generate PPTX slide deck. Please try again.');
+    } finally {
+      setExportingPPTX(false);
+    }
   };
 
   // PM Assignable Recommended Actions workbench state
@@ -4783,21 +5559,30 @@ const OverallAnalysis = ({
               </span>
             </div>
 
-            <div className="flex gap-2.5 border-t pt-4">
-              <button
-                onClick={() => {
-                  alert('Slide deck compiled successfully! Initializing document layout printing sequence.');
-                  setShowDeckModal(false);
-                  setDisplayMode('16-9');
-                  setTimeout(() => window.print(), 300);
-                }}
-                className="flex-1 bg-teal-700 text-white text-xs font-black uppercase tracking-wider py-3 rounded-lg hover:bg-teal-800 hover:shadow-lg transition active:scale-95 duration-100"
-              >
-                Compile & Print Slide Deck
-              </button>
+            <div className="flex flex-col gap-2 border-t pt-4">
+              <div className="flex gap-2.5">
+                <button
+                  onClick={handleExportPPTX}
+                  disabled={exportingPPTX}
+                  className="flex-1 bg-gradient-to-r from-teal-650 to-emerald-650 text-white text-xs font-black uppercase tracking-wider py-3 rounded-lg hover:from-teal-700 hover:to-emerald-700 hover:shadow-lg transition active:scale-95 duration-100 disabled:opacity-50"
+                >
+                  {exportingPPTX ? 'Exporting PPTX...' : '📥 Download PPTX Deck'}
+                </button>
+                <button
+                  onClick={() => {
+                    alert('Slide deck compiled successfully! Initializing document layout printing sequence.');
+                    setShowDeckModal(false);
+                    setDisplayMode('16-9');
+                    setTimeout(() => window.print(), 300);
+                  }}
+                  className="flex-1 bg-slate-700 text-white text-xs font-black uppercase tracking-wider py-3 rounded-lg hover:bg-slate-800 hover:shadow-lg transition active:scale-95 duration-100"
+                >
+                  🖨️ Print Slide Deck
+                </button>
+              </div>
               <button
                 onClick={() => setShowDeckModal(false)}
-                className="px-4 bg-slate-100 dark:bg-slate-800 border dark:border-slate-700 text-xs font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"
+                className="w-full bg-slate-100 dark:bg-slate-800 border dark:border-slate-700 text-xs font-bold py-2.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350"
               >
                 Cancel
               </button>
