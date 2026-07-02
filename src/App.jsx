@@ -143,8 +143,16 @@ const mergeJhpms = (existing, newRows) => {
     const seen = new Set();
     const merged = [];
     const addRow = (r) => {
-        const normDate = r.date ? String(r.date).split('T')[0] : '';
-        const sig = `${r.udise || ''}_${normDate}_${(r.labType || '').trim()}_${(r.subject || '').trim()}_${(r.subjectTeacher || '').trim()}_${(r.inTime || '').trim()}_${(r.outTime || '').trim()}`;
+        const u = r.udise || r.udise_code || '';
+        const d = r.date || r.visit_date || '';
+        const normDate = d ? String(d).split('T')[0] : '';
+        const l = r.labType || r.lab_type || r.lab || '';
+        const sub = r.subject || '';
+        const t = r.subjectTeacher || r.subject_teacher || r.teacher || '';
+        const inT = r.inTime || '';
+        const outT = r.outTime || '';
+        
+        const sig = `${u}_${normDate}_${String(l).trim()}_${String(sub).trim()}_${String(t).trim()}_${String(inT).trim()}_${String(outT).trim()}`;
         if (!seen.has(sig)) {
             seen.add(sig);
             merged.push(r);
@@ -991,7 +999,14 @@ const App = () => {
                         console.log(`Self-healed visits: removed duplicate entries.`);
                     }
                 }
-                if (filteredJhpms.length > 0) setJhpmsLab(filteredJhpms);
+                if (filteredJhpms.length > 0) {
+                    const clean = mergeJhpms([], filteredJhpms);
+                    setJhpmsLab(clean);
+                    if (clean.length < filteredJhpms.length && resolvedRole === 'admin') {
+                        await set('jhpms_lab', clean);
+                        console.log(`Self-healed JHPMS logs: removed duplicate entries.`);
+                    }
+                }
                 if (filteredEdustat.length > 0) setEdustat(filteredEdustat);
                 if (em) setEdustatMaster(em);
                 if (filteredManpower.length > 0) setManpower(filteredManpower);

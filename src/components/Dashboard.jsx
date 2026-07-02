@@ -225,7 +225,9 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
       const labType = String(j.labType || j.lab_type || j.lab || '').toUpperCase();
       const subject = String(j.subject || '').toUpperCase();
-      if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+      if (subject.includes('MIS')) {
+        // ignore
+      } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
         ictClassesMap[udise] = (ictClassesMap[udise] || 0) + cls;
       } else if (labType.includes('SMART')) {
         smartClassesMap[udise] = (smartClassesMap[udise] || 0) + cls;
@@ -623,12 +625,12 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
       const subject = String(j.subject || '').toUpperCase();
       const cls = Number(j.no_of_classes || j.classes || 1) || 1;
 
-      if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-        ictSum += cls;
-      } else if (labType.includes('SMART') && !subject.includes('COMPUTER') && !subject.includes('MIS')) {
-        smartSum += cls;
-      } else if (subject.includes('MIS')) {
+      if (subject.includes('MIS')) {
         misSum += cls;
+      } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+        ictSum += cls;
+      } else if (labType.includes('SMART')) {
+        smartSum += cls;
       }
     });
 
@@ -672,7 +674,7 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
         drillData: () => getLazyDrillData(j => {
           const labType = String(j.labType || j.lab_type || j.lab || '').toUpperCase();
           const subject = String(j.subject || '').toUpperCase();
-          return labType.includes('ICT') && subject.includes('COMPUTER');
+          return !subject.includes('MIS') && (labType.includes('ICT') && subject.includes('COMPUTER'));
         })
       },
       smart: {
@@ -680,7 +682,7 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
         drillData: () => getLazyDrillData(j => {
           const labType = String(j.labType || j.lab_type || j.lab || '').toUpperCase();
           const subject = String(j.subject || '').toUpperCase();
-          return labType.includes('SMART') && !subject.includes('COMPUTER') && !subject.includes('MIS');
+          return !subject.includes('MIS') && !(labType.includes('ICT') && subject.includes('COMPUTER')) && labType.includes('SMART');
         })
       },
       mis: {

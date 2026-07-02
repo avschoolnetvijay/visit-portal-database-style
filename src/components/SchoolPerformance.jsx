@@ -259,7 +259,7 @@ const SchoolPerformance = ({
             filteredJhpms.forEach(l => {
                 const { udise, labType, teacher, subject } = extractJhpmsRow(l);
 
-                if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                if (!subject.includes('MIS') && labType.includes('ICT') && subject.includes('COMPUTER')) {
                     if (!teacher) return;
                     const key = `${teacher.toUpperCase()}_${udise}`;
 
@@ -320,7 +320,7 @@ const SchoolPerformance = ({
             filteredJhpms.forEach(l => {
                 const { udise, labType, teacher, subject } = extractJhpmsRow(l);
 
-                if (labType.includes('SMART') && !subject.includes('COMPUTER')) {
+                if (!subject.includes('MIS') && labType.includes('SMART')) {
                     if (!teacher) return;
                     const key = `${teacher.toUpperCase()}_${udise}`;
 
@@ -399,11 +399,13 @@ const SchoolPerformance = ({
                 }
 
                 const g = jhpmsGroups[udise];
-                if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                if (subject.includes('MIS')) {
+                    // Ignore MIS classes in ICT/Smart totals
+                } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
                     g.ictClasses++;
                     g.totalClasses++;
                     totalIct++;
-                } else if (labType.includes('SMART') && !subject.includes('COMPUTER')) {
+                } else if (labType.includes('SMART')) {
                     g.smartClasses++;
                     g.totalClasses++;
                     totalSmart++;

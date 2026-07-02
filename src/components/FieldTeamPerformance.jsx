@@ -218,7 +218,9 @@ const FieldTeamPerformance = ({
                 if (dateStr >= startDate && dateStr <= endDate) {
                     Object.values(ccMap).forEach(ccData => {
                         if (ccData.udises.has(udise)) {
-                            if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                            if (subject.includes('MIS')) {
+                                // Ignore MIS
+                            } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
                                 ccData.ictClasses++;
                             } else if (labType.includes('SMART')) {
                                 ccData.smartClasses++;
@@ -230,7 +232,9 @@ const FieldTeamPerformance = ({
                 // Fallback: If date is invalid or missing, count it by default
                 Object.values(ccMap).forEach(ccData => {
                     if (ccData.udises.has(udise)) {
-                        if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                        if (subject.includes('MIS')) {
+                            // Ignore MIS
+                        } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
                             ccData.ictClasses++;
                         } else if (labType.includes('SMART')) {
                             ccData.smartClasses++;
@@ -591,8 +595,8 @@ const FieldTeamPerformance = ({
                 const remarks = l.remarks || getVal(l, 'remarks') || getVal(l, 'topic') || '-';
                 const schoolRec = schools.find(s => String(s.udise_code || '').trim() === udise);
 
-                const isIct = labType.includes('ICT') && subject.includes('COMPUTER');
-                const isSmart = labType.includes('SMART') && !subject.includes('COMPUTER');
+                const isIct = !subject.includes('MIS') && (labType.includes('ICT') && subject.includes('COMPUTER'));
+                const isSmart = !subject.includes('MIS') && !(labType.includes('ICT') && subject.includes('COMPUTER')) && labType.includes('SMART');
 
                 if ((drilldownFilter === 'ict_classes' && isIct) || (drilldownFilter === 'smart_classes' && isSmart)) {
                     classRows.push({
@@ -722,9 +726,11 @@ const FieldTeamPerformance = ({
                 const subjectKey = Object.keys(l).find(k => k !== teacherKey && k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('sub'));
                 const subject = subjectKey ? String(l[subjectKey] || '').trim().toUpperCase() : '';
 
-                if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                if (subject.includes('MIS')) {
+                    // Ignore MIS
+                } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
                     ictClasses++;
-                } else if (labType.includes('SMART') && !subject.includes('COMPUTER')) {
+                } else if (labType.includes('SMART')) {
                     smartClasses++;
                 }
             });

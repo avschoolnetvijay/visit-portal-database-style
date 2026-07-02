@@ -373,16 +373,28 @@ const OverallAnalysis = ({
     geographic: true
   });
 
+  const formatDateStr = (dateInput) => {
+    if (!dateInput) return null;
+    const d = parseDateRobust(dateInput);
+    if (!d || isNaN(d.getTime())) return null;
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   // Preprocessed collections to optimize date filtering and analysis operations
   const preprocessedEdustat = useMemo(() => {
     return (edustat || []).map(row => {
       const parsedDate = parseDateRobust(row.date || row.Date);
       const parsedTime = parsedDate ? parsedDate.getTime() : null;
+      const dateStr = formatDateStr(row.date || row.Date);
       const hours = row.hours !== undefined ? Number(row.hours) : parseHours(row['total used hours'] || getVal(row, 'hours') || 0);
       const rawUdise = row.udise || row.udise_code || getVal(row, 'udise') || getVal(row, 'udise_code');
       return {
         ...row,
         _parsedTime: parsedTime,
+        _dateStr: dateStr,
         _hours: hours,
         _cleanUdise: cleanUdise(rawUdise)
       };
@@ -393,10 +405,12 @@ const OverallAnalysis = ({
     return (jhpmsLab || []).map(row => {
       const parsedDate = parseDateRobust(row.date || row.Date);
       const parsedTime = parsedDate ? parsedDate.getTime() : null;
+      const dateStr = formatDateStr(row.date || row.Date);
       const rawUdise = row.udise || row.udise_code || getVal(row, 'udise') || getVal(row, 'udise_code');
       return {
         ...row,
         _parsedTime: parsedTime,
+        _dateStr: dateStr,
         _cleanUdise: cleanUdise(rawUdise)
       };
     });
@@ -406,9 +420,11 @@ const OverallAnalysis = ({
     return (visits || []).map(row => {
       const parsedDate = parseDateRobust(row.visit_date);
       const parsedTime = parsedDate ? parsedDate.getTime() : null;
+      const dateStr = formatDateStr(row.visit_date);
       return {
         ...row,
         _parsedTime: parsedTime,
+        _dateStr: dateStr,
         _cleanUdise: cleanUdise(row.udise_code)
       };
     });
@@ -1311,64 +1327,70 @@ const OverallAnalysis = ({
     return { start, end };
   }, [parsedStartDate, parsedEndDate, dateDurationMs]);
 
+  const prevDateRangeStr = useMemo(() => {
+    if (!prevDateRange.start || !prevDateRange.end) {
+      return { start: null, end: null };
+    }
+    const formatDateObj = (d) => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+    return {
+      start: formatDateObj(prevDateRange.start),
+      end: formatDateObj(prevDateRange.end)
+    };
+  }, [prevDateRange]);
+
   // 4. Current Period Filtered Collections
   const currentJhpms = useMemo(() => {
     if (!preprocessedJhpms || preprocessedJhpms.length === 0) return [];
-    if (parsedStartDate && parsedEndDate) {
-      const startMs = parsedStartDate.getTime();
-      const endMs = parsedEndDate.getTime();
+    if (startDate && endDate) {
       return preprocessedJhpms.filter(row => {
-        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
+        return row._dateStr && row._dateStr >= startDate && row._dateStr <= endDate;
       });
     }
     return preprocessedJhpms;
-  }, [preprocessedJhpms, parsedStartDate, parsedEndDate]);
+  }, [preprocessedJhpms, startDate, endDate]);
 
   const currentVisits = useMemo(() => {
     if (!preprocessedVisits || preprocessedVisits.length === 0) return [];
-    if (parsedStartDate && parsedEndDate) {
-      const startMs = parsedStartDate.getTime();
-      const endMs = parsedEndDate.getTime();
+    if (startDate && endDate) {
       return preprocessedVisits.filter(row => {
-        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
+        return row._dateStr && row._dateStr >= startDate && row._dateStr <= endDate;
       });
     }
     return preprocessedVisits;
-  }, [preprocessedVisits, parsedStartDate, parsedEndDate]);
+  }, [preprocessedVisits, startDate, endDate]);
 
   // Previous Period Filtered Collections (Only computed when compareMode is active)
   const prevJhpms = useMemo(() => {
     if (!preprocessedJhpms || preprocessedJhpms.length === 0) return [];
-    if (!compareMode || !prevDateRange.start || !prevDateRange.end) return [];
-    const startMs = prevDateRange.start.getTime();
-    const endMs = prevDateRange.end.getTime();
+    if (!compareMode || !prevDateRangeStr.start || !prevDateRangeStr.end) return [];
     return preprocessedJhpms.filter(row => {
-      return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
+      return row._dateStr && row._dateStr >= prevDateRangeStr.start && row._dateStr <= prevDateRangeStr.end;
     });
-  }, [preprocessedJhpms, compareMode, prevDateRange]);
+  }, [preprocessedJhpms, compareMode, prevDateRangeStr]);
 
   const prevVisits = useMemo(() => {
     if (!preprocessedVisits || preprocessedVisits.length === 0) return [];
-    if (!compareMode || !prevDateRange.start || !prevDateRange.end) return [];
-    const startMs = prevDateRange.start.getTime();
-    const endMs = prevDateRange.end.getTime();
+    if (!compareMode || !prevDateRangeStr.start || !prevDateRangeStr.end) return [];
     return preprocessedVisits.filter(row => {
-      return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
+      return row._dateStr && row._dateStr >= prevDateRangeStr.start && row._dateStr <= prevDateRangeStr.end;
     });
-  }, [preprocessedVisits, compareMode, prevDateRange]);
+  }, [preprocessedVisits, compareMode, prevDateRangeStr]);
 
   // 4b. Current Period Filtered Edustat Logs
   const currentEdustat = useMemo(() => {
     if (!preprocessedEdustat || preprocessedEdustat.length === 0) return [];
-    if (parsedStartDate && parsedEndDate) {
-      const startMs = parsedStartDate.getTime();
-      const endMs = parsedEndDate.getTime();
+    if (startDate && endDate) {
       return preprocessedEdustat.filter(row => {
-        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
+        return row._dateStr && row._dateStr >= startDate && row._dateStr <= endDate;
       });
     }
     return preprocessedEdustat;
-  }, [preprocessedEdustat, parsedStartDate, parsedEndDate]);
+  }, [preprocessedEdustat, startDate, endDate]);
 
   const edustatTrendData = useMemo(() => {
     if (!isEdustatActive || !currentEdustat || currentEdustat.length === 0) {
@@ -1384,8 +1406,8 @@ const OverallAnalysis = ({
     if (diffDays <= 40) {
       const dailyMap = {};
       currentEdustat.forEach(row => {
-        if (!row._parsedTime) return;
-        const dateStr = new Date(row._parsedTime).toISOString().split('T')[0];
+        if (!row._dateStr) return;
+        const dateStr = row._dateStr;
         dailyMap[dateStr] = (dailyMap[dateStr] || 0) + row._hours;
       });
 
@@ -1442,9 +1464,9 @@ const OverallAnalysis = ({
     // Monthly view
     const monthlyMap = {};
     currentEdustat.forEach(row => {
-      if (!row._parsedTime) return;
-      const d = new Date(row._parsedTime);
-      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!row._dateStr) return;
+      const parts = row._dateStr.split('-');
+      const monthStr = `${parts[0]}-${parts[1]}`;
       monthlyMap[monthStr] = (monthlyMap[monthStr] || 0) + row._hours;
     });
 
@@ -1469,15 +1491,11 @@ const OverallAnalysis = ({
     return 'Monthly';
   }, [parsedStartDate, parsedEndDate]);
 
-  // Mock / Filtered EduStat map for previous period to enable realistic comparisons
   const prevEdustat = useMemo(() => {
     if (!preprocessedEdustat || preprocessedEdustat.length === 0) return [];
-    const { start, end } = prevDateRange;
-    if (start && end) {
-      const startMs = start.getTime();
-      const endMs = end.getTime();
+    if (compareMode && prevDateRangeStr.start && prevDateRangeStr.end) {
       return preprocessedEdustat.filter(row => {
-        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
+        return row._dateStr && row._dateStr >= prevDateRangeStr.start && row._dateStr <= prevDateRangeStr.end;
       });
     } else {
       return preprocessedEdustat.map(e => ({
@@ -1485,7 +1503,7 @@ const OverallAnalysis = ({
         _hours: e._hours * 0.92
       }));
     }
-  }, [preprocessedEdustat, prevDateRange]);
+  }, [preprocessedEdustat, compareMode, prevDateRangeStr]);
 
   const jhpmsMap = useMemo(() => {
     const map = {};
@@ -2285,19 +2303,25 @@ const OverallAnalysis = ({
     }
 
     return periods.map(p => {
-      const startMs = p.start.getTime();
-      const endMs = p.end.getTime();
+      const formatDateObj = (d) => {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      };
+      const startStr = formatDateObj(p.start);
+      const endStr = formatDateObj(p.end);
 
       const pJhpms = preprocessedJhpms.filter(row => {
-        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
+        return row._dateStr && row._dateStr >= startStr && row._dateStr <= endStr;
       });
 
       const pEdustat = preprocessedEdustat.filter(row => {
-        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
+        return row._dateStr && row._dateStr >= startStr && row._dateStr <= endStr;
       });
 
       const pVisits = preprocessedVisits.filter(row => {
-        return row._parsedTime && row._parsedTime >= startMs && row._parsedTime <= endMs;
+        return row._dateStr && row._dateStr >= startStr && row._dateStr <= endStr;
       });
 
       const kpis = calculateKpiSet(fSchools, pJhpms, pEdustat, manpower, pVisits);
@@ -2523,9 +2547,9 @@ const OverallAnalysis = ({
 
     preprocessedJhpms.forEach(l => {
       if (l._cleanUdise && validUdises.has(l._cleanUdise)) {
-        if (!l._parsedTime) return;
-        const d = new Date(l._parsedTime);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (!l._dateStr) return;
+        const parts = l._dateStr.split('-');
+        const key = `${parts[0]}-${parts[1]}`;
         if (!monthMap[key]) return; // out of scope
 
         const labType = String(l.labType || l.lab_type || getVal(l, 'lab') || '').toUpperCase();

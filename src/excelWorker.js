@@ -1,8 +1,15 @@
 import * as XLSX from 'xlsx';
 
 self.onmessage = function (e) {
+    let type = undefined;
     try {
-        const { buffer, type } = e.data;
+        if (e.data) {
+            type = e.data.type;
+        }
+        const buffer = e.data?.buffer;
+        if (!buffer) {
+            throw new Error("No buffer received in worker.");
+        }
         const data = new Uint8Array(buffer);
         
         // Use dense mode to significantly reduce memory usage for large files
@@ -30,16 +37,18 @@ self.onmessage = function (e) {
             }
             
             const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-            const rawJson = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
             
             let currentJson = json;
-            if (json.length === 0 && rawJson.length > 0) {
-                 const headers = rawJson[0].map((_, i) => `Column_${i+1}`);
-                 currentJson = rawJson.map(row => {
-                     const obj = {};
-                     headers.forEach((h, i) => obj[h] = row[i]);
-                     return obj;
-                 });
+            if (json.length === 0) {
+                 const rawJson = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                 if (rawJson.length > 0) {
+                      const headers = rawJson[0].map((_, i) => `Column_${i+1}`);
+                      currentJson = rawJson.map(row => {
+                          const obj = {};
+                          headers.forEach((h, i) => obj[h] = row[i]);
+                          return obj;
+                      });
+                 }
             }
 
             debugInfo.push(`${sheetName}: ${currentJson.length} rows`);
@@ -48,6 +57,9 @@ self.onmessage = function (e) {
                 bestJson = currentJson;
                 bestSheetName = sheetName;
             }
+            
+            // Clean up sheet memory immediately to avoid Out of Memory errors
+            wb.Sheets[sheetName] = null;
         }
 
         if (bestJson.length === 0) {
