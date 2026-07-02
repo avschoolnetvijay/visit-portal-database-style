@@ -1526,7 +1526,7 @@ const OverallAnalysis = ({
         map[udise].total++;
         const labType = String(row.labType || row.lab_type || getVal(row, 'lab') || '').toUpperCase();
         const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
-        if (subject.includes('MIS')) {
+        if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
           map[udise].mis++;
         } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
           map[udise].ict++;
@@ -2555,7 +2555,7 @@ const OverallAnalysis = ({
         const labType = String(l.labType || l.lab_type || getVal(l, 'lab') || '').toUpperCase();
         const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
 
-        if (subject.includes('MIS')) {
+        if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
           monthMap[key]['MIS Work']++;
         } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
           monthMap[key]['ICT Class']++;

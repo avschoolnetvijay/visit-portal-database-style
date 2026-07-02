@@ -23,3 +23,4 @@ node_modules/
 # Scratch and other files
 scratch/
 supabase_schema.sql
+Performance/

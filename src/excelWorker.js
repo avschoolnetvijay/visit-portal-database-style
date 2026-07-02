@@ -12,8 +12,8 @@ self.onmessage = function (e) {
         }
         const data = new Uint8Array(buffer);
         
-        // Use dense mode to significantly reduce memory usage for large files
-        const wb = XLSX.read(data, { type: 'array', dense: true });
+        // Disable dense mode because it can cause SheetJS to parse sheets as empty objects in some environments
+        const wb = XLSX.read(data, { type: 'array' });
         
         if (!wb.SheetNames || wb.SheetNames.length === 0) {
             throw new Error(`No sheets found in workbook. Buffer size: ${buffer.byteLength} bytes.`);

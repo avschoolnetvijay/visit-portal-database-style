@@ -112,7 +112,7 @@ export default function Chatbot({
       const labType = String(row.labType || row.lab_type || '').toUpperCase();
       const subject = String(row.subject || '').toUpperCase();
 
-      if (subject.includes('MIS')) {
+      if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
         splitMap[udise].mis += cls;
       } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
         splitMap[udise].ict += cls;
@@ -367,7 +367,7 @@ export default function Chatbot({
           const labType = String(row.labType || row.lab_type || '').toUpperCase();
           const subject = String(row.subject || '').toUpperCase();
 
-          if (subject.includes('MIS')) {
+          if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
             sumMIS += cls;
           } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
             sumICT += cls;
