@@ -27,12 +27,46 @@ self.onmessage = function (e) {
         for (const sheetName of wb.SheetNames) {
             const sheet = wb.Sheets[sheetName];
             
-            // Manually fix missing !ref if dense array exists
-            if (!sheet['!ref'] && sheet['!data'] && sheet['!data'].length > 0) {
-                const maxRow = sheet['!data'].length - 1;
-                const maxCol = sheet['!data'].reduce((max, row) => row && row.length > max ? row.length : max, 0) - 1;
-                if (maxCol >= 0) {
-                    sheet['!ref'] = XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: maxCol, r: maxRow } });
+            // Recalculate range if missing or too small (e.g. A1:A1 / A1:B1 when we have many rows)
+            const range = sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : null;
+            const rangeRows = range ? (range.e.r - range.s.r + 1) : 0;
+            
+            if (Array.isArray(sheet)) {
+                // Dense sheet recalculation
+                if (!sheet['!ref'] || rangeRows <= 1) {
+                    let maxCol = -1;
+                    sheet.forEach(row => {
+                        if (Array.isArray(row) && row.length > maxCol) {
+                            maxCol = row.length;
+                        }
+                    });
+                    if (sheet.length > 0 && maxCol > 0) {
+                        sheet['!ref'] = XLSX.utils.encode_range({
+                            s: { c: 0, r: 0 },
+                            e: { c: maxCol - 1, r: sheet.length - 1 }
+                        });
+                    }
+                }
+            } else {
+                // Sparse sheet recalculation
+                if (!sheet['!ref'] || rangeRows <= 1) {
+                    let maxRow = -1;
+                    let maxCol = -1;
+                    Object.keys(sheet).forEach(k => {
+                        if (k[0] !== '!') {
+                            const cell = XLSX.utils.decode_cell(k);
+                            if (cell) {
+                                if (cell.r > maxRow) maxRow = cell.r;
+                                if (cell.c > maxCol) maxCol = cell.c;
+                            }
+                        }
+                    });
+                    if (maxRow >= 0 && maxCol >= 0) {
+                        sheet['!ref'] = XLSX.utils.encode_range({
+                            s: { c: 0, r: 0 },
+                            e: { c: maxCol, r: maxRow }
+                        });
+                    }
                 }
             }
             
