@@ -85,7 +85,10 @@ self.onmessage = function (e) {
                  }
             }
 
-            debugInfo.push(`${sheetName}: ${currentJson.length} rows`);
+            const isArr = Array.isArray(sheet);
+            const origRef = sheet['!ref'] || 'none';
+            const keysSample = Object.keys(sheet).filter(k => k[0] !== '!').slice(0, 8).join(',');
+            debugInfo.push(`${sheetName}: ${currentJson.length} rows (isArray:${isArr}, ref:${origRef}, keys:[${keysSample}])`);
 
             if (currentJson.length > bestJson.length) {
                 bestJson = currentJson;
