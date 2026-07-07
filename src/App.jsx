@@ -1856,8 +1856,8 @@ const App = () => {
         }
 
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
-        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
-        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} />;
+        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
+        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
         if (activeTab === 'plan') return <PlanView data={processedData} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
@@ -1885,6 +1885,7 @@ const App = () => {
                 ccNameMapping={ccNameMapping}
                 darkMode={darkMode}
                 onDrillDown={(t, d) => setDrillDownData({ title: t, data: d })}
+                userPermissions={userPermissions}
             />
         );
 
@@ -2440,20 +2441,22 @@ const App = () => {
                                     >
                                         <Icons.Print className="w-3.5 h-3.5 text-teal-600" /> Print / PDF
                                     </button>
-                                    <button
-                                        onClick={() => {
-                                            if ((activeTab === 'team-performance' || activeTab === 'school-performance') && customExportHandler) {
-                                                customExportHandler();
-                                            } else {
-                                                exportToExcel(processedData.schools, `Visit_Portal_Export_${activeTab}`);
-                                            }
-                                        }}
+                                    {(!userPermissions || userPermissions.menu?.[activeTab === 'overall-analysis' ? 'excel-export-analysis' : `excel-export-${activeTab}`]?.show !== false) && (
+                                        <button
+                                            onClick={() => {
+                                                if ((activeTab === 'team-performance' || activeTab === 'school-performance') && customExportHandler) {
+                                                    customExportHandler();
+                                                } else {
+                                                    exportToExcel(processedData.schools, `Visit_Portal_Export_${activeTab}`);
+                                                }
+                                            }}
 
-                                        className="bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 flex items-center gap-2 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
-                                    >
-                                        <Icons.Export className="w-3.5 h-3.5 text-teal-100" />
-                                        {activeTab === 'team-performance' ? 'Export Excel' : 'Export View'}
-                                    </button>
+                                            className="bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 flex items-center gap-2 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
+                                        >
+                                            <Icons.Export className="w-3.5 h-3.5 text-teal-100" />
+                                            {activeTab === 'team-performance' ? 'Export Excel' : 'Export View'}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             <div className="h-px bg-gray-200/80 w-full my-1"></div>

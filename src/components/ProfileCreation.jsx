@@ -22,10 +22,33 @@ const permissionMenus = [
     { id: 'search', label: 'Search & Insights', under: 'Lab Visit' },
     { id: 'compliance', label: 'Compliance Check', under: 'Lab Visit' },
     { id: 'plan', label: 'Visit Planning', under: 'Lab Visit' },
-    { id: 'team-performance', label: 'Field Team Performance', under: 'Performance Analysis' },
-    { id: 'school-performance', label: 'School Performance', under: 'Performance Analysis' },
+    { 
+        id: 'team-performance', 
+        label: 'Field Team Performance', 
+        under: 'Performance Analysis',
+        subFeatures: [
+            { id: 'excel-export-team', label: 'Excel Export' }
+        ]
+    },
+    { 
+        id: 'school-performance', 
+        label: 'School Performance', 
+        under: 'Performance Analysis',
+        subFeatures: [
+            { id: 'excel-export-school', label: 'Excel Export' }
+        ]
+    },
     { id: 'reports', label: 'Reports & Export', under: 'Reports' },
-    { id: 'overall-analysis', label: 'Overall Analysis', under: 'Reports' },
+    { 
+        id: 'overall-analysis', 
+        label: 'Overall Analysis', 
+        under: 'Reports',
+        subFeatures: [
+            { id: 'ppt-export', label: 'PPT Export' },
+            { id: 'print-deck', label: 'Print Slide Deck' },
+            { id: 'excel-export-analysis', label: 'Excel Export' }
+        ]
+    },
     { id: 'setup', label: 'Data Upload', under: 'System Setup' },
     { id: 'profile-creation', label: 'Profile Creation', under: 'Profile Creation' }
 ];
@@ -188,6 +211,11 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
         permissionMenus.forEach(m => {
             if (userRoleVal === 'admin') {
                 matrix[m.id] = { show: true, add: true, edit: true, delete: true, view: true };
+                if (m.subFeatures) {
+                    m.subFeatures.forEach(sf => {
+                        matrix[sf.id] = { show: true };
+                    });
+                }
             } else {
                 const isStandard = ['dashboard', 'performance', 'search', 'compliance', 'plan'].includes(m.id);
                 matrix[m.id] = {
@@ -197,6 +225,11 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                     delete: isStandard,
                     view: isStandard
                 };
+                if (m.subFeatures) {
+                    m.subFeatures.forEach(sf => {
+                        matrix[sf.id] = { show: isStandard };
+                    });
+                }
             }
         });
         return matrix;
@@ -211,6 +244,11 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                     const newMatrix = {};
                     permissionMenus.forEach(m => {
                         newMatrix[m.id] = userObj.permissions.menu[m.id] || { show: false, add: false, edit: false, delete: false, view: false };
+                        if (m.subFeatures) {
+                            m.subFeatures.forEach(sf => {
+                                newMatrix[sf.id] = userObj.permissions.menu[sf.id] || { show: false };
+                            });
+                        }
                     });
                     setPermMatrix(newMatrix);
                 } else {
@@ -254,6 +292,12 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
             permissionMenus.forEach(m => {
                 if (!next[m.id]) next[m.id] = {};
                 next[m.id][field] = checked;
+                if (field === 'show' && m.subFeatures) {
+                    m.subFeatures.forEach(sf => {
+                        if (!next[sf.id]) next[sf.id] = {};
+                        next[sf.id].show = checked;
+                    });
+                }
             });
             return next;
         });
@@ -1223,66 +1267,103 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                                             </thead>
                                             <tbody className="divide-y divide-gray-100 dark:divide-slate-800 text-xs">
                                                 {permissionMenus.map((menu, index) => (
-                                                    <tr key={menu.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition">
-                                                        <td className="py-3 px-4 text-center text-gray-400 font-mono text-[10px]">{index}</td>
-                                                        <td className="py-3 px-4 font-semibold text-slate-500 dark:text-slate-400">{menu.under}</td>
-                                                        <td className="py-3 px-4 font-bold text-gray-850 dark:text-slate-100">{menu.label}</td>
-                                                        <td className="py-3 px-4 text-center border-l border-gray-150/40 dark:border-slate-800/40">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={permMatrix[menu.id]?.show || false}
-                                                                onChange={e => setPermMatrix(prev => ({
-                                                                    ...prev,
-                                                                    [menu.id]: { ...prev[menu.id], show: e.target.checked }
-                                                                }))}
-                                                                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500/30 focus:ring-2 cursor-pointer transition"
-                                                            />
-                                                        </td>
-                                                        <td className="py-3 px-4 text-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={permMatrix[menu.id]?.add || false}
-                                                                onChange={e => setPermMatrix(prev => ({
-                                                                    ...prev,
-                                                                    [menu.id]: { ...prev[menu.id], add: e.target.checked }
-                                                                }))}
-                                                                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500/30 focus:ring-2 cursor-pointer transition"
-                                                            />
-                                                        </td>
-                                                        <td className="py-3 px-4 text-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={permMatrix[menu.id]?.edit || false}
-                                                                onChange={e => setPermMatrix(prev => ({
-                                                                    ...prev,
-                                                                    [menu.id]: { ...prev[menu.id], edit: e.target.checked }
-                                                                }))}
-                                                                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500/30 focus:ring-2 cursor-pointer transition"
-                                                            />
-                                                        </td>
-                                                        <td className="py-3 px-4 text-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={permMatrix[menu.id]?.delete || false}
-                                                                onChange={e => setPermMatrix(prev => ({
-                                                                    ...prev,
-                                                                    [menu.id]: { ...prev[menu.id], delete: e.target.checked }
-                                                                }))}
-                                                                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500/30 focus:ring-2 cursor-pointer transition"
-                                                            />
-                                                        </td>
-                                                        <td className="py-3 px-4 text-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={permMatrix[menu.id]?.view || false}
-                                                                onChange={e => setPermMatrix(prev => ({
-                                                                    ...prev,
-                                                                    [menu.id]: { ...prev[menu.id], view: e.target.checked }
-                                                                }))}
-                                                                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500/30 focus:ring-2 cursor-pointer transition"
-                                                            />
-                                                        </td>
-                                                    </tr>
+                                                    <React.Fragment key={menu.id}>
+                                                        <tr className="hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition">
+                                                            <td className="py-3 px-4 text-center text-gray-400 font-mono text-[10px]">{index}</td>
+                                                            <td className="py-3 px-4 font-semibold text-slate-500 dark:text-slate-400">{menu.under}</td>
+                                                            <td className="py-3 px-4 font-bold text-gray-850 dark:text-slate-100">{menu.label}</td>
+                                                            <td className="py-3 px-4 text-center border-l border-gray-150/40 dark:border-slate-800/40">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={permMatrix[menu.id]?.show || false}
+                                                                    onChange={e => setPermMatrix(prev => {
+                                                                        const next = {
+                                                                            ...prev,
+                                                                            [menu.id]: { ...prev[menu.id], show: e.target.checked }
+                                                                        };
+                                                                        if (!e.target.checked && menu.subFeatures) {
+                                                                            menu.subFeatures.forEach(sf => {
+                                                                                if (!next[sf.id]) next[sf.id] = {};
+                                                                                next[sf.id].show = false;
+                                                                            });
+                                                                        }
+                                                                        return next;
+                                                                    })}
+                                                                    className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500/30 focus:ring-2 cursor-pointer transition"
+                                                                />
+                                                            </td>
+                                                            <td className="py-3 px-4 text-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={permMatrix[menu.id]?.add || false}
+                                                                    onChange={e => setPermMatrix(prev => ({
+                                                                        ...prev,
+                                                                        [menu.id]: { ...prev[menu.id], add: e.target.checked }
+                                                                    }))}
+                                                                    className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500/30 focus:ring-2 cursor-pointer transition"
+                                                                />
+                                                            </td>
+                                                            <td className="py-3 px-4 text-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={permMatrix[menu.id]?.edit || false}
+                                                                    onChange={e => setPermMatrix(prev => ({
+                                                                        ...prev,
+                                                                        [menu.id]: { ...prev[menu.id], edit: e.target.checked }
+                                                                    }))}
+                                                                    className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500/30 focus:ring-2 cursor-pointer transition"
+                                                                />
+                                                            </td>
+                                                            <td className="py-3 px-4 text-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={permMatrix[menu.id]?.delete || false}
+                                                                    onChange={e => setPermMatrix(prev => ({
+                                                                        ...prev,
+                                                                        [menu.id]: { ...prev[menu.id], delete: e.target.checked }
+                                                                    }))}
+                                                                    className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500/30 focus:ring-2 cursor-pointer transition"
+                                                                />
+                                                            </td>
+                                                            <td className="py-3 px-4 text-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={permMatrix[menu.id]?.view || false}
+                                                                    onChange={e => setPermMatrix(prev => ({
+                                                                        ...prev,
+                                                                        [menu.id]: { ...prev[menu.id], view: e.target.checked }
+                                                                    }))}
+                                                                    className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500/30 focus:ring-2 cursor-pointer transition"
+                                                                />
+                                                            </td>
+                                                        </tr>
+                                                        {menu.subFeatures && menu.subFeatures.map(sf => (
+                                                            <tr key={sf.id} className="bg-slate-50/40 dark:bg-slate-800/10 transition">
+                                                                <td className="py-2.5 px-4 text-center text-gray-300 font-mono text-[9px]"></td>
+                                                                <td className="py-2.5 px-4 font-semibold text-slate-350 dark:text-slate-600"></td>
+                                                                <td className="py-2.5 px-4 font-medium text-gray-500 dark:text-gray-400 pl-8 flex items-center gap-1.5">
+                                                                    <span className="text-gray-300 font-mono">↳</span>
+                                                                    <span>{sf.label}</span>
+                                                                </td>
+                                                                <td className="py-2.5 px-4 text-center border-l border-gray-150/40 dark:border-slate-800/40">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        disabled={!(permMatrix[menu.id]?.show)}
+                                                                        checked={permMatrix[sf.id]?.show || false}
+                                                                        onChange={e => setPermMatrix(prev => ({
+                                                                            ...prev,
+                                                                            [sf.id]: { ...prev[sf.id], show: e.target.checked }
+                                                                        }))}
+                                                                        className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500/30 focus:ring-2 cursor-pointer transition disabled:opacity-30"
+                                                                    />
+                                                                </td>
+                                                                <td className="py-2.5 px-4 text-center text-gray-300">-</td>
+                                                                <td className="py-2.5 px-4 text-center text-gray-300">-</td>
+                                                                <td className="py-2.5 px-4 text-center text-gray-300">-</td>
+                                                                <td className="py-2.5 px-4 text-center text-gray-300">-</td>
+                                                            </tr>
+                                                        ))}
+                                                    </React.Fragment>
                                                 ))}
                                             </tbody>
                                         </table>

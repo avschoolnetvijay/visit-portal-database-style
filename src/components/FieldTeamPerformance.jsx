@@ -17,7 +17,8 @@ const FieldTeamPerformance = ({
     selCCs = [],
     ccNameMapping = {},
     workingDays,
-    onRegisterExport
+    onRegisterExport,
+    userPermissions = null
 }) => {
     
     const [activeCCDetail, setActiveCCDetail] = useState(null);
@@ -1470,16 +1471,18 @@ const FieldTeamPerformance = ({
                             </div>
                             <div className="flex items-center gap-3">
                                 {/* Export to Excel Button */}
-                                <button
-                                    onClick={handleExportDetails}
-                                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
-                                    title="Export detailed breakdown to Excel"
-                                >
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                    </svg>
-                                    <span>Export Schools</span>
-                                </button>
+                                {(!userPermissions || userPermissions.menu?.['excel-export-team-performance']?.show !== false) && (
+                                    <button
+                                        onClick={handleExportDetails}
+                                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
+                                        title="Export detailed breakdown to Excel"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        <span>Export Schools</span>
+                                    </button>
+                                )}
                                 {/* Close Button */}
                                 <button
                                     onClick={() => setActiveCCDetail(null)}

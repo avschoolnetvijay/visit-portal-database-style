@@ -343,7 +343,8 @@ const OverallAnalysis = ({
   handleApplyFilters,
   ccNameMapping = {},
   darkMode = false,
-  onDrillDown
+  onDrillDown,
+  userPermissions = null
 }) => {
   const [sortKey, setSortKey] = useState('compositeScore');
   const [sortDir, setSortDir] = useState('desc');
@@ -351,6 +352,20 @@ const OverallAnalysis = ({
   const [activeDeepDiveTab, setActiveDeepDiveTab] = useState('jhpms');
   const [activeExecutiveTab, setActiveExecutiveTab] = useState('strategic'); // 'strategic', 'operations', 'quality', 'roi'
   const [displayMode, setDisplayMode] = useState('corporate'); // 'corporate', '16-9', 'print'
+
+  React.useEffect(() => {
+    if (userPermissions && userPermissions.menu) {
+      const allowed = [];
+      if (userPermissions.menu['strategic-summary']?.show !== false) allowed.push('strategic');
+      if (userPermissions.menu['operations-tab']?.show !== false) allowed.push('operations');
+      if (userPermissions.menu['data-quality-tab']?.show !== false) allowed.push('quality');
+      if (userPermissions.menu['roi-tab']?.show !== false) allowed.push('roi');
+
+      if (allowed.length > 0 && !allowed.includes(activeExecutiveTab)) {
+        setActiveExecutiveTab(allowed[0]);
+      }
+    }
+  }, [userPermissions, activeExecutiveTab]);
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [isTreemapExpanded, setIsTreemapExpanded] = useState(false);
   const [deckPMName, setDeckPMName] = useState('Suvendu Shekhar Jana');
@@ -3848,12 +3863,14 @@ const OverallAnalysis = ({
           </button>
         </div>
 
-        <button
-          onClick={() => setShowDeckModal(true)}
-          className="flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-lg hover:shadow-lg transition hover:scale-[1.02] duration-150 font-sans"
-        >
-          <Icons.Export className="w-4 h-4" /> PPTX Slide Compiler
-        </button>
+        {(!userPermissions || userPermissions.menu?.['ppt-export-analysis']?.show !== false) && (
+          <button
+            onClick={() => setShowDeckModal(true)}
+            className="flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-lg hover:shadow-lg transition hover:scale-[1.02] duration-150 font-sans"
+          >
+            <Icons.Export className="w-4 h-4" /> PPTX Slide Compiler
+          </button>
+        )}
       </div>
 
       {/* ═══════ COVER SLIDE (16:9 / Print Mode Cover Only) ═══════ */}
@@ -3944,46 +3961,54 @@ const OverallAnalysis = ({
             EXECUTIVE AUDIT PORTAL SECTIONS
           </div>
           <div className="flex flex-wrap items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-inner">
-            <button
-              onClick={() => setActiveExecutiveTab('strategic')}
-              className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
-                activeExecutiveTab === 'strategic'
-                  ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              📊 Strategic Summary
-            </button>
-            <button
-              onClick={() => setActiveExecutiveTab('operations')}
-              className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
-                activeExecutiveTab === 'operations'
-                  ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              👥 Operations & HR
-            </button>
-            <button
-              onClick={() => setActiveExecutiveTab('quality')}
-              className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
-                activeExecutiveTab === 'quality'
-                  ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              🛡️ Data Quality & Audit
-            </button>
-            <button
-              onClick={() => setActiveExecutiveTab('roi')}
-              className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
-                activeExecutiveTab === 'roi'
-                  ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              💼 Project ROI & Run-Rate
-            </button>
+            {(!userPermissions || userPermissions.menu?.['strategic-summary']?.show !== false) && (
+              <button
+                onClick={() => setActiveExecutiveTab('strategic')}
+                className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
+                  activeExecutiveTab === 'strategic'
+                    ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                📊 Strategic Summary
+              </button>
+            )}
+            {(!userPermissions || userPermissions.menu?.['operations-tab']?.show !== false) && (
+              <button
+                onClick={() => setActiveExecutiveTab('operations')}
+                className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
+                  activeExecutiveTab === 'operations'
+                    ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                👥 Operations & HR
+              </button>
+            )}
+            {(!userPermissions || userPermissions.menu?.['data-quality-tab']?.show !== false) && (
+              <button
+                onClick={() => setActiveExecutiveTab('quality')}
+                className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
+                  activeExecutiveTab === 'quality'
+                    ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                🛡️ Data Quality & Audit
+              </button>
+            )}
+            {(!userPermissions || userPermissions.menu?.['roi-tab']?.show !== false) && (
+              <button
+                onClick={() => setActiveExecutiveTab('roi')}
+                className={`px-4.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
+                  activeExecutiveTab === 'roi'
+                    ? 'bg-gradient-to-r from-teal-700 to-emerald-650 text-white shadow-md scale-[1.02] transform border border-teal-650/30'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                💼 Project ROI & Run-Rate
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -4916,14 +4941,16 @@ const OverallAnalysis = ({
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
                     <span className="text-sm">⚠️</span> Mismatched-Data Checker
                   </h4>
-                  <button
-                    onClick={handleExportAnomalies}
-                    className="text-xs flex items-center gap-1.5 text-teal-750 dark:text-teal-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-teal-200 dark:border-slate-800 shadow-sm transition-all no-print"
-                    title="Export to Excel"
-                  >
-                    <Icons.Export className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                    <span className="hidden sm:inline">Excel</span>
-                  </button>
+                  {(!userPermissions || userPermissions.menu?.['excel-export-analysis']?.show !== false) && (
+                    <button
+                      onClick={handleExportAnomalies}
+                      className="text-xs flex items-center gap-1.5 text-teal-750 dark:text-teal-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-teal-200 dark:border-slate-800 shadow-sm transition-all no-print"
+                      title="Export to Excel"
+                    >
+                      <Icons.Export className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                      <span className="hidden sm:inline">Excel</span>
+                    </button>
+                  )}
                 </div>
                 
                 {/* Genuine sync gap summary header as requested by Priority 3! */}
@@ -5228,14 +5255,16 @@ const OverallAnalysis = ({
                 <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider font-serif">Schools Needing Urgent Help</h3>
                 <p className="text-[10px] text-slate-400 font-sans">Immediate action plans required for these institutions needing urgent help (Score &lt; 30%).</p>
               </div>
-              <button
-                onClick={handleExportUrgentSchools}
-                className="text-xs flex items-center gap-1.5 text-teal-750 dark:text-teal-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-teal-200 dark:border-slate-800 shadow-sm transition-all no-print"
-                title="Export to Excel"
-              >
-                <Icons.Export className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                <span className="hidden sm:inline">Excel</span>
-              </button>
+              {(!userPermissions || userPermissions.menu?.['excel-export-analysis']?.show !== false) && (
+                <button
+                  onClick={handleExportUrgentSchools}
+                  className="text-xs flex items-center gap-1.5 text-teal-750 dark:text-teal-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-teal-200 dark:border-slate-800 shadow-sm transition-all no-print"
+                  title="Export to Excel"
+                >
+                  <Icons.Export className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                  <span className="hidden sm:inline">Excel</span>
+                </button>
+              )}
             </div>
 
             <div className="overflow-y-auto flex-1 max-h-64">
@@ -5585,24 +5614,28 @@ const OverallAnalysis = ({
 
             <div className="flex flex-col gap-2 border-t pt-4">
               <div className="flex gap-2.5">
-                <button
-                  onClick={handleExportPPTX}
-                  disabled={exportingPPTX}
-                  className="flex-1 bg-gradient-to-r from-teal-650 to-emerald-650 text-white text-xs font-black uppercase tracking-wider py-3 rounded-lg hover:from-teal-700 hover:to-emerald-700 hover:shadow-lg transition active:scale-95 duration-100 disabled:opacity-50"
-                >
-                  {exportingPPTX ? 'Exporting PPTX...' : '📥 Download PPTX Deck'}
-                </button>
-                <button
-                  onClick={() => {
-                    alert('Slide deck compiled successfully! Initializing document layout printing sequence.');
-                    setShowDeckModal(false);
-                    setDisplayMode('16-9');
-                    setTimeout(() => window.print(), 300);
-                  }}
-                  className="flex-1 bg-slate-700 text-white text-xs font-black uppercase tracking-wider py-3 rounded-lg hover:bg-slate-800 hover:shadow-lg transition active:scale-95 duration-100"
-                >
-                  🖨️ Print Slide Deck
-                </button>
+                {(!userPermissions || userPermissions.menu?.['ppt-export']?.show !== false) && (
+                  <button
+                    onClick={handleExportPPTX}
+                    disabled={exportingPPTX}
+                    className="flex-1 bg-gradient-to-r from-teal-650 to-emerald-650 text-white text-xs font-black uppercase tracking-wider py-3 rounded-lg hover:from-teal-700 hover:to-emerald-700 hover:shadow-lg transition active:scale-95 duration-100 disabled:opacity-50"
+                  >
+                    {exportingPPTX ? 'Exporting PPTX...' : '📥 Download PPTX Deck'}
+                  </button>
+                )}
+                {(!userPermissions || userPermissions.menu?.['print-deck']?.show !== false) && (
+                  <button
+                    onClick={() => {
+                      alert('Slide deck compiled successfully! Initializing document layout printing sequence.');
+                      setShowDeckModal(false);
+                      setDisplayMode('16-9');
+                      setTimeout(() => window.print(), 300);
+                    }}
+                    className="flex-1 bg-slate-700 text-white text-xs font-black uppercase tracking-wider py-3 rounded-lg hover:bg-slate-800 hover:shadow-lg transition active:scale-95 duration-100"
+                  >
+                    🖨️ Print Slide Deck
+                  </button>
+                )}
               </div>
               <button
                 onClick={() => setShowDeckModal(false)}
@@ -6097,29 +6130,31 @@ const OverallAnalysis = ({
                 <span className="absolute left-2.5 top-2.5 text-slate-400">🔍</span>
               </div>
 
-              <button
-                onClick={() => {
-                  const filtered = moversDetailModal.list.filter(item => {
-                    const q = moversSearchQuery.toLowerCase();
-                    return item.name.toLowerCase().includes(q) || item.udise.includes(q) || item.block.toLowerCase().includes(q) || (item.visitorName && item.visitorName.toLowerCase().includes(q));
-                  });
-                  const downloadData = filtered.map((item, idx) => ({
-                    'Rank': idx + 1,
-                    'School Name': item.name,
-                    'UDISE Code': item.udise,
-                    'Block': item.block,
-                    'District': item.district,
-                    'CC / DEF Name': item.visitorName || 'Unassigned',
-                    'Previous Score %': `${item.previous}%`,
-                    'Current Score %': `${item.current}%`,
-                    'Change Delta %': `${item.delta > 0 ? '+' : ''}${item.delta.toFixed(1)}%`
-                  }));
-                  exportToExcel(downloadData, moversDetailModal.type === 'gains' ? 'Top_Movers_Gains' : 'Top_Decliners');
-                }}
-                className="flex items-center gap-1.5 px-4 py-1.5 bg-teal-700 hover:bg-teal-800 active:scale-95 text-white text-xs font-bold rounded-lg transition uppercase tracking-wider font-sans select-none"
-              >
-                📥 Download Excel
-              </button>
+              {(!userPermissions || userPermissions.menu?.['excel-export-analysis']?.show !== false) && (
+                <button
+                  onClick={() => {
+                    const filtered = moversDetailModal.list.filter(item => {
+                      const q = moversSearchQuery.toLowerCase();
+                      return item.name.toLowerCase().includes(q) || item.udise.includes(q) || item.block.toLowerCase().includes(q) || (item.visitorName && item.visitorName.toLowerCase().includes(q));
+                    });
+                    const downloadData = filtered.map((item, idx) => ({
+                      'Rank': idx + 1,
+                      'School Name': item.name,
+                      'UDISE Code': item.udise,
+                      'Block': item.block,
+                      'District': item.district,
+                      'CC / DEF Name': item.visitorName || 'Unassigned',
+                      'Previous Score %': `${item.previous}%`,
+                      'Current Score %': `${item.current}%`,
+                      'Change Delta %': `${item.delta > 0 ? '+' : ''}${item.delta.toFixed(1)}%`
+                    }));
+                    exportToExcel(downloadData, moversDetailModal.type === 'gains' ? 'Top_Movers_Gains' : 'Top_Decliners');
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-teal-700 hover:bg-teal-800 active:scale-95 text-white text-xs font-bold rounded-lg transition uppercase tracking-wider font-sans select-none"
+                >
+                  📥 Download Excel
+                </button>
+              )}
             </div>
 
             {/* Tabular Roster */}
