@@ -368,7 +368,7 @@ const OverallAnalysis = ({
   }, [userPermissions, activeExecutiveTab]);
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [isTreemapExpanded, setIsTreemapExpanded] = useState(false);
-  const [deckPMName, setDeckPMName] = useState('Suvendu Shekhar Jana');
+  const [deckPMName, setDeckPMName] = useState('VIJAY KUMAR RAY');
   const [moversDetailModal, setMoversDetailModal] = useState(null); // { type: 'gains' | 'decliners', list: [] }
   const [moversSearchQuery, setMoversSearchQuery] = useState('');
   const [roiMetricMode, setRoiMetricMode] = useState('absolute'); // 'absolute' | 'average'
@@ -600,7 +600,7 @@ const OverallAnalysis = ({
           x: 5.2, y: 4.3, w: 4.2, h: 0.2,
           fontSize: 9, bold: true, color: '8BF8E0', tracking: 1
         });
-        slide.addText(deckPMName || 'Suvendu Shekhar Jana', {
+        slide.addText(deckPMName || 'VIJAY KUMAR RAY', {
           x: 5.2, y: 4.5, w: 4.2, h: 0.3,
           fontSize: 13, bold: true, color: white, align: 'left'
         });
@@ -3911,7 +3911,7 @@ const OverallAnalysis = ({
             <div className="pt-8 grid grid-cols-2 gap-4 text-left max-w-xl mx-auto text-xs font-sans text-teal-300/80 border-t border-teal-800/40">
               <div>
                 <span className="block text-[9px] uppercase tracking-wider text-teal-500 font-semibold">Report Compiler</span>
-                <span className="font-bold text-slate-300 text-xs block">{deckPMName || 'Suvendu Shekhar Jana'}</span>
+                <span className="font-bold text-slate-300 text-xs block">{deckPMName || 'VIJAY KUMAR RAY'}</span>
               </div>
               <div className="text-right">
                 <span className="block text-[9px] uppercase tracking-wider text-teal-500 font-semibold">Generated Date</span>
