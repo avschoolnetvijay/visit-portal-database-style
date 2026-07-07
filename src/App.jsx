@@ -17,6 +17,26 @@ const ProfileCreation = React.lazy(() => import('./components/ProfileCreation'))
 const OverallAnalysis = React.lazy(() => import('./components/OverallAnalysis'));
 const Helpdesk = React.lazy(() => import('./components/Helpdesk'));
 const Chatbot = React.lazy(() => import('./components/Chatbot'));
+
+const prefetchTab = (tabId) => {
+    switch (tabId) {
+        case 'search': import('./components/SearchView'); break;
+        case 'performance': import('./components/PerformanceView'); break;
+        case 'plan': import('./components/PlanView'); break;
+        case 'compliance': import('./components/ComplianceView'); break;
+        case 'reports': import('./components/ReportsView'); break;
+        case 'setup': import('./components/Setup'); break;
+        case 'team-performance': import('./components/FieldTeamPerformance'); break;
+        case 'school-performance': import('./components/SchoolPerformance'); break;
+        case 'user-creation':
+        case 'user-list':
+        case 'user-permissions': import('./components/ProfileCreation'); break;
+        case 'overall-analysis': import('./components/OverallAnalysis'); break;
+        case 'helpdesk': import('./components/Helpdesk'); break;
+        case 'chatbot': import('./components/Chatbot'); break;
+        default: break;
+    }
+};
 import MultiSelect from './components/MultiSelect';
 import signatureLogo from './vijay_ray_signature.png';
 import {
@@ -2421,6 +2441,7 @@ const App = () => {
                                             return (
                                                 <button
                                                     key={t.id}
+                                                    onMouseEnter={() => prefetchTab(t.id)}
                                                     onClick={() => {
                                                         setActiveTab(t.id);
                                                         setIsSidebarOpen(false);

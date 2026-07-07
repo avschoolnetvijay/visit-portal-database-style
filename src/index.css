@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+    scroll-behavior: smooth;
+}
+
 :root {
     --primary: #357e7d;
     --primary-light: #449795;
@@ -23,6 +27,9 @@ body {
     color: #274847;
     font-size: 13px;
     overflow: hidden; /* Prevent body scroll to enable modular app layout */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom Scrollbar Styles */
