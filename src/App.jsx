@@ -1703,21 +1703,9 @@ const App = () => {
                             alert("Access Denied: Only Administrator can upload Manpower Roster.");
                             return;
                         }
-                        const originalLength = normalized.length;
-                        const seenManpower = new Set();
-                        const uniqueManpower = [];
-                        normalized.forEach(m => {
-                            const u = String(m.udise || '').trim();
-                            if (u && !seenManpower.has(u)) {
-                                seenManpower.add(u);
-                                uniqueManpower.push(m);
-                            }
-                        });
-                        const skippedCount = originalLength - uniqueManpower.length;
-                        const skippedMsg = skippedCount > 0 ? ` (${skippedCount} duplicate UDISE rows skipped)` : '';
-                        setManpower(uniqueManpower);
-                        await set('manpower', uniqueManpower);
-                        alert(`Successfully uploaded ${uniqueManpower.length} Instructor profiles!${skippedMsg}`);
+                        setManpower(normalized);
+                        await set('manpower', normalized);
+                        alert(`Successfully uploaded ${normalized.length} Instructor profiles!`);
                     }
                 } catch (err) {
                     console.error(err);
