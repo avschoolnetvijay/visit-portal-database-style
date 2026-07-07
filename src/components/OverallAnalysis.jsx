@@ -7,7 +7,6 @@ import {
 import { Icons } from './Icons';
 import { parseDateRobust, formatDate, downloadSVG, downloadPNG, downloadCSV, getMonthsInRange, exportToExcel } from '../utils';
 import ReactApexChart from 'react-apexcharts';
-import pptxgen from 'pptxgenjs';
 
 /* ───── Standard Chart Download Toolbar Dropdown ───── */
 const ChartToolbar = ({ chartId, csvData, filename }) => {
@@ -492,7 +491,8 @@ const OverallAnalysis = ({
   const handleExportPPTX = async () => {
     setExportingPPTX(true);
     try {
-      const pptx = new pptxgen();
+      const PptxGen = (await import('pptxgenjs')).default;
+      const pptx = new PptxGen();
       pptx.layout = 'LAYOUT_16x9';
 
       const primaryColor = '0B4F48'; 
@@ -6225,4 +6225,4 @@ const OverallAnalysis = ({
   );
 };
 
-export default OverallAnalysis;
+export default React.memo(OverallAnalysis);

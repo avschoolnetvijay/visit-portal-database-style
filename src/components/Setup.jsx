@@ -356,4 +356,4 @@ const Setup = ({
     );
 };
 
-export default Setup;
+export default React.memo(Setup);

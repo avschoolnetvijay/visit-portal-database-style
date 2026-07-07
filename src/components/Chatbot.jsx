@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Icons } from './Icons';
 import { parseDateRobust, formatDate } from '../utils';
 
-export default function Chatbot({
+function Chatbot({
   schools = [],
   visits = [],
   jhpmsLab = [],
@@ -746,3 +746,5 @@ export default function Chatbot({
     </div>
   );
 }
+
+export default React.memo(Chatbot);

@@ -1063,4 +1063,4 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
   );
 };
 
-export default SearchView;
+export default React.memo(SearchView);

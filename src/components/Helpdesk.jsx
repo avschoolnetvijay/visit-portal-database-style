@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Icons } from './Icons';
 
-export default function Helpdesk({ darkMode = false }) {
+function Helpdesk({ darkMode = false }) {
   const [lang, setLang] = useState('en'); // 'en' or 'hi'
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1395,3 +1395,5 @@ export default function Helpdesk({ darkMode = false }) {
     </div>
   );
 }
+
+export default React.memo(Helpdesk);

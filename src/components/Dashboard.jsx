@@ -563,33 +563,48 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
   const { totalTarget, totalUnique, totalRecords, schools, visits } = data;
   const [hiddenSeries, setHiddenSeries] = useState({ Smart: false, ICT: false });
 
-  const statusBuckets = { Critical: [], Risk: [], Track: [], Excellent: [] };
-  schools.forEach(s => {
-    if (s.status.val === 0) statusBuckets.Critical.push(s);
-    if (s.status.val === 1) statusBuckets.Risk.push(s);
-    if (s.status.val === 2) statusBuckets.Track.push(s);
-    if (s.status.val === 3) statusBuckets.Excellent.push(s);
-  });
+  const statusBuckets = useMemo(() => {
+    const buckets = { Critical: [], Risk: [], Track: [], Excellent: [] };
+    schools.forEach(s => {
+      if (s.status.val === 0) buckets.Critical.push(s);
+      if (s.status.val === 1) buckets.Risk.push(s);
+      if (s.status.val === 2) buckets.Track.push(s);
+      if (s.status.val === 3) buckets.Excellent.push(s);
+    });
+    return buckets;
+  }, [schools]);
 
-  const visitTypes = { Smart: [], ICT: [], Other: [] };
-  visits.forEach(v => {
-    const type = (v.visit_type || "").toString().toLowerCase().trim();
-    if (type.includes('smart')) visitTypes.Smart.push(v);
-    else if (type.includes('ict')) visitTypes.ICT.push(v);
-    else visitTypes.Other.push(v);
-  });
+  const visitTypes = useMemo(() => {
+    const types = { Smart: [], ICT: [], Other: [] };
+    visits.forEach(v => {
+      const type = (v.visit_type || "").toString().toLowerCase().trim();
+      if (type.includes('smart')) types.Smart.push(v);
+      else if (type.includes('ict')) types.ICT.push(v);
+      else types.Other.push(v);
+    });
+    return types;
+  }, [visits]);
 
-  const pendingSchoolsCount = schools.filter(s => s.uniqueVisits < s.targetVisits).length;
+  const pendingSchoolsCount = useMemo(() => {
+    return schools.filter(s => s.uniqueVisits < s.targetVisits).length;
+  }, [schools]);
 
-  const topDistricts = Object.entries(schools.reduce((acc, s) => {
-    if (!acc[s.district]) acc[s.district] = { total: 0, visited: 0 };
-    acc[s.district].total++;
-    if (s.uniqueVisits > 0) acc[s.district].visited++;
-    return acc;
-  }, {})).sort((a, b) => (b[1].visited / b[1].total) - (a[1].visited / a[1].total));
+  const topDistricts = useMemo(() => {
+    return Object.entries(schools.reduce((acc, s) => {
+      if (!acc[s.district]) acc[s.district] = { total: 0, visited: 0 };
+      acc[s.district].total++;
+      if (s.uniqueVisits > 0) acc[s.district].visited++;
+      return acc;
+    }, {})).sort((a, b) => (b[1].visited / b[1].total) - (a[1].visited / a[1].total));
+  }, [schools]);
 
-  const bestDist = topDistricts.length ? topDistricts[0][0] : "N/A";
-  const worstDist = topDistricts.length ? topDistricts[topDistricts.length - 1][0] : "N/A";
+  const bestDist = useMemo(() => {
+    return topDistricts.length ? topDistricts[0][0] : "N/A";
+  }, [topDistricts]);
+
+  const worstDist = useMemo(() => {
+    return topDistricts.length ? topDistricts[topDistricts.length - 1][0] : "N/A";
+  }, [topDistricts]);
 
   // --- Class Conducted Calculations ---
   const classConductedGroups = useMemo(() => {
@@ -1128,4 +1143,4 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
   );
 };
 
-export default Dashboard;
+export default React.memo(Dashboard);

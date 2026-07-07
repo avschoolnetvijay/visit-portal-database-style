@@ -2106,4 +2106,4 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
     );
 };
 
-export default ProfileCreation;
+export default React.memo(ProfileCreation);

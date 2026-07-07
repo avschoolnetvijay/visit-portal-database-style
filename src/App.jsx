@@ -4,19 +4,19 @@ import { get, set, clearIDB, hashPassword, supabase } from './supabaseClient';
 import ExcelWorker from './excelWorker.js?worker';
 import { Icons } from './components/Icons';
 import Dashboard from './components/Dashboard';
-import SearchView from './components/SearchView';
-import PerformanceView from './components/PerformanceView';
-import PlanView from './components/PlanView';
-import ComplianceView from './components/ComplianceView';
-import ReportsView from './components/ReportsView';
-import Setup from './components/Setup';
+const SearchView = React.lazy(() => import('./components/SearchView'));
+const PerformanceView = React.lazy(() => import('./components/PerformanceView'));
+const PlanView = React.lazy(() => import('./components/PlanView'));
+const ComplianceView = React.lazy(() => import('./components/ComplianceView'));
+const ReportsView = React.lazy(() => import('./components/ReportsView'));
+const Setup = React.lazy(() => import('./components/Setup'));
 import DrillDownModal from './components/DrillDownModal';
-import FieldTeamPerformance from './components/FieldTeamPerformance';
-import SchoolPerformance from './components/SchoolPerformance';
-import ProfileCreation from './components/ProfileCreation';
-import OverallAnalysis from './components/OverallAnalysis';
-import Helpdesk from './components/Helpdesk';
-import Chatbot from './components/Chatbot';
+const FieldTeamPerformance = React.lazy(() => import('./components/FieldTeamPerformance'));
+const SchoolPerformance = React.lazy(() => import('./components/SchoolPerformance'));
+const ProfileCreation = React.lazy(() => import('./components/ProfileCreation'));
+const OverallAnalysis = React.lazy(() => import('./components/OverallAnalysis'));
+const Helpdesk = React.lazy(() => import('./components/Helpdesk'));
+const Chatbot = React.lazy(() => import('./components/Chatbot'));
 import MultiSelect from './components/MultiSelect';
 import signatureLogo from './vijay_ray_signature.png';
 import {
@@ -258,6 +258,9 @@ const App = () => {
     const [baselineEdustat, setBaselineEdustat] = useState([]);
 
     const [drillDownData, setDrillDownData] = useState(null);
+    const handleDrillDown = useCallback((title, data) => {
+        setDrillDownData({ title, data });
+    }, []);
 
     const [isAuthenticated, setIsAuthenticated] = useState(
         () => sessionStorage.getItem('snet_authenticated') === 'true'
@@ -1902,7 +1905,7 @@ const App = () => {
                     jhpmsLab={combinedJhpmsLab}
                     edustat={combinedEdustat}
                     manpower={manpower}
-                    onDrillDown={(t, d) => setDrillDownData({ title: t, data: d })}
+                    onDrillDown={handleDrillDown}
                     startDate={startDate}
                     endDate={endDate}
                     darkMode={darkMode}
@@ -1917,7 +1920,7 @@ const App = () => {
                     visits={combinedVisits}
                     startDate={startDate}
                     endDate={endDate}
-                    onDrillDown={(t, d) => setDrillDownData({ title: t, data: d })}
+                    onDrillDown={handleDrillDown}
                     darkMode={darkMode}
                 />
             );
@@ -1952,7 +1955,7 @@ const App = () => {
                 handleApplyFilters={handleApplyFilters}
                 ccNameMapping={ccNameMapping}
                 darkMode={darkMode}
-                onDrillDown={(t, d) => setDrillDownData({ title: t, data: d })}
+                onDrillDown={handleDrillDown}
                 userPermissions={userPermissions}
             />
         );
@@ -2726,7 +2729,14 @@ const App = () => {
                             </div>
                         </div>
                     )}
-                    {renderContent()}
+                    <React.Suspense fallback={
+                        <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
+                            <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Loading module...</span>
+                        </div>
+                    }>
+                        {renderContent()}
+                    </React.Suspense>
                 </main>
             </div>
         </div>

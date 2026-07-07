@@ -1309,4 +1309,4 @@ const SchoolPerformance = ({
     );
 };
 
-export default SchoolPerformance;
+export default React.memo(SchoolPerformance);

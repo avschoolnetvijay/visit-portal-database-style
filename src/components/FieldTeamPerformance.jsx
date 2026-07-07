@@ -1694,4 +1694,4 @@ const FieldTeamPerformance = ({
     );
 };
 
-export default FieldTeamPerformance;
+export default React.memo(FieldTeamPerformance);
