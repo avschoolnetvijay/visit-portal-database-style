@@ -1321,6 +1321,53 @@ const App = () => {
         });
     }, [userRole, getAllowedUdiseSet]);
 
+    const updateLastUploadTime = async (username) => {
+        try {
+            const uploadTime = new Date().toISOString();
+            const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('username', username)
+                .single();
+            if (error || !data) return;
+
+            const hasPermissionsCol = ('permissions' in data);
+            if (hasPermissionsCol) {
+                const currentPermissions = data.permissions || {};
+                const updatedPermissions = {
+                    ...currentPermissions,
+                    last_upload: uploadTime
+                };
+                await supabase
+                    .from('users')
+                    .update({ permissions: updatedPermissions })
+                    .eq('username', username);
+            } else {
+                let privilege = data.role;
+                let parsedMeta = {};
+                if (data.role && data.role.trim().startsWith('{')) {
+                    try {
+                        parsedMeta = JSON.parse(data.role);
+                        privilege = parsedMeta.privilege || 'user';
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }
+                const updatedRoleJson = JSON.stringify({
+                    ...parsedMeta,
+                    privilege: privilege,
+                    last_upload: uploadTime
+                });
+                await supabase
+                    .from('users')
+                    .update({ role: updatedRoleJson })
+                    .eq('username', username);
+            }
+        } catch (err) {
+            console.error("Error updating last upload time:", err);
+        }
+    };
+
     // Handle Local File Uploads (School master / Raw visit reports)
     const handleUpload = (e, type) => {
         const file = e.target.files[0];
@@ -1724,6 +1771,8 @@ const App = () => {
                         await set('manpower', normalized);
                         alert(`Successfully uploaded ${normalized.length} Instructor profiles!`);
                     }
+                    // Track upload metadata in user database record
+                    await updateLastUploadTime(localStorage.getItem('snet_username') || 'admin');
                 } catch (err) {
                     console.error(err);
                     alert("Data Processing Error: " + err.message);
@@ -1815,17 +1864,19 @@ const App = () => {
             );
         }
 
-        if (activeTab === 'user-creation' || activeTab === 'user-list' || activeTab === 'user-permissions' || activeTab === 'profile-creation') {
+        if (activeTab === 'user-creation' || activeTab === 'user-list' || activeTab === 'user-permissions' || activeTab === 'user-logs' || activeTab === 'profile-creation') {
             const subTabMap = {
                 'user-creation': 'create',
                 'user-list': 'list',
                 'user-permissions': 'permission',
+                'user-logs': 'logs',
                 'profile-creation': 'create'
             };
             const reverseMap = {
                 'create': 'user-creation',
                 'list': 'user-list',
-                'permission': 'user-permissions'
+                'permission': 'user-permissions',
+                'logs': 'user-logs'
             };
             return (
                 <ProfileCreation
@@ -1997,6 +2048,41 @@ const App = () => {
                 setIsAuthenticated(true);
                 setAuthError('');
                 
+                // Update last_login in Supabase
+                const loginTime = new Date().toISOString();
+                const hasPermissionsCol = ('permissions' in data);
+                if (hasPermissionsCol) {
+                    const currentPermissions = data.permissions || {};
+                    const updatedPermissions = {
+                        ...currentPermissions,
+                        last_login: loginTime
+                    };
+                    await supabase
+                        .from('users')
+                        .update({ permissions: updatedPermissions })
+                        .eq('username', data.username);
+                } else {
+                    let privilege = data.role;
+                    let parsedMeta = {};
+                    if (data.role && data.role.trim().startsWith('{')) {
+                        try {
+                            parsedMeta = JSON.parse(data.role);
+                            privilege = parsedMeta.privilege || 'user';
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    }
+                    const updatedRoleJson = JSON.stringify({
+                        ...parsedMeta,
+                        privilege: privilege,
+                        last_login: loginTime
+                    });
+                    await supabase
+                        .from('users')
+                        .update({ role: updatedRoleJson })
+                        .eq('username', data.username);
+                }
+
                 // Refresh to reload all user namespaces
                 window.location.reload();
             } catch (err) {

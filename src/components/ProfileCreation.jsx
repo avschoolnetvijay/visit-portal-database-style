@@ -16,6 +16,28 @@ const EyeOffIcon = ({ className }) => (
     </svg>
 );
 
+const formatDateTime = (isoString) => {
+    if (!isoString) return 'Never';
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return isoString;
+    
+    // Check if it was today/yesterday
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    if (compareDate.getTime() === today.getTime()) {
+        return `Today, ${timeStr}`;
+    } else if (compareDate.getTime() === yesterday.getTime()) {
+        return `Yesterday, ${timeStr}`;
+    }
+    
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + `, ${timeStr}`;
+};
+
 const permissionMenus = [
     { id: 'dashboard', label: 'Dashboard', under: 'Home' },
     { id: 'performance', label: 'Performance Matrix', under: 'Lab Visit' },
@@ -116,6 +138,49 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
     const [permProjects, setPermProjects] = useState([]);
     const [projectSearchTerm, setProjectSearchTerm] = useState('');
 
+    // User Logs Subtab States
+    const [logSearchTerm, setLogSearchTerm] = useState('');
+    const filteredLogs = useMemo(() => {
+        let list = [...usersList];
+        const term = logSearchTerm.trim().toLowerCase();
+        if (term) {
+            list = list.filter(u => 
+                (u.username || '').toLowerCase().includes(term) ||
+                (u.full_name || '').toLowerCase().includes(term) ||
+                (u.designation || '').toLowerCase().includes(term) ||
+                (u.assigned_district || '').toLowerCase().includes(term)
+            );
+        }
+        return list.sort((a, b) => {
+            if (!a.last_login && !b.last_login) return 0;
+            if (!a.last_login) return 1;
+            if (!b.last_login) return -1;
+            return new Date(b.last_login).getTime() - new Date(a.last_login).getTime();
+        });
+    }, [usersList, logSearchTerm]);
+
+    const logStats = useMemo(() => {
+        const total = usersList.length;
+        let loggedInTodayCount = 0;
+        let uploadedTodayCount = 0;
+        
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        
+        usersList.forEach(u => {
+            if (u.last_login) {
+                const loginTime = new Date(u.last_login).getTime();
+                if (loginTime >= startOfToday) loggedInTodayCount++;
+            }
+            if (u.last_upload) {
+                const uploadTime = new Date(u.last_upload).getTime();
+                if (uploadTime >= startOfToday) uploadedTodayCount++;
+            }
+        });
+        
+        return { total, loggedInTodayCount, uploadedTodayCount };
+    }, [usersList]);
+
     // Load dynamic unique districts from schools master list
     const uniqueDistricts = useMemo(() => {
         if (!schools || schools.length === 0) return [];
@@ -168,6 +233,9 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
             allowedDistricts = [u.assigned_district];
         }
         
+        let lastLogin = parsedMetadata.last_login || (permissions ? permissions.last_login : null);
+        let lastUpload = parsedMetadata.last_upload || (permissions ? permissions.last_upload : null);
+
         return {
             username: u.username,
             role: resolvedRole,
@@ -180,6 +248,8 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
             permissions: permissions,
             allowed_districts: allowedDistricts,
             allowed_projects: allowedProjects,
+            last_login: lastLogin,
+            last_upload: lastUpload,
             raw_role: u.role,
             raw_password_hash: u.password_hash
         };
@@ -797,6 +867,17 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                     >
                         <Icons.Lock className="w-3.5 h-3.5" />
                         <span>User Permissions</span>
+                    </button>
+                    <button
+                        onClick={() => { setActiveSubTab('logs'); setManageError(''); setManageSuccess(''); fetchUsers(); if (onSubTabChange) onSubTabChange('logs'); }}
+                        className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition ${
+                            activeSubTab === 'logs'
+                                ? 'bg-white dark:bg-teal-600/90 text-teal-700 dark:text-white shadow-md'
+                                : 'text-gray-600 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200'
+                        }`}
+                    >
+                        <Icons.ExecutiveClipboard className="w-3.5 h-3.5" />
+                        <span>User Logs</span>
                     </button>
                 </div>
             </div>
@@ -1797,6 +1878,168 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {activeSubTab === 'logs' && (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-800/80 overflow-hidden text-left">
+                    <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h3 className="text-base font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
+                                <Icons.ExecutiveClipboard className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                                <span>User Access & Data Activity Logs</span>
+                            </h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Monitor user login frequency, last active session timestamps, and data ingestion activities across standard and administrative accounts.
+                            </p>
+                        </div>
+                        <button
+                            onClick={fetchUsers}
+                            className="self-start md:self-auto flex items-center gap-1.5 px-4 py-2 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-gray-200 dark:border-slate-700 text-xs font-bold rounded-lg shadow-sm transition"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"></path>
+                            </svg>
+                            <span>Refresh Logs</span>
+                        </button>
+                    </div>
+
+                    {/* Stats cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-gray-50/50 dark:bg-slate-900/40 border-b border-gray-100 dark:border-slate-800">
+                        <div className="bg-white dark:bg-slate-900/60 p-4 rounded-xl border border-gray-200/60 dark:border-slate-800/80 shadow-sm flex items-center gap-4">
+                            <div className="p-3 bg-teal-500/10 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 rounded-lg">
+                                <Icons.Users className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <span className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Total Registered</span>
+                                <span className="text-xl font-black text-slate-800 dark:text-white leading-none">{logStats.total} Users</span>
+                            </div>
+                        </div>
+                        <div className="bg-white dark:bg-slate-900/60 p-4 rounded-xl border border-gray-200/60 dark:border-slate-800/80 shadow-sm flex items-center gap-4">
+                            <div className="p-3 bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-lg">
+                                <Icons.Home className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <span className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Logged In Today</span>
+                                <span className="text-xl font-black text-slate-800 dark:text-white leading-none">{logStats.loggedInTodayCount} Users</span>
+                            </div>
+                        </div>
+                        <div className="bg-white dark:bg-slate-900/60 p-4 rounded-xl border border-gray-200/60 dark:border-slate-800/80 shadow-sm flex items-center gap-4">
+                            <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-lg">
+                                <Icons.Export className="w-6 h-6 animate-pulse" />
+                            </div>
+                            <div>
+                                <span className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Data Uploads Today</span>
+                                <span className="text-xl font-black text-slate-800 dark:text-white leading-none">{logStats.uploadedTodayCount} Users</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6">
+                        {/* Search and Filters */}
+                        <div className="mb-4">
+                            <div className="relative max-w-md">
+                                <input
+                                    type="text"
+                                    placeholder="Search logs by username or full name..."
+                                    value={logSearchTerm}
+                                    onChange={(e) => setLogSearchTerm(e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                />
+                                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                                    <Icons.Search className="w-3.5 h-3.5" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {loadingUsers ? (
+                            <div className="py-20 text-center flex flex-col items-center justify-center gap-3">
+                                <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Fetching live logs directory...</span>
+                            </div>
+                        ) : filteredLogs.length === 0 ? (
+                            <div className="py-16 text-center border border-dashed border-gray-200 dark:border-slate-800 rounded-2xl">
+                                <Icons.Close className="w-10 h-10 text-gray-300 dark:text-slate-700 mx-auto mb-3" />
+                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 block">No matching user logs found</span>
+                                <span className="text-[10px] text-gray-400 block mt-1">Try refining your search keyword.</span>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50 dark:bg-slate-800/40 text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-slate-800">
+                                            <th className="py-3 px-4">User Info</th>
+                                            <th className="py-3 px-4">Designation & Scope</th>
+                                            <th className="py-3 px-4">Role</th>
+                                            <th className="py-3 px-4">Last Login Time</th>
+                                            <th className="py-3 px-4">Last Data Upload</th>
+                                            <th className="py-3 px-4">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50 dark:divide-slate-800/40 text-xs">
+                                        {filteredLogs.map((u) => {
+                                            const hasLoggedIn = !!u.last_login;
+                                            const hasUploaded = !!u.last_upload;
+                                            
+                                            return (
+                                                <tr key={u.username} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                                                    <td className="py-3 px-4">
+                                                        <div className="font-bold text-slate-800 dark:text-slate-200">{u.full_name || 'Portal Member'}</div>
+                                                        <div className="text-[10px] text-gray-400 dark:text-gray-500 font-mono mt-0.5">@{u.username}</div>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="font-semibold text-slate-700 dark:text-slate-300">{u.designation || 'Staff'}</div>
+                                                        <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 truncate max-w-xs">
+                                                            {u.assigned_district || 'All Districts'} • {u.allowed_projects?.length > 0 ? `${u.allowed_projects.length} Projects` : 'All Projects'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                                                            u.role === 'admin' 
+                                                                ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400 border border-purple-200 dark:border-purple-900/30' 
+                                                                : 'bg-teal-100 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 border border-teal-200 dark:border-teal-900/30'
+                                                        }`}>
+                                                            {u.role}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        {hasLoggedIn ? (
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-700 dark:text-slate-300">{formatDateTime(u.last_login)}</span>
+                                                                <span className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">{new Date(u.last_login).toLocaleDateString()}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="inline-flex px-2 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500 rounded text-[9px] font-bold uppercase tracking-wider">Never</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        {hasUploaded ? (
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-700 dark:text-slate-300">{formatDateTime(u.last_upload)}</span>
+                                                                <span className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">{new Date(u.last_upload).toLocaleDateString()}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="inline-flex px-2 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500 rounded text-[9px] font-bold uppercase tracking-wider">No Uploads</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+                                                            hasLoggedIn 
+                                                                ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30' 
+                                                                : 'bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/30'
+                                                        }`}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${hasLoggedIn ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                                                            <span>{hasLoggedIn ? 'Active' : 'Inactive'}</span>
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
