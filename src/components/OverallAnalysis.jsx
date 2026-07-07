@@ -5452,7 +5452,7 @@ const OverallAnalysis = ({
                   <SortHeader label="UDISE Code" field="udise" />
                   <SortHeader label="District" field="district" />
                   <SortHeader label="Block" field="block" />
-                  <SortHeader label="CC Name" field="staffName" />
+                  <SortHeader label="CC Name" field="visitorName" />
                   <SortHeader label="Visits" field="fieldVisits" />
                   <SortHeader label="Last Visit" field="lastVisitDate" />
                   <SortHeader label="JHPMS" field="jhpmsClasses" />
@@ -5469,7 +5469,7 @@ const OverallAnalysis = ({
                     <td className="py-2.5 px-2 font-mono text-slate-500 font-semibold">{s.udise}</td>
                     <td className="py-2.5 px-2 text-left font-medium">{s.district}</td>
                     <td className="py-2.5 px-2 text-left font-medium">{s.block}</td>
-                    <td className="py-2.5 px-2 text-left font-bold text-teal-800 dark:text-teal-400">{s.staffName}</td>
+                    <td className="py-2.5 px-2 text-left font-bold text-teal-800 dark:text-teal-400">{s.visitorName}</td>
                     <td className="py-2.5 px-2 font-bold font-mono text-slate-800 dark:text-slate-200">{s.fieldVisits}</td>
                     <td className="py-2.5 px-2 font-mono font-medium text-slate-500">{s.lastVisitDate ? formatDate(s.lastVisitDate) : '-'}</td>
                     <td className="py-2.5 px-2 font-bold font-mono text-teal-700 dark:text-teal-400">{s.jhpmsClasses}</td>
