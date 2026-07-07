@@ -97,9 +97,24 @@ const ClickableLegend = ({ payload, hiddenKeys, onLegendClick }) => {
 const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode = false }) => {
   const [searchType, setSearchType] = useState('school'); // 'school' or 'visitor'
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [listFilter, setListFilter] = useState('All'); // 'All', 'Completed', 'Pending'
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Reset pagination when filter selections change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedItem, listFilter, searchType]);
 
   const maxLogDate = useMemo(() => {
     let maxD = new Date();
@@ -124,8 +139,8 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
 
   // Filter Suggestions
   useEffect(() => {
-    if (searchTerm && searchTerm.length > 1 && !selectedItem) {
-      const lowerTerm = searchTerm.toLowerCase();
+    if (debouncedSearchTerm && debouncedSearchTerm.length > 1 && !selectedItem) {
+      const lowerTerm = debouncedSearchTerm.toLowerCase();
       let matches = [];
 
       if (searchType === 'school') {
@@ -142,7 +157,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
     } else {
       setSuggestions([]);
     }
-  }, [searchTerm, schools, selectedItem, searchType]);
+  }, [debouncedSearchTerm, schools, selectedItem, searchType]);
 
   const handleSelect = (item) => {
     setSelectedItem(item);
@@ -452,6 +467,17 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
       monthlyStatusData
     };
   }, [selectedItem, schools, visits, searchType, listFilter, startDate, endDate]);
+
+  const paginatedList = useMemo(() => {
+    if (!visitorData || !visitorData.displayList) return [];
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return visitorData.displayList.slice(startIndex, startIndex + itemsPerPage);
+  }, [visitorData, currentPage]);
+
+  const totalPages = useMemo(() => {
+    if (!visitorData || !visitorData.displayList) return 0;
+    return Math.ceil(visitorData.displayList.length / itemsPerPage);
+  }, [visitorData]);
 
   const visitorChartSeries = useMemo(() => {
     if (!visitorData || !visitorData.monthlyStatusData) return [];
@@ -999,7 +1025,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {visitorData.displayList.map((s, i) => (
+                    {paginatedList.map((s, i) => (
                       <tr key={i} className="hover:bg-gray-50 group">
                         <td
                           className="px-4 py-2 font-medium text-gray-800 cursor-pointer group-hover:text-indigo-600 transition-colors"
@@ -1023,7 +1049,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
                         </td>
                       </tr>
                     ))}
-                    {visitorData.displayList.length === 0 && (
+                    {paginatedList.length === 0 && (
                       <tr>
                         <td colSpan="4" className="px-4 py-8 text-center text-gray-400 italic">No schools found for this filter.</td>
                       </tr>
@@ -1031,6 +1057,27 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
                   </tbody>
                 </table>
               </div>
+              {totalPages > 1 && (
+                <div className="px-4 py-3 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-150 dark:border-slate-700/60 flex items-center justify-between no-print select-none">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className="px-3 py-1 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-650 text-slate-700 dark:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed border dark:border-slate-600 rounded text-xs font-bold transition-all shadow-sm"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    Page <strong className="text-slate-800 dark:text-slate-200">{currentPage}</strong> of <strong className="text-slate-800 dark:text-slate-200">{totalPages}</strong>
+                  </span>
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    className="px-3 py-1 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-650 text-slate-700 dark:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed border dark:border-slate-600 rounded text-xs font-bold transition-all shadow-sm"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

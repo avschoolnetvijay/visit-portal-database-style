@@ -3,7 +3,15 @@ import React, { useState, useEffect, useRef } from 'react';
 const MultiSelect = ({ label, options, value, onChange, placeholder = "Select..." }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 200);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -15,8 +23,16 @@ const MultiSelect = ({ label, options, value, onChange, placeholder = "Select...
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Reset local search when dropdown is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setSearch("");
+      setDebouncedSearch("");
+    }
+  }, [isOpen]);
+
   const filteredOptions = options.filter(o =>
-    o && String(o).toLowerCase().includes(search.toLowerCase())
+    o && String(o).toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   const toggleOption = (option) => {

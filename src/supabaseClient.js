@@ -38,6 +38,81 @@ async function decompressFromGzipBlob(blob) {
   return JSON.parse(jsonText);
 }
 
+// Helper database cache config
+const DB_NAME = 'SnetCacheDB';
+const STORE_NAME = 'fileCache';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'cacheKey' });
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function getCachedItem(cacheKey) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get(cacheKey);
+      request.onsuccess = (e) => resolve(e.target.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    console.error("IndexedDB read error:", err);
+    return null;
+  }
+}
+
+async function setCachedItem(cacheKey, data, lastModified) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put({ cacheKey, data, lastModified });
+      request.onsuccess = () => resolve();
+      request.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    console.error("IndexedDB write error:", err);
+  }
+}
+
+let fileMetadataPromise = null;
+function getFileMetadataMap() {
+  if (!fileMetadataPromise) {
+    fileMetadataPromise = (async () => {
+      try {
+        const { data, error } = await supabase.storage
+          .from('app-data')
+          .list();
+        if (error) {
+          console.warn("Error listing Supabase Storage metadata:", error);
+          return {};
+        }
+        const map = {};
+        data.forEach(item => {
+          map[item.name] = item.updated_at || item.created_at || '';
+        });
+        return map;
+      } catch (err) {
+        console.warn("Unexpected error listing Supabase Storage metadata:", err);
+        return {};
+      }
+    })();
+  }
+  return fileMetadataPromise;
+}
+
 // Helper functions using CDN-optimized compressed storage for infinite scaling and zero timeouts
 export async function get(key, customPrefix) {
   try {
@@ -46,9 +121,34 @@ export async function get(key, customPrefix) {
     if (key === 'edustat_master') {
       prefix = 'admin_';
     }
+    const fileName = `${prefix}${key}.json.gz`;
+
+    // 1. Get remote lastModified timestamp from list cache
+    const metadataMap = await getFileMetadataMap();
+    const remoteLastModified = metadataMap[fileName];
+
+    // Check local IndexedDB cache
+    const cached = await getCachedItem(fileName);
+
+    if (remoteLastModified === undefined) {
+      // If we got an empty metadata map (e.g. offline or list error), fallback to cached data if it exists
+      if (Object.keys(metadataMap).length === 0 && cached) {
+        console.log(`Offline/list-fail fallback: Cache HIT for ${fileName}`);
+        return cached.data;
+      }
+      return undefined;
+    }
+
+    if (cached && cached.lastModified === remoteLastModified) {
+      console.log(`Cache HIT for ${fileName} (lastModified: ${cached.lastModified})`);
+      return cached.data;
+    }
+
+    console.log(`Cache MISS or STALE for ${fileName}. Downloading from storage...`);
+
     const { data, error } = await supabase.storage
       .from('app-data')
-      .download(`${prefix}${key}.json.gz`);
+      .download(fileName);
 
     if (error) {
       // Check if file is not found (400, 404)
@@ -59,7 +159,12 @@ export async function get(key, customPrefix) {
       return undefined;
     }
 
-    return await decompressFromGzipBlob(data);
+    const parsedData = await decompressFromGzipBlob(data);
+
+    // Save back to IndexedDB with remote timestamp
+    await setCachedItem(fileName, parsedData, remoteLastModified);
+
+    return parsedData;
   } catch (err) {
     console.error(`Unexpected error getting key ${key}:`, err);
     return undefined;
@@ -73,11 +178,12 @@ export async function set(key, val) {
     if (key === 'edustat_master') {
       prefix = 'admin_';
     }
+    const fileName = `${prefix}${key}.json.gz`;
     const compressedBlob = await compressToGzipBlob(val);
     
     const { error } = await supabase.storage
       .from('app-data')
-      .upload(`${prefix}${key}.json.gz`, compressedBlob, {
+      .upload(fileName, compressedBlob, {
         contentType: 'application/x-gzip',
         upsert: true
       });
@@ -86,6 +192,19 @@ export async function set(key, val) {
       console.error(`Error setting key ${key} in Supabase Storage:`, error);
       throw error;
     }
+
+    // Invalidate list cache promise
+    fileMetadataPromise = null;
+
+    // Clear local cached item to force fresh fetch on next read
+    try {
+      const db = await openDB();
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      transaction.objectStore(STORE_NAME).delete(fileName);
+    } catch (e) {
+      console.warn("Failed to clear local cache item on set:", e);
+    }
+
   } catch (err) {
     console.error(`Unexpected error setting key ${key}:`, err);
     throw err;
@@ -113,6 +232,19 @@ export async function clearIDB() {
         if (deleteError) throw deleteError;
       }
     }
+
+    // Also delete files from IndexedDB cache
+    try {
+      const db = await openDB();
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      store.clear();
+      console.log("Local IndexedDB cache cleared successfully.");
+    } catch (dbErr) {
+      console.error("Error clearing IndexedDB cache:", dbErr);
+    }
+
+    fileMetadataPromise = null;
   } catch (err) {
     console.error("Unexpected error clearing Supabase Storage:", err);
   }

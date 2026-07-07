@@ -348,6 +348,13 @@ const OverallAnalysis = ({
   const [sortKey, setSortKey] = useState('compositeScore');
   const [sortDir, setSortDir] = useState('desc');
   const [showAll, setShowAll] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [sortKey, sortDir, showAll]);
+
   const [activeDeepDiveTab, setActiveDeepDiveTab] = useState('jhpms');
   const [activeExecutiveTab, setActiveExecutiveTab] = useState('strategic'); // 'strategic', 'operations', 'quality', 'roi'
   const [displayMode, setDisplayMode] = useState('corporate'); // 'corporate', '16-9', 'print'
@@ -3756,7 +3763,7 @@ const OverallAnalysis = ({
 
   // 14. Sorted & paginated PM Grid
   const sortedRows = useMemo(() => {
-    const sorted = [...finalEnriched].sort((a, b) => {
+    return [...finalEnriched].sort((a, b) => {
       let va = a[sortKey];
       let vb = b[sortKey];
       if (typeof va === 'string') va = va.toLowerCase();
@@ -3765,8 +3772,17 @@ const OverallAnalysis = ({
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-    return showAll ? sorted : sorted.slice(0, 50);
-  }, [finalEnriched, sortKey, sortDir, showAll]);
+  }, [finalEnriched, sortKey, sortDir]);
+
+  const paginatedRows = useMemo(() => {
+    if (showAll) return sortedRows;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedRows.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedRows, currentPage, showAll]);
+
+  const totalPages = useMemo(() => {
+    return Math.ceil(sortedRows.length / itemsPerPage);
+  }, [sortedRows]);
 
   const handleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -5468,7 +5484,7 @@ const OverallAnalysis = ({
           <div className="portal-card-header flex items-center justify-between py-3 px-4 font-serif">
             <span>📋 School-by-School Review Table</span>
             <span className="text-[10px] font-extrabold bg-slate-950/20 px-2 py-0.5 rounded font-mono">
-              Displaying {showAll ? finalEnriched.length : Math.min(50, finalEnriched.length)} of {finalEnriched.length}
+              Displaying {showAll ? finalEnriched.length : `${Math.min(finalEnriched.length, (currentPage - 1) * itemsPerPage + 1)}-${Math.min(finalEnriched.length, currentPage * itemsPerPage)}`} of {finalEnriched.length}
             </span>
           </div>
 
@@ -5491,42 +5507,45 @@ const OverallAnalysis = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {sortedRows.map((s, i) => (
-                  <tr key={i} className={s.compositeScore < 30 ? 'bg-rose-50/40 dark:bg-red-950/10' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/10'}>
-                    <td className="py-2.5 px-2 font-bold text-slate-400">{i + 1}</td>
-                    <td className="py-2.5 px-2 font-bold text-left text-slate-800 dark:text-slate-200 truncate max-w-[150px]" title={s.schoolName}>{s.schoolName}</td>
-                    <td className="py-2.5 px-2 font-mono text-slate-500 font-semibold">{s.udise}</td>
-                    <td className="py-2.5 px-2 text-left font-medium">{s.district}</td>
-                    <td className="py-2.5 px-2 text-left font-medium">{s.block}</td>
-                    <td className="py-2.5 px-2 text-left font-bold text-teal-800 dark:text-teal-400">{s.visitorName}</td>
-                    <td className="py-2.5 px-2 font-bold font-mono text-slate-800 dark:text-slate-200">{s.fieldVisits}</td>
-                    <td className="py-2.5 px-2 font-mono font-medium text-slate-500">{s.lastVisitDate ? formatDate(s.lastVisitDate) : '-'}</td>
-                    <td className="py-2.5 px-2 font-bold font-mono text-teal-700 dark:text-teal-400">{s.jhpmsClasses}</td>
-                    <td className="py-2.5 px-2 font-mono text-blue-700 dark:text-blue-400">{s.eduHours.toFixed(1)} hrs</td>
-                    <td className="py-2.5 px-2">
-                      <div className="flex items-center gap-1.5 justify-center">
-                        <div className="w-12 bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden shrink-0">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${clamp(s.compositeScore)}%`,
-                              backgroundColor: s.compositeScore >= 80 ? '#0f766e' : s.compositeScore >= 60 ? '#0d9488' : s.compositeScore >= 40 ? '#f59e0b' : '#ef4444'
-                            }}
-                          />
+                {paginatedRows.map((s, idx) => {
+                  const i = showAll ? idx : (currentPage - 1) * itemsPerPage + idx;
+                  return (
+                    <tr key={idx} className={s.compositeScore < 30 ? 'bg-rose-50/40 dark:bg-red-950/10' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/10'}>
+                      <td className="py-2.5 px-2 font-bold text-slate-400">{i + 1}</td>
+                      <td className="py-2.5 px-2 font-bold text-left text-slate-800 dark:text-slate-200 truncate max-w-[150px]" title={s.schoolName}>{s.schoolName}</td>
+                      <td className="py-2.5 px-2 font-mono text-slate-500 font-semibold">{s.udise}</td>
+                      <td className="py-2.5 px-2 text-left font-medium">{s.district}</td>
+                      <td className="py-2.5 px-2 text-left font-medium">{s.block}</td>
+                      <td className="py-2.5 px-2 text-left font-bold text-teal-800 dark:text-teal-400">{s.visitorName}</td>
+                      <td className="py-2.5 px-2 font-bold font-mono text-slate-800 dark:text-slate-200">{s.fieldVisits}</td>
+                      <td className="py-2.5 px-2 font-mono font-medium text-slate-500">{s.lastVisitDate ? formatDate(s.lastVisitDate) : '-'}</td>
+                      <td className="py-2.5 px-2 font-bold font-mono text-teal-700 dark:text-teal-400">{s.jhpmsClasses}</td>
+                      <td className="py-2.5 px-2 font-mono text-blue-700 dark:text-blue-400">{s.eduHours.toFixed(1)} hrs</td>
+                      <td className="py-2.5 px-2">
+                        <div className="flex items-center gap-1.5 justify-center">
+                          <div className="w-12 bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden shrink-0">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{
+                                width: `${clamp(s.compositeScore)}%`,
+                                backgroundColor: s.compositeScore >= 80 ? '#0f766e' : s.compositeScore >= 60 ? '#0d9488' : s.compositeScore >= 40 ? '#f59e0b' : '#ef4444'
+                              }}
+                            />
+                          </div>
+                          <span className={`font-black w-6 text-right ${s.compositeScore >= 70 ? 'text-teal-700' : s.compositeScore >= 40 ? 'text-amber-600' : 'text-rose-600'}`}>
+                            {Math.round(s.compositeScore)}
+                          </span>
                         </div>
-                        <span className={`font-black w-6 text-right ${s.compositeScore >= 70 ? 'text-teal-700' : s.compositeScore >= 40 ? 'text-amber-600' : 'text-rose-600'}`}>
-                          {Math.round(s.compositeScore)}
+                      </td>
+                      <td className="py-2.5 px-2">
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${s.compositeScore >= 70 ? 'bg-teal-50 border border-teal-200 text-teal-700 dark:bg-teal-950/20 dark:text-teal-300' : s.compositeScore >= 40 ? 'bg-amber-50 border border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:text-amber-300' : 'bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/20 dark:text-red-300'}`}>
+                          {s.rootCause}
                         </span>
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${s.compositeScore >= 70 ? 'bg-teal-50 border border-teal-200 text-teal-700 dark:bg-teal-950/20 dark:text-teal-300' : s.compositeScore >= 40 ? 'bg-amber-50 border border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:text-amber-300' : 'bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/20 dark:text-red-300'}`}>
-                        {s.rootCause}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {sortedRows.length === 0 && (
+                      </td>
+                    </tr>
+                  );
+                })}
+                {paginatedRows.length === 0 && (
                   <tr>
                     <td colSpan="12" className="text-center text-slate-400 py-10 italic">No schools found matching selected parameters.</td>
                   </tr>
@@ -5535,14 +5554,36 @@ const OverallAnalysis = ({
             </table>
           </div>
 
-          {finalEnriched.length > 50 && (
-            <div className="p-3 text-center border-t border-slate-100 dark:border-slate-800 no-print bg-slate-50 dark:bg-slate-900">
+          {finalEnriched.length > itemsPerPage && (
+            <div className="p-3 border-t border-slate-100 dark:border-slate-800 no-print bg-slate-50 dark:bg-slate-900/50 flex flex-col md:flex-row justify-between items-center gap-3">
               <button
                 onClick={() => setShowAll(!showAll)}
-                className="px-5 py-2 text-xs font-black rounded-lg bg-teal-100 text-teal-700 hover:bg-teal-200 hover:scale-[1.02] active:scale-95 transition font-sans"
+                className="px-4 py-1.5 text-xs font-bold rounded-lg bg-teal-100 text-teal-700 hover:bg-teal-200 transition font-sans shadow-sm"
               >
-                {showAll ? 'Show First 50 Rows Only' : `Show Entire ${finalEnriched.length} Roster`}
+                {showAll ? 'Show Paginated Roster' : `Show Entire ${finalEnriched.length} Roster`}
               </button>
+
+              {!showAll && totalPages > 1 && (
+                <div className="flex items-center gap-4 select-none">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className="px-3 py-1 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed border dark:border-slate-700 rounded text-xs font-bold transition shadow-sm"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    Page <strong className="text-slate-800 dark:text-slate-200">{currentPage}</strong> of <strong className="text-slate-800 dark:text-slate-200">{totalPages}</strong>
+                  </span>
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    className="px-3 py-1 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed border dark:border-slate-700 rounded text-xs font-bold transition shadow-sm"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
