@@ -282,6 +282,7 @@ const App = () => {
     const [userDesignation, setUserDesignation] = useState(() => localStorage.getItem('snet_designation') || '');
     const [userPermissions, setUserPermissions] = useState(null);
     const [userAllowedDistricts, setUserAllowedDistricts] = useState([]);
+    const [userAllowedProjects, setUserAllowedProjects] = useState([]);
 
     const handleLogout = () => {
         sessionStorage.removeItem('snet_authenticated');
@@ -708,10 +709,11 @@ const App = () => {
     useEffect(() => {
         const loadData = async () => {
             try {
-                // 1. Fetch user profile, role, custom permissions, and allowed districts scope first
+                // 1. Fetch user profile, role, custom permissions, and allowed districts/projects scope first
                 const u = localStorage.getItem('snet_username');
                 let userPerms = null;
                 let userDists = [];
+                let userProjs = [];
                 let resolvedRole = userRole;
                 let rawUserData = null;
 
@@ -743,12 +745,17 @@ const App = () => {
                             }
                         }
 
-                        // Parse permissions & extract allowed districts
+                        // Parse permissions & extract allowed districts & projects
                         if (permsData) {
                             try {
                                 userPerms = typeof permsData === 'string' ? JSON.parse(permsData) : permsData;
-                                if (userPerms && userPerms.allowed_districts) {
-                                    userDists = userPerms.allowed_districts;
+                                if (userPerms) {
+                                    if (userPerms.allowed_districts) {
+                                        userDists = userPerms.allowed_districts;
+                                    }
+                                    if (userPerms.allowed_projects) {
+                                        userProjs = userPerms.allowed_projects;
+                                    }
                                 }
                             } catch (e) {
                                 console.error("Error parsing permissions", e);
@@ -775,6 +782,7 @@ const App = () => {
                         setUserRole(resolvedRole);
                         setUserPermissions(userPerms);
                         setUserAllowedDistricts(userDists);
+                        setUserAllowedProjects(userProjs);
                     }
                 }
 
@@ -911,10 +919,18 @@ const App = () => {
                         ? userDists 
                         : (fallbackDistrict.length > 0 ? fallbackDistrict : ['__FORCE_EMPTY_DISTRICT__']);
                     
-                    const allowedSet = new Set(districtsToGate.map(d => d.toUpperCase().trim()));
+                    const allowedDistsSet = new Set(districtsToGate.map(d => d.toUpperCase().trim()));
                     
-                    // Filter schools
-                    filteredSchools = (s || []).filter(sch => sch.district && allowedSet.has(sch.district.toUpperCase().trim()));
+                    // Filter schools by allowed districts first
+                    let gSchools = (s || []).filter(sch => sch.district && allowedDistsSet.has(sch.district.toUpperCase().trim()));
+                    
+                    // Also filter schools by allowed projects if configured
+                    if (userProjs && userProjs.length > 0) {
+                        const allowedProjsSet = new Set(userProjs.map(p => p.toUpperCase().trim()));
+                        gSchools = gSchools.filter(sch => sch.project_name && allowedProjsSet.has(sch.project_name.toUpperCase().trim()));
+                    }
+                    
+                    filteredSchools = gSchools;
                     const filteredUdise = new Set(filteredSchools.map(sch => String(sch.udise_code)));
 
                     // Filter visits
@@ -922,8 +938,6 @@ const App = () => {
 
                     // Filter JHPMS Lab
                     filteredJhpms = (jl || []).filter(j => {
-                        const dist = j.district || '';
-                        if (dist) return allowedSet.has(dist.toUpperCase().trim());
                         const udise = j.udise || j.udise_code || '';
                         return udise && filteredUdise.has(String(udise));
                     });
@@ -943,8 +957,6 @@ const App = () => {
                     // Filter User Overlays for Setup Status Table
                     filteredUserVisits = (userV || []).filter(vis => vis.udise_code && filteredUdise.has(String(vis.udise_code)));
                     filteredUserJhpms = (userJl || []).filter(j => {
-                        const dist = j.district || '';
-                        if (dist) return allowedSet.has(dist.toUpperCase().trim());
                         const udise = j.udise || j.udise_code || '';
                         return udise && filteredUdise.has(String(udise));
                     });
@@ -1266,43 +1278,48 @@ const App = () => {
         }
     };
 
+    const getAllowedUdiseSet = useCallback(() => {
+        let fSchools = schools || [];
+        if (userRole === 'admin') {
+            return new Set(fSchools.map(s => String(s.udise_code)));
+        }
+        
+        if (userAllowedDistricts && userAllowedDistricts.length > 0) {
+            const allowedDistsSet = new Set(userAllowedDistricts.map(d => d.toUpperCase().trim()));
+            fSchools = fSchools.filter(s => s.district && allowedDistsSet.has(s.district.toUpperCase().trim()));
+        }
+        
+        if (userAllowedProjects && userAllowedProjects.length > 0) {
+            const allowedProjsSet = new Set(userAllowedProjects.map(p => p.toUpperCase().trim()));
+            fSchools = fSchools.filter(s => s.project_name && allowedProjsSet.has(s.project_name.toUpperCase().trim()));
+        }
+        
+        return new Set(fSchools.map(s => String(s.udise_code)));
+    }, [schools, userRole, userAllowedDistricts, userAllowedProjects]);
+
     const gateVisits = useCallback((list) => {
         if (userRole === 'admin') return list;
-        const districtsToGate = (userAllowedDistricts && userAllowedDistricts.length > 0) 
-            ? userAllowedDistricts 
-            : [];
-        const allowedSet = new Set(districtsToGate.map(d => d.toUpperCase().trim()));
-        const filteredUdise = new Set(schools.filter(sch => sch.district && allowedSet.has(sch.district.toUpperCase().trim())).map(sch => String(sch.udise_code)));
-        return (list || []).filter(vis => vis.udise_code && filteredUdise.has(String(vis.udise_code)));
-    }, [userRole, userAllowedDistricts, schools]);
+        const allowedUdise = getAllowedUdiseSet();
+        return (list || []).filter(vis => vis.udise_code && allowedUdise.has(String(vis.udise_code)));
+    }, [userRole, getAllowedUdiseSet]);
 
     const gateJhpmsLab = useCallback((list) => {
         if (userRole === 'admin') return list;
-        const districtsToGate = (userAllowedDistricts && userAllowedDistricts.length > 0) 
-            ? userAllowedDistricts 
-            : [];
-        const allowedSet = new Set(districtsToGate.map(d => d.toUpperCase().trim()));
-        const filteredUdise = new Set(schools.filter(sch => sch.district && allowedSet.has(sch.district.toUpperCase().trim())).map(sch => String(sch.udise_code)));
+        const allowedUdise = getAllowedUdiseSet();
         return (list || []).filter(j => {
-            const dist = j.district || '';
-            if (dist) return allowedSet.has(dist.toUpperCase().trim());
             const udise = j.udise || j.udise_code || '';
-            return udise && filteredUdise.has(String(udise));
+            return udise && allowedUdise.has(String(udise));
         });
-    }, [userRole, userAllowedDistricts, schools]);
+    }, [userRole, getAllowedUdiseSet]);
 
     const gateEdustat = useCallback((list) => {
         if (userRole === 'admin') return list;
-        const districtsToGate = (userAllowedDistricts && userAllowedDistricts.length > 0) 
-            ? userAllowedDistricts 
-            : [];
-        const allowedSet = new Set(districtsToGate.map(d => d.toUpperCase().trim()));
-        const filteredUdise = new Set(schools.filter(sch => sch.district && allowedSet.has(sch.district.toUpperCase().trim())).map(sch => String(sch.udise_code)));
+        const allowedUdise = getAllowedUdiseSet();
         return (list || []).filter(ed => {
             const udise = ed.udise || ed.udise_code || '';
-            return udise && filteredUdise.has(String(udise));
+            return udise && allowedUdise.has(String(udise));
         });
-    }, [userRole, userAllowedDistricts, schools]);
+    }, [userRole, getAllowedUdiseSet]);
 
     // Handle Local File Uploads (School master / Raw visit reports)
     const handleUpload = (e, type) => {

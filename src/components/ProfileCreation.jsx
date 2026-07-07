@@ -113,6 +113,8 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
     const [permMatrix, setPermMatrix] = useState({});
     const [permDistricts, setPermDistricts] = useState([]);
     const [districtSearchTerm, setDistrictSearchTerm] = useState('');
+    const [permProjects, setPermProjects] = useState([]);
+    const [projectSearchTerm, setProjectSearchTerm] = useState('');
 
     // Load dynamic unique districts from schools master list
     const uniqueDistricts = useMemo(() => {
@@ -121,12 +123,20 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
         return [...new Set(dists)].sort();
     }, [schools]);
 
+    // Load dynamic unique projects from schools master list
+    const uniqueProjects = useMemo(() => {
+        if (!schools || schools.length === 0) return [];
+        const projs = schools.map(s => s.project_name).filter(Boolean);
+        return [...new Set(projs)].sort();
+    }, [schools]);
+
     // Parse a user database row, checking for JSON-packed role metadata fallback
     const parseUserRow = (u) => {
         let parsedMetadata = {};
         let resolvedRole = u.role || 'user';
         let permissions = null;
         let allowedDistricts = [];
+        let allowedProjects = [];
         
         if (u.role && u.role.trim().startsWith('{')) {
             try {
@@ -135,6 +145,7 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                 resolvedRole = meta.privilege || 'user';
                 if (meta.permissions) permissions = meta.permissions;
                 if (meta.allowed_districts) allowedDistricts = meta.allowed_districts;
+                if (meta.allowed_projects) allowedProjects = meta.allowed_projects;
             } catch (e) {
                 console.error("Failed to parse JSON user role:", e);
             }
@@ -144,6 +155,9 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
         if (u.permissions) {
             try {
                 permissions = typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions;
+                if (permissions && permissions.allowed_projects) {
+                    allowedProjects = permissions.allowed_projects;
+                }
             } catch (e) {
                 console.error("Failed to parse native permissions:", e);
             }
@@ -165,6 +179,7 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
             designation: u.designation || parsedMetadata.designation || '',
             permissions: permissions,
             allowed_districts: allowedDistricts,
+            allowed_projects: allowedProjects,
             raw_role: u.role,
             raw_password_hash: u.password_hash
         };
@@ -235,7 +250,7 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
         return matrix;
     };
 
-    // Load selected user's permissions and districts dynamically
+    // Load selected user's permissions, districts, and projects dynamically
     useEffect(() => {
         if (selectedPermUser) {
             const userObj = usersList.find(u => u.username === selectedPermUser);
@@ -264,10 +279,19 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                 } else {
                     setPermDistricts([]);
                 }
+
+                if (userObj.permissions && userObj.permissions.allowed_projects) {
+                    setPermProjects(userObj.permissions.allowed_projects);
+                } else if (userObj.allowed_projects && userObj.allowed_projects.length > 0) {
+                    setPermProjects(userObj.allowed_projects);
+                } else {
+                    setPermProjects([]);
+                }
             }
         } else {
             setPermMatrix({});
             setPermDistricts([]);
+            setPermProjects([]);
         }
     }, [selectedPermUser, usersList]);
 
@@ -277,6 +301,7 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
         if (userObj) {
             setPermMatrix(getDefaultPermissions(userObj.role));
             setPermDistricts(userObj.assigned_district ? [userObj.assigned_district] : []);
+            setPermProjects([]);
             setManageSuccess("Permissions matrix reset to default standard access successfully!");
         }
     };
@@ -320,7 +345,8 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
         try {
             const permissionsPayload = {
                 menu: permMatrix,
-                allowed_districts: permDistricts
+                allowed_districts: permDistricts,
+                allowed_projects: permProjects
             };
 
             let updatePayload = {};
@@ -349,7 +375,8 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                     assigned_district: userObj.assigned_district,
                     designation: userObj.designation,
                     permissions: permissionsPayload,
-                    allowed_districts: permDistricts
+                    allowed_districts: permDistricts,
+                    allowed_projects: permProjects
                 });
 
                 updatePayload = {
@@ -1415,7 +1442,7 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                                         </div>
 
                                         {/* District Checklist Grid */}
-                                        <div className="max-h-[300px] overflow-y-auto space-y-2.5 pr-2 bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-800 rounded-xl p-3.5 shadow-inner">
+                                        <div className="max-h-[200px] overflow-y-auto space-y-2.5 pr-2 bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-800 rounded-xl p-3.5 shadow-inner">
                                             {uniqueDistricts
                                                 .filter(dist => dist.toLowerCase().includes(districtSearchTerm.toLowerCase().trim()))
                                                 .map(dist => {
@@ -1432,7 +1459,7 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                                                                         setPermDistricts(prev => prev.filter(d => d !== dist));
                                                                     }
                                                                 }}
-                                                                className="w-4 h-4 text-teal-600 border-gray-305 rounded focus:ring-teal-500 cursor-pointer"
+                                                                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500 cursor-pointer"
                                                             />
                                                             <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{dist}</span>
                                                         </label>
@@ -1441,6 +1468,81 @@ const ProfileCreation = ({ userRole, schools = [], defaultSubTab = 'create', onS
                                             {uniqueDistricts.filter(dist => dist.toLowerCase().includes(districtSearchTerm.toLowerCase().trim())).length === 0 && (
                                                 <div className="text-[10px] text-gray-400 dark:text-gray-500 text-center py-6">
                                                     No districts match search query
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Project Gating Checklist */}
+                                    <h3 className="font-extrabold text-slate-800 dark:text-white text-xs uppercase tracking-wider flex items-center gap-1.5 border-b border-gray-100 dark:border-slate-800 pb-2 pt-2">
+                                        <Icons.Setup className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                                        <span>Project Data Isolation Scope</span>
+                                    </h3>
+
+                                    <div className="bg-slate-50/50 dark:bg-slate-900/20 border border-gray-100 dark:border-slate-800 rounded-xl p-4 space-y-4 shadow-inner animate-slide-up">
+                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-normal">
+                                            Select which projects' schools, visits, and lab classes this coordinator is authorized to view. Checked items isolate all metrics globally.
+                                        </p>
+
+                                        {/* Search Filter for Projects */}
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                placeholder="Search Projects..."
+                                                value={projectSearchTerm}
+                                                onChange={e => setProjectSearchTerm(e.target.value)}
+                                                className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-lg pl-8 pr-3 py-1.5 text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-transparent shadow-sm"
+                                            />
+                                            <div className="absolute left-2.5 top-2 text-gray-400">
+                                                <Icons.Search className="w-3.5 h-3.5" />
+                                            </div>
+                                        </div>
+
+                                        {/* Quick Select Actions */}
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPermProjects([...uniqueProjects])}
+                                                className="w-1/2 bg-white dark:bg-slate-800 hover:bg-teal-50 dark:hover:bg-slate-700 text-teal-700 dark:text-teal-400 text-[9px] font-bold uppercase py-1.5 border border-gray-200 dark:border-slate-750 rounded-lg shadow-sm cursor-pointer"
+                                            >
+                                                Select All
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setPermProjects([])}
+                                                className="w-1/2 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-slate-700 text-red-600 dark:text-red-400 text-[9px] font-bold uppercase py-1.5 border border-gray-200 dark:border-slate-750 rounded-lg shadow-sm cursor-pointer"
+                                            >
+                                                Clear All
+                                            </button>
+                                        </div>
+
+                                        {/* Project Checklist Grid */}
+                                        <div className="max-h-[200px] overflow-y-auto space-y-2.5 pr-2 bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-800 rounded-xl p-3.5 shadow-inner">
+                                            {uniqueProjects
+                                                .filter(proj => proj.toLowerCase().includes(projectSearchTerm.toLowerCase().trim()))
+                                                .map(proj => {
+                                                    const isChecked = permProjects.includes(proj);
+                                                    return (
+                                                        <label key={proj} className="flex items-center gap-2.5 p-1 rounded hover:bg-gray-50 dark:hover:bg-slate-800/40 cursor-pointer select-none transition">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isChecked}
+                                                                onChange={e => {
+                                                                    if (e.target.checked) {
+                                                                        setPermProjects(prev => [...prev, proj]);
+                                                                    } else {
+                                                                        setPermProjects(prev => prev.filter(p => p !== proj));
+                                                                    }
+                                                                }}
+                                                                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500 cursor-pointer"
+                                                            />
+                                                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{proj}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                            {uniqueProjects.filter(proj => proj.toLowerCase().includes(projectSearchTerm.toLowerCase().trim())).length === 0 && (
+                                                <div className="text-[10px] text-gray-400 dark:text-gray-500 text-center py-6">
+                                                    No projects match search query
                                                 </div>
                                             )}
                                         </div>
