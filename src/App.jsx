@@ -1511,9 +1511,21 @@ const App = () => {
                             alert("Access Denied: Only Administrator can upload School Master Data.");
                             return;
                         }
-                        setSchools(normalized);
-                        await set('schools', normalized);
-                        alert(`Successfully uploaded ${normalized.length} schools master records!`);
+                        const originalLength = normalized.length;
+                        const seenUdises = new Set();
+                        const uniqueSchools = [];
+                        normalized.forEach(s => {
+                            const u = String(s.udise_code || s.udise || '').trim();
+                            if (u && !seenUdises.has(u)) {
+                                seenUdises.add(u);
+                                uniqueSchools.push(s);
+                            }
+                        });
+                        const skippedCount = originalLength - uniqueSchools.length;
+                        const skippedMsg = skippedCount > 0 ? ` (${skippedCount} duplicate rows skipped)` : '';
+                        setSchools(uniqueSchools);
+                        await set('schools', uniqueSchools);
+                        alert(`Successfully uploaded ${uniqueSchools.length} schools master records!${skippedMsg}`);
                     } else if (type === 'visits') {
                         const isTemp = uploadAsSession;
                         const meta = {
@@ -1525,6 +1537,8 @@ const App = () => {
                         let merged;
                         if (isTemp) {
                             merged = mergeVisits(tempVisits, normalized);
+                            const skippedCount = (tempVisits.length + normalized.length) - merged.length;
+                            const skippedMsg = skippedCount > 0 ? ` (${skippedCount} duplicate rows skipped)` : '';
                             setTempVisits(merged);
                             sessionStorage.setItem('snet_temp_visits', JSON.stringify(merged));
                             sessionStorage.setItem('snet_temp_visits_meta', JSON.stringify(meta));
@@ -1533,17 +1547,19 @@ const App = () => {
                             } else {
                                 setUserVisitsMeta(meta);
                             }
-                            alert(`Successfully uploaded ${normalized.length} visit reports to temporary session!`);
+                            alert(`Successfully uploaded ${normalized.length} visit reports to temporary session!${skippedMsg}`);
                         } else {
                             const existing = await get('visits') || [];
                             merged = mergeVisits(existing, normalized);
+                            const skippedCount = (existing.length + normalized.length) - merged.length;
+                            const skippedMsg = skippedCount > 0 ? ` (${skippedCount} duplicate rows skipped)` : '';
                             await set('visits', merged);
                             await set('visits_meta', meta);
                             
                             if (userRole === 'admin') {
                                 setVisits(merged);
                                 setVisitsMeta(meta);
-                                alert(`Successfully uploaded and merged ${normalized.length} visit reports to Central Cloud!`);
+                                alert(`Successfully uploaded and merged ${normalized.length} visit reports to Central Cloud!${skippedMsg}`);
                             } else {
                                 const gatedUserV = gateVisits(merged);
                                 setUserVisits(gatedUserV);
@@ -1552,7 +1568,7 @@ const App = () => {
                                 const activeVisits = mergeVisits(baselineVisits, merged);
                                 const gatedActive = gateVisits(activeVisits);
                                 setVisits(gatedActive);
-                                alert(`Successfully uploaded and merged ${normalized.length} visit reports as your personal cloud overlay!`);
+                                alert(`Successfully uploaded and merged ${normalized.length} visit reports as your personal cloud overlay!${skippedMsg}`);
                             }
                         }
 
@@ -1583,6 +1599,8 @@ const App = () => {
                         let merged;
                         if (isTemp) {
                             merged = mergeJhpms(tempJhpmsLab, normalized);
+                            const skippedCount = (tempJhpmsLab.length + normalized.length) - merged.length;
+                            const skippedMsg = skippedCount > 0 ? ` (${skippedCount} duplicate rows skipped)` : '';
                             setTempJhpmsLab(merged);
                             sessionStorage.setItem('snet_temp_jhpms_lab', JSON.stringify(merged));
                             sessionStorage.setItem('snet_temp_jhpms_lab_meta', JSON.stringify(meta));
@@ -1591,17 +1609,19 @@ const App = () => {
                             } else {
                                 setUserJhpmsLabMeta(meta);
                             }
-                            alert(`Successfully uploaded ${normalized.length} JHPMS Lab logs to temporary session!`);
+                            alert(`Successfully uploaded ${normalized.length} JHPMS Lab logs to temporary session!${skippedMsg}`);
                         } else {
                             const existing = await get('jhpms_lab') || [];
                             merged = mergeJhpms(existing, normalized);
+                            const skippedCount = (existing.length + normalized.length) - merged.length;
+                            const skippedMsg = skippedCount > 0 ? ` (${skippedCount} duplicate rows skipped)` : '';
                             await set('jhpms_lab', merged);
                             await set('jhpms_lab_meta', meta);
 
                             if (userRole === 'admin') {
                                 setJhpmsLab(merged);
                                 setJhpmsLabMeta(meta);
-                                alert(`Successfully uploaded and merged ${normalized.length} JHPMS Lab logs to Central Cloud!`);
+                                alert(`Successfully uploaded and merged ${normalized.length} JHPMS Lab logs to Central Cloud!${skippedMsg}`);
                             } else {
                                 const gatedUserJl = gateJhpmsLab(merged);
                                 setUserJhpmsLab(gatedUserJl);
@@ -1610,7 +1630,7 @@ const App = () => {
                                 const activeJhpms = mergeJhpms(baselineJhpmsLab, merged);
                                 const gatedActive = gateJhpmsLab(activeJhpms);
                                 setJhpmsLab(gatedActive);
-                                alert(`Successfully uploaded and merged ${normalized.length} JHPMS Lab logs as your personal cloud overlay!`);
+                                alert(`Successfully uploaded and merged ${normalized.length} JHPMS Lab logs as your personal cloud overlay!${skippedMsg}`);
                             }
                         }
                     } else if (type === 'edustat') {
@@ -1624,6 +1644,8 @@ const App = () => {
                         let merged;
                         if (isTemp) {
                             merged = mergeEdustat(tempEdustat, normalized);
+                            const skippedCount = (tempEdustat.length + normalized.length) - merged.length;
+                            const skippedMsg = skippedCount > 0 ? ` (${skippedCount} duplicate rows skipped)` : '';
                             setTempEdustat(merged);
                             sessionStorage.setItem('snet_temp_edustat', JSON.stringify(merged));
                             sessionStorage.setItem('snet_temp_edustat_meta', JSON.stringify(meta));
@@ -1632,17 +1654,19 @@ const App = () => {
                             } else {
                                 setUserEdustatMeta(meta);
                             }
-                            alert(`Successfully uploaded ${normalized.length} EduStat daily logs to temporary session!`);
+                            alert(`Successfully uploaded ${normalized.length} EduStat daily logs to temporary session!${skippedMsg}`);
                         } else {
                             const existing = await get('edustat') || [];
                             merged = mergeEdustat(existing, normalized);
+                            const skippedCount = (existing.length + normalized.length) - merged.length;
+                            const skippedMsg = skippedCount > 0 ? ` (${skippedCount} duplicate rows skipped)` : '';
                             await set('edustat', merged);
                             await set('edustat_meta', meta);
 
                             if (userRole === 'admin') {
                                 setEdustat(merged);
                                 setEdustatMeta(meta);
-                                alert(`Successfully uploaded and merged ${normalized.length} EduStat daily logs to Central Cloud!`);
+                                alert(`Successfully uploaded and merged ${normalized.length} EduStat daily logs to Central Cloud!${skippedMsg}`);
                             } else {
                                 const gatedUserE = gateEdustat(merged);
                                 setUserEdustat(gatedUserE);
@@ -1651,7 +1675,7 @@ const App = () => {
                                 const activeEdustat = mergeEdustat(baselineEdustat, merged);
                                 const gatedActive = gateEdustat(activeEdustat);
                                 setEdustat(gatedActive);
-                                alert(`Successfully uploaded and merged ${normalized.length} EduStat daily logs as your personal cloud overlay!`);
+                                alert(`Successfully uploaded and merged ${normalized.length} EduStat daily logs as your personal cloud overlay!${skippedMsg}`);
                             }
                         }
                     } else if (type === 'edustat_master') {
@@ -1659,17 +1683,41 @@ const App = () => {
                             alert("Access Denied: Only Administrator can upload EduStat Master Inventory.");
                             return;
                         }
-                        setEdustatMaster(normalized);
-                        await set('edustat_master', normalized);
-                        alert(`Successfully uploaded ${normalized.length} Edustat Master Inventory records!`);
+                        const originalLength = normalized.length;
+                        const seenSerials = new Set();
+                        const uniqueEdustatMaster = [];
+                        normalized.forEach(e => {
+                            const key = `${e.udise}_${e.serial}`;
+                            if (e.serial && !seenSerials.has(key)) {
+                                seenSerials.add(key);
+                                uniqueEdustatMaster.push(e);
+                            }
+                        });
+                        const skippedCount = originalLength - uniqueEdustatMaster.length;
+                        const skippedMsg = skippedCount > 0 ? ` (${skippedCount} duplicate UDISE+Serial rows skipped)` : '';
+                        setEdustatMaster(uniqueEdustatMaster);
+                        await set('edustat_master', uniqueEdustatMaster);
+                        alert(`Successfully uploaded ${uniqueEdustatMaster.length} Edustat Master Inventory records!${skippedMsg}`);
                     } else if (type === 'manpower') {
                         if (userRole !== 'admin') {
                             alert("Access Denied: Only Administrator can upload Manpower Roster.");
                             return;
                         }
-                        setManpower(normalized);
-                        await set('manpower', normalized);
-                        alert(`Successfully uploaded ${normalized.length} Instructor profiles!`);
+                        const originalLength = normalized.length;
+                        const seenManpower = new Set();
+                        const uniqueManpower = [];
+                        normalized.forEach(m => {
+                            const u = String(m.udise || '').trim();
+                            if (u && !seenManpower.has(u)) {
+                                seenManpower.add(u);
+                                uniqueManpower.push(m);
+                            }
+                        });
+                        const skippedCount = originalLength - uniqueManpower.length;
+                        const skippedMsg = skippedCount > 0 ? ` (${skippedCount} duplicate UDISE rows skipped)` : '';
+                        setManpower(uniqueManpower);
+                        await set('manpower', uniqueManpower);
+                        alert(`Successfully uploaded ${uniqueManpower.length} Instructor profiles!${skippedMsg}`);
                     }
                 } catch (err) {
                     console.error(err);
