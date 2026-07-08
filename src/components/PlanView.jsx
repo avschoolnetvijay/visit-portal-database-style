@@ -43,21 +43,34 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
     // Success feedback trigger state for WhatsApp clipboard copying
     const [copiedUdise, setCopiedUdise] = useState(null);
 
+    // Helper function to extract keys case-insensitively
+    const getValLocal = (row, keyMatch) => {
+        if (!row) return null;
+        const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
+        return key ? row[key] : null;
+    };
+
+    // Helper function to clean UDISE codes
+    const cleanUdiseLocal = (val) => {
+        if (!val) return '';
+        return String(val).replace(/["']/g, '').trim();
+    };
+
     // Normalize manpower roster to extract active/vacant CC statuses
     const manpowerMap = useMemo(() => {
         const map = {};
         (manpower || []).forEach(m => {
-            const rawUdise = m.udise || m.udise_code || '';
-            const udise = String(rawUdise).trim();
+            const rawUdise = m.udise || m.udise_code || getValLocal(m, 'udise') || '';
+            const udise = cleanUdiseLocal(rawUdise);
             if (!udise) return;
-            const rawStatus = m.status || '';
+            const rawStatus = m.status || getValLocal(m, 'status') || '';
             const statusUpper = String(rawStatus).toUpperCase().trim();
             
             let status = 'Active';
             if (statusUpper.includes('RESIGN') || statusUpper.includes('TERMINATE') || statusUpper.includes('VACANT') || !rawStatus) {
                 status = 'Vacant';
             }
-            const name = String(m.instructorName || m.instructor_name || m.name || '').trim();
+            const name = String(m.instructorName || m.instructor_name || m.name || getValLocal(m, 'instructor') || '').trim();
             
             if (!map[udise]) map[udise] = { status, name };
             if (status === 'Active') map[udise] = { status, name };
@@ -69,13 +82,16 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
     const absoluteLastVisitMap = useMemo(() => {
         const map = {};
         (allVisits || []).forEach(v => {
-            const udise = String(v.udise_code).trim();
+            const rawUdise = v.udise_code || v.udise || getValLocal(v, 'udise') || '';
+            const udise = cleanUdiseLocal(rawUdise);
             if (!udise) return;
-            const dObj = new Date(v.visit_date);
-            if (!isNaN(dObj.getTime())) {
+            
+            const rawDate = v.visit_date || getValLocal(v, 'visit') || getValLocal(v, 'date');
+            const dObj = parseDateRobust(rawDate);
+            if (dObj && !isNaN(dObj.getTime())) {
                 const currentLast = map[udise];
-                if (!currentLast || dObj > new Date(currentLast)) {
-                    map[udise] = v.visit_date;
+                if (!currentLast || dObj > parseDateRobust(currentLast)) {
+                    map[udise] = rawDate;
                 }
             }
         });
@@ -89,10 +105,13 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         const [year, monthIdx] = selectedMonthStr.split('-').map(Number);
         
         (allVisits || []).forEach(v => {
-            const udise = String(v.udise_code).trim();
+            const rawUdise = v.udise_code || v.udise || getValLocal(v, 'udise') || '';
+            const udise = cleanUdiseLocal(rawUdise);
             if (!udise) return;
-            const dObj = new Date(v.visit_date);
-            if (!isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
+            
+            const rawDate = v.visit_date || getValLocal(v, 'visit') || getValLocal(v, 'date');
+            const dObj = parseDateRobust(rawDate);
+            if (dObj && !isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
                 map[udise] = (map[udise] || 0) + 1;
             }
         });
@@ -106,12 +125,16 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         const [year, monthIdx] = selectedMonthStr.split('-').map(Number);
 
         (jhpmsLab || []).forEach(j => {
-            const u = j.udise || j.udise_code || '';
-            const udise = String(u).trim();
+            const rawUdise = j.udise || j.udise_code || getValLocal(j, 'udise') || getValLocal(j, 'udise_code') || '';
+            const udise = cleanUdiseLocal(rawUdise);
             if (!udise) return;
-            const dObj = new Date(j.date || j.visit_date);
-            if (!isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
-                map[udise] = (map[udise] || 0) + (Number(j.classes) || 0);
+            
+            const rawDate = j.date || j.Date || getValLocal(j, 'date') || getValLocal(j, 'visit_date');
+            const dObj = parseDateRobust(rawDate);
+            
+            if (dObj && !isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
+                // Each row in jhpmsLab represents 1 class conducted
+                map[udise] = (map[udise] || 0) + 1;
             }
         });
         return map;
@@ -124,11 +147,16 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         const [year, monthIdx] = selectedMonthStr.split('-').map(Number);
 
         (edustat || []).forEach(e => {
-            const udise = String(e.udise).trim();
+            const rawUdise = e.udise || e.udise_code || getValLocal(e, 'udise') || getValLocal(e, 'udise_code') || '';
+            const udise = cleanUdiseLocal(rawUdise);
             if (!udise) return;
-            const dObj = new Date(e.date);
-            if (!isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
-                map[udise] = (map[udise] || 0) + (Number(e.hours) || 0);
+            
+            const rawDate = e.date || e.Date || getValLocal(e, 'date');
+            const dObj = parseDateRobust(rawDate);
+            
+            if (dObj && !isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
+                const hoursVal = e._hours !== undefined ? e._hours : (e.hours !== undefined ? Number(e.hours) : Number(getValLocal(e, 'hours') || getValLocal(e, 'used') || 0));
+                map[udise] = (map[udise] || 0) + hoursVal;
             }
         });
         return map;
