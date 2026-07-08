@@ -8,6 +8,11 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         return getMonthsInRange(startDate, endDate) || 1;
     }, [startDate, endDate]);
 
+    // Operational capacity scales to 40 visits per month
+    const maxVisitsCapacity = useMemo(() => {
+        return 40 * durationMonths;
+    }, [durationMonths]);
+
     const [selectedSlot, setSelectedSlot] = useState('All'); // 'All', 'Week 1'/'Month 1', etc.
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
@@ -236,29 +241,36 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 score: totalScore
             };
         })
-        .sort((a, b) => b.score - a.score);
+        .sort((a, b) => {
+            // Sort primarily by completed visits count in range (ascending) to guarantee full coverage first
+            if (a.completedInPeriod !== b.completedInPeriod) {
+                return a.completedInPeriod - b.completedInPeriod;
+            }
+            // Sort secondarily by risk score (descending)
+            return b.score - a.score;
+        });
     }, [data.schools, absoluteLastVisitMap, rangeVisitsCountMap, manpowerMap, rangeJhpmsMap, rangeEdustatMap, durationMonths]);
 
-    // Curated visit plan contains top 40 schools
-    const top40Schools = useMemo(() => {
+    // Curated visit plan contains top schools up to capacity
+    const topPlannedSchools = useMemo(() => {
         const isMultiMonth = durationMonths > 1;
-        return priorities.slice(0, 40).map((school, index) => {
+        return priorities.slice(0, maxVisitsCapacity).map((school, index) => {
             if (isMultiMonth) {
-                // E.g., if duration is 3 months, divide index 0-39 by (40 / durationMonths) to get Month 1, Month 2, Month 3
-                const monthIndex = Math.min(durationMonths, Math.floor(index / (40 / durationMonths)) + 1);
+                // E.g., if duration is 3 months, allocate index 0-39 to Month 1, 40-79 to Month 2, 80-119 to Month 3
+                const monthIndex = Math.min(durationMonths, Math.floor(index / 40) + 1);
                 return {
                     ...school,
                     planningSlot: `Month ${monthIndex}`
                 };
             } else {
-                const weekIndex = Math.floor(index / 10) + 1; // 10 schools per week
+                const weekIndex = Math.min(4, Math.floor(index / 10) + 1); // 10 schools per week
                 return {
                     ...school,
                     planningSlot: `Week ${weekIndex}`
                 };
             }
         });
-    }, [priorities, durationMonths]);
+    }, [priorities, durationMonths, maxVisitsCapacity]);
 
     // Dynamic slot list generator based on duration
     const slotOptions = useMemo(() => {
@@ -274,10 +286,31 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         return slots;
     }, [durationMonths]);
 
-    // Grouping Top 40 by District/Block to optimize travel
+    // Calculate range coverage statistics from priorities list
+    const coverageStats = useMemo(() => {
+        const stats = {
+            totalAllotted: priorities.length,
+            v0: 0,
+            v1: 0,
+            v2: 0,
+            v3: 0,
+            vMore: 0
+        };
+        priorities.forEach(p => {
+            const count = p.completedInPeriod || 0;
+            if (count === 0) stats.v0++;
+            else if (count === 1) stats.v1++;
+            else if (count === 2) stats.v2++;
+            else if (count === 3) stats.v3++;
+            else stats.vMore++;
+        });
+        return stats;
+    }, [priorities]);
+
+    // Grouping Top schools in plan by District/Block to optimize travel
     const blockClusters = useMemo(() => {
         const clusters = {};
-        top40Schools.forEach(s => {
+        topPlannedSchools.forEach(s => {
             const key = `${s.district} / ${s.block}`;
             if (!clusters[key]) clusters[key] = 0;
             clusters[key]++;
@@ -285,18 +318,18 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         return Object.entries(clusters)
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count);
-    }, [top40Schools]);
+    }, [topPlannedSchools]);
 
-    // Count of vacant manpower schools inside our 40-school roster
+    // Count of vacant manpower schools inside our planned roster
     const vacancyCountInPlan = useMemo(() => {
-        return top40Schools.filter(s => s.isVacant).length;
-    }, [top40Schools]);
+        return topPlannedSchools.filter(s => s.isVacant).length;
+    }, [topPlannedSchools]);
 
-    // Filter Top 40 list by Slot selection
-    const filteredTop40 = useMemo(() => {
-        if (selectedSlot === 'All') return top40Schools;
-        return top40Schools.filter(s => s.planningSlot === selectedSlot);
-    }, [top40Schools, selectedSlot]);
+    // Filter Top list by Slot selection
+    const filteredTopSchools = useMemo(() => {
+        if (selectedSlot === 'All') return topPlannedSchools;
+        return topPlannedSchools.filter(s => s.planningSlot === selectedSlot);
+    }, [topPlannedSchools, selectedSlot]);
 
     // Reset slot filter and page when range parameters change
     useEffect(() => {
@@ -304,14 +337,14 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         setCurrentPage(1);
     }, [startDate, endDate]);
 
-    const totalPages = rowsPerPage === -1 ? 1 : Math.ceil(filteredTop40.length / rowsPerPage);
+    const totalPages = rowsPerPage === -1 ? 1 : Math.ceil(filteredTopSchools.length / rowsPerPage);
     const activePage = Math.min(currentPage, totalPages) || 1;
     const startIdx = rowsPerPage === -1 ? 0 : (activePage - 1) * rowsPerPage;
 
     const paginatedSchools = useMemo(() => {
-        if (rowsPerPage === -1) return filteredTop40;
-        return filteredTop40.slice(startIdx, startIdx + rowsPerPage);
-    }, [filteredTop40, startIdx, rowsPerPage]);
+        if (rowsPerPage === -1) return filteredTopSchools;
+        return filteredTopSchools.slice(startIdx, startIdx + rowsPerPage);
+    }, [filteredTopSchools, startIdx, rowsPerPage]);
 
     // Get color code and labels based on score bounds
     const getPriorityDetails = (score) => {
@@ -361,7 +394,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
     };
 
     const handleExportExcel = () => {
-        const excelData = top40Schools.map((s, idx) => ({
+        const excelData = topPlannedSchools.map((s, idx) => ({
             "Rank": idx + 1,
             "Scheduled Slot": s.planningSlot,
             "School Name": s.school_name,
@@ -373,7 +406,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             "Abs Days Since Last Visit": s.daysSince === 999 ? 'Never' : s.daysSince,
             "Absolute Last Visit Date": s.absLastVisitDate ? formatDate(s.absLastVisitDate) : 'Never',
             "Staff Status": s.isVacant ? 'Vacant' : 'Active',
-            "Deficit In Range": s.deficit,
+            "Deficit In Period": s.deficit,
             "Rationales": s.reasons.join(' | ')
         }));
         exportToExcel(excelData, `Visit_Plan_${startDate}_to_${endDate}`);
@@ -389,7 +422,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                     </div>
                     <div className="text-left">
                         <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">Team Custom Range Visit Planner</h2>
-                        <p className="text-[11.5px] text-slate-400 font-medium mt-0.5">Weighted Priority Engine • Curated Top 40 Roster</p>
+                        <p className="text-[11.5px] text-slate-400 font-medium mt-0.5">Weighted Priority Engine • Curated Roster Plan</p>
                     </div>
                 </div>
 
@@ -405,42 +438,86 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             </div>
 
             {/* Dashboard Overview Cards Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 no-print">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4 no-print">
+                {/* Card 1: Capacity Status */}
                 <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 p-4 rounded-2xl shadow-sm flex items-center gap-4">
-                    <div className="p-3 bg-teal-500/10 text-teal-600 rounded-xl">
+                    <div className="p-3 bg-teal-500/10 text-teal-650 rounded-xl shrink-0">
                         <Icons.Trophy className="w-6 h-6" />
                     </div>
-                    <div className="text-left">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Planned Visits</div>
-                        <div className="text-xl font-black text-slate-800 dark:text-slate-100 mt-0.5">{top40Schools.length} Schools</div>
-                        <div className="text-[10px] text-slate-400 mt-1">Target roster maximum</div>
+                    <div className="text-left min-w-0">
+                        <div className="text-[9px] font-bold text-slate-450 uppercase tracking-wider font-sans truncate">Total Planned Visits</div>
+                        <div className="text-lg font-black text-slate-800 dark:text-slate-100 mt-0.5 truncate">{topPlannedSchools.length} Visits</div>
+                        <div className="text-[9px] text-slate-400 mt-1 font-semibold">Capacity: {maxVisitsCapacity} max</div>
                     </div>
                 </div>
 
+                {/* Card 2: Allotted Schools */}
+                <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 p-4 rounded-2xl shadow-sm flex items-center gap-4">
+                    <div className="p-3 bg-indigo-500/10 text-indigo-600 rounded-xl shrink-0">
+                        <Icons.Compliance className="w-6 h-6" />
+                    </div>
+                    <div className="text-left min-w-0">
+                        <div className="text-[9px] font-bold text-slate-455 uppercase tracking-wider font-sans truncate">Allotted Schools</div>
+                        <div className="text-lg font-black text-slate-800 dark:text-slate-100 mt-0.5 truncate">{coverageStats.totalAllotted} Schools</div>
+                        <div className="text-[9px] text-slate-400 mt-1 font-semibold">Coordinating scope</div>
+                    </div>
+                </div>
+
+                {/* Card 3: Roster Vacancies */}
                 <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-855 p-4 rounded-2xl shadow-sm flex items-center gap-4">
-                    <div className="p-3 bg-rose-500/10 text-rose-600 rounded-xl">
+                    <div className="p-3 bg-rose-500/10 text-rose-650 rounded-xl shrink-0">
                         <Icons.Users className="w-6 h-6" />
                     </div>
-                    <div className="text-left">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CC Vacancy Targets</div>
-                        <div className="text-xl font-black text-slate-800 dark:text-slate-100 mt-0.5">{vacancyCountInPlan} Schools</div>
-                        <div className="text-[10px] text-slate-400 mt-1">Focus candidate mobilization</div>
+                    <div className="text-left min-w-0">
+                        <div className="text-[9px] font-bold text-slate-455 uppercase tracking-wider font-sans truncate">CC Vacancies</div>
+                        <div className="text-lg font-black text-slate-800 dark:text-slate-100 mt-0.5 truncate">{vacancyCountInPlan} Schools</div>
+                        <div className="text-[9px] text-slate-400 mt-1 font-semibold">Focus mobilization</div>
                     </div>
                 </div>
 
-                <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-855 p-4 rounded-2xl shadow-sm flex items-center gap-4 col-span-1 sm:col-span-2">
-                    <div className="p-3 bg-cyan-500/10 text-cyan-600 rounded-xl">
+                {/* Card 4: Route Clusters */}
+                <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-855 p-4 rounded-2xl shadow-sm flex items-center gap-4">
+                    <div className="p-3 bg-cyan-500/10 text-cyan-600 rounded-xl shrink-0">
                         <Icons.ExecutiveClipboard className="w-6 h-6" />
                     </div>
-                    <div className="text-left flex-1 min-w-0">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Route Clusters (Top Blocks)</div>
-                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">
-                            {blockClusters.slice(0, 3).map((bc, i) => (
-                                <span key={i} className="inline-block bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 px-2 py-0.5 rounded mr-1.5 mb-1 text-[10px] text-slate-600 dark:text-slate-400">
-                                    {bc.name}: <strong className="text-teal-700 dark:text-teal-400 font-extrabold">{bc.count}</strong>
+                    <div className="text-left min-w-0 flex-1">
+                        <div className="text-[9px] font-bold text-slate-455 uppercase tracking-wider font-sans truncate">Route Clusters</div>
+                        <div className="text-[10px] font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">
+                            {blockClusters.slice(0, 2).map((bc, i) => (
+                                <span key={i} className="inline-block bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 px-1 py-0.5 rounded mr-1 text-[8.5px] text-slate-600 dark:text-slate-400">
+                                    {bc.name.split(' / ')[1] || bc.name}: <strong className="text-teal-700 dark:text-teal-400 font-extrabold">{bc.count}</strong>
                                 </span>
                             ))}
-                            {blockClusters.length === 0 && <span className="text-slate-400">No clusters found</span>}
+                            {blockClusters.length === 0 && <span className="text-slate-400">None</span>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Card 5: Visit Coverage Distribution */}
+                <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-855 p-3 rounded-2xl shadow-sm flex flex-col justify-between h-full">
+                    <div className="text-left w-full">
+                        <div className="text-[9px] font-bold text-slate-455 uppercase tracking-wider font-sans mb-1.5 truncate">Coverage Distribution</div>
+                        <div className="grid grid-cols-5 gap-0.5 text-center">
+                            <div className="bg-slate-50 dark:bg-slate-850 py-1 rounded border dark:border-slate-700/50">
+                                <div className="text-[10px] font-black text-rose-600">{coverageStats.v0}</div>
+                                <div className="text-[7.5px] font-bold text-slate-400 mt-0.5">0 Vis</div>
+                            </div>
+                            <div className="bg-slate-50 dark:bg-slate-850 py-1 rounded border dark:border-slate-700/50">
+                                <div className="text-[10px] font-black text-teal-600">{coverageStats.v1}</div>
+                                <div className="text-[7.5px] font-bold text-slate-400 mt-0.5">1 Vis</div>
+                            </div>
+                            <div className="bg-slate-50 dark:bg-slate-850 py-1 rounded border dark:border-slate-700/50">
+                                <div className="text-[10px] font-black text-indigo-650">{coverageStats.v2}</div>
+                                <div className="text-[7.5px] font-bold text-slate-400 mt-0.5">2 Vis</div>
+                            </div>
+                            <div className="bg-slate-50 dark:bg-slate-850 py-1 rounded border dark:border-slate-700/50">
+                                <div className="text-[10px] font-black text-purple-650">{coverageStats.v3}</div>
+                                <div className="text-[7.5px] font-bold text-slate-400 mt-0.5">3 Vis</div>
+                            </div>
+                            <div className="bg-slate-50 dark:bg-slate-850 py-1 rounded border dark:border-slate-700/50">
+                                <div className="text-[10px] font-black text-amber-600">{coverageStats.vMore}</div>
+                                <div className="text-[7.5px] font-bold text-slate-400 mt-0.5">3+ Vis</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -451,7 +528,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 <div className="portal-card-header bg-gradient-to-r from-teal-850 to-cyan-900 flex justify-between items-center text-white py-3.5 px-6 font-semibold shrink-0">
                     <div className="flex items-center gap-2">
                         <Icons.Plan className="w-5 h-5 text-teal-300 animate-pulse" />
-                        <span>Weighted Priority Visit Plan ({top40Schools.length} Targeted)</span>
+                        <span>Weighted Priority Visit Plan ({topPlannedSchools.length} Targeted)</span>
                     </div>
                     <button
                         onClick={handleExportExcel}
@@ -472,7 +549,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 <div className="bg-white dark:bg-slate-900 border-b border-slate-150 dark:border-slate-800 px-6 py-2 flex items-center justify-between gap-4 shrink-0 overflow-x-auto no-print">
                     <div className="flex gap-1.5 select-none">
                         {slotOptions.map((slot) => {
-                            const count = slot === 'All' ? top40Schools.length : top40Schools.filter(s => s.planningSlot === slot).length;
+                            const count = slot === 'All' ? topPlannedSchools.length : topPlannedSchools.filter(s => s.planningSlot === slot).length;
                             const isSelected = selectedSlot === slot;
                             return (
                                 <button
@@ -556,7 +633,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3.5 text-left">
-                                                <div className="font-semibold text-teal-800 dark:text-teal-400 truncate max-w-[180px]" title={s.visitor_name || 'Unassigned'}>
+                                                <div className="font-semibold text-teal-800 dark:text-teal-450 truncate max-w-[180px]" title={s.visitor_name || 'Unassigned'}>
                                                     👤 {s.visitor_name || 'Unassigned'}
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 mt-1 font-medium">
@@ -582,7 +659,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                         onClick={() => handleCopyWhatsApp(s)}
                                                         className={`p-1.5 rounded-lg border shadow-sm transition text-xs font-bold ${
                                                             copiedUdise === s.udise_code
-                                                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
+                                                                ? 'bg-emerald-100 text-emerald-850 border-emerald-300 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
                                                                 : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-750'
                                                         }`}
                                                         title="Copy WhatsApp Brief"
@@ -595,7 +672,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                         onClick={() => setExpandedUdise(isRowExpanded ? null : s.udise_code)}
                                                         className={`p-1.5 rounded-lg border shadow-sm transition text-xs font-bold ${
                                                             isRowExpanded
-                                                                ? 'bg-teal-600 text-white border-teal-700'
+                                                                ? 'bg-teal-650 text-white border-teal-700'
                                                                 : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-750'
                                                         }`}
                                                     >
@@ -657,7 +734,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
 
                                                             <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-855">
                                                                 <div className="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wide">Last Audit Data</div>
-                                                                <div className="text-[10px] text-slate-600 dark:text-slate-350 font-semibold space-y-1">
+                                                                <div className="text-[10px] text-slate-650 dark:text-slate-350 font-semibold space-y-1">
                                                                     <div>🗓️ Last Visited: <span className="font-bold text-slate-800 dark:text-slate-200">{s.absLastVisitDate ? formatDate(s.absLastVisitDate) : 'Never'}</span></div>
                                                                     <div>💼 Assigned Visitor: <span className="font-bold text-slate-800 dark:text-slate-200">{s.visitor_name || 'Unassigned'}</span></div>
                                                                     <div>⚙️ Composite Rating: <span className={`font-black ${s.compositeScore < 40 ? 'text-rose-600' : 'text-teal-700 dark:text-teal-400'}`}>{s.compositeScore !== undefined ? `${Math.round(s.compositeScore)}%` : 'N/A'}</span></div>
@@ -671,7 +748,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                     </React.Fragment>
                                 );
                             })}
-                            {filteredTop40.length === 0 && (
+                            {filteredTopSchools.length === 0 && (
                                 <tr>
                                     <td colSpan="6" className="text-center p-12 text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-900/30">
                                         <Icons.Compliance className="w-12 h-12 text-teal-500/20 mx-auto mb-3" />
@@ -704,8 +781,8 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                             </select>
                         </div>
                         <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                            {filteredTop40.length > 0 ? (
-                                `Showing ${startIdx + 1}–${Math.min(startIdx + (rowsPerPage === -1 ? filteredTop40.length : rowsPerPage), filteredTop40.length)} of ${filteredTop40.length} targeted schools`
+                            {filteredTopSchools.length > 0 ? (
+                                `Showing ${startIdx + 1}–${Math.min(startIdx + (rowsPerPage === -1 ? filteredTopSchools.length : rowsPerPage), filteredTopSchools.length)} of ${filteredTopSchools.length} targeted schools`
                             ) : (
                                 'Showing 0–0 of 0'
                             )}
