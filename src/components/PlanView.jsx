@@ -65,10 +65,78 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         return map;
     }, [manpower]);
 
+    // Precalculated absolute last visit dates for all schools
+    const absoluteLastVisitMap = useMemo(() => {
+        const map = {};
+        (allVisits || []).forEach(v => {
+            const udise = String(v.udise_code).trim();
+            if (!udise) return;
+            const dObj = new Date(v.visit_date);
+            if (!isNaN(dObj.getTime())) {
+                const currentLast = map[udise];
+                if (!currentLast || dObj > new Date(currentLast)) {
+                    map[udise] = v.visit_date;
+                }
+            }
+        });
+        return map;
+    }, [allVisits]);
+
+    // Precalculated completed visits count in selected month for all schools
+    const monthVisitsCountMap = useMemo(() => {
+        const map = {};
+        if (!selectedMonthStr) return map;
+        const [year, monthIdx] = selectedMonthStr.split('-').map(Number);
+        
+        (allVisits || []).forEach(v => {
+            const udise = String(v.udise_code).trim();
+            if (!udise) return;
+            const dObj = new Date(v.visit_date);
+            if (!isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
+                map[udise] = (map[udise] || 0) + 1;
+            }
+        });
+        return map;
+    }, [allVisits, selectedMonthStr]);
+
+    // Precalculated classes logged in selected month for all schools
+    const monthJhpmsMap = useMemo(() => {
+        const map = {};
+        if (!selectedMonthStr) return map;
+        const [year, monthIdx] = selectedMonthStr.split('-').map(Number);
+
+        (jhpmsLab || []).forEach(j => {
+            const u = j.udise || j.udise_code || '';
+            const udise = String(u).trim();
+            if (!udise) return;
+            const dObj = new Date(j.date || j.visit_date);
+            if (!isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
+                map[udise] = (map[udise] || 0) + (Number(j.classes) || 0);
+            }
+        });
+        return map;
+    }, [jhpmsLab, selectedMonthStr]);
+
+    // Precalculated usage hours logged in selected month for all schools
+    const monthEdustatMap = useMemo(() => {
+        const map = {};
+        if (!selectedMonthStr) return map;
+        const [year, monthIdx] = selectedMonthStr.split('-').map(Number);
+
+        (edustat || []).forEach(e => {
+            const udise = String(e.udise).trim();
+            if (!udise) return;
+            const dObj = new Date(e.date);
+            if (!isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
+                map[udise] = (map[udise] || 0) + (Number(e.hours) || 0);
+            }
+        });
+        return map;
+    }, [edustat, selectedMonthStr]);
+
     // Build the prioritized school visits roster
     const priorities = useMemo(() => {
         if (!selectedMonthStr) return [];
-        const [year, monthIdx] = selectedMonthStr.split('-').map(Number);
         const today = new Date();
 
         return data.schools.map(s => {
@@ -76,16 +144,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             const target = s.monthly_target || 1;
 
             // A. Calculate Absolute Aging (All visits regardless of filters)
-            const schoolVisits = (allVisits || []).filter(v => String(v.udise_code).trim() === udise);
-            let absLastVisitDate = null;
-            schoolVisits.forEach(v => {
-                const dObj = new Date(v.visit_date);
-                if (!isNaN(dObj.getTime())) {
-                    if (!absLastVisitDate || dObj > new Date(absLastVisitDate)) {
-                        absLastVisitDate = v.visit_date;
-                    }
-                }
-            });
+            const absLastVisitDate = absoluteLastVisitMap[udise] || null;
 
             let daysSince = 999;
             if (absLastVisitDate) {
@@ -101,11 +160,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             else if (daysSince >= 15) agingScore = 5;
 
             // B. Target Deficit for selected month (max 30 points)
-            const completedInMonth = schoolVisits.filter(v => {
-                const dObj = new Date(v.visit_date);
-                if (isNaN(dObj.getTime())) return false;
-                return dObj.getFullYear() === year && dObj.getMonth() === monthIdx;
-            }).length;
+            const completedInMonth = monthVisitsCountMap[udise] || 0;
 
             const deficit = Math.max(0, target - completedInMonth);
             const deficitScore = target > 0 ? (deficit / target) * 30 : 0;
@@ -116,23 +171,8 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             const vacancyScore = isVacant ? 20 : 0;
 
             // D. Critical concerns in selected month (max 15 points)
-            const monthJhpms = (jhpmsLab || []).filter(j => {
-                const u = j.udise || j.udise_code || '';
-                if (String(u).trim() !== udise) return false;
-                const dObj = new Date(j.date || j.visit_date);
-                if (isNaN(dObj.getTime())) return false;
-                return dObj.getFullYear() === year && dObj.getMonth() === monthIdx;
-            });
-
-            const monthEdustat = (edustat || []).filter(e => {
-                if (String(e.udise).trim() !== udise) return false;
-                const dObj = new Date(e.date);
-                if (isNaN(dObj.getTime())) return false;
-                return dObj.getFullYear() === year && dObj.getMonth() === monthIdx;
-            });
-
-            const totalJhpmsClasses = monthJhpms.reduce((sum, item) => sum + (Number(item.classes) || 0), 0);
-            const totalEdustatHours = monthEdustat.reduce((sum, item) => sum + (Number(item.hours) || 0), 0);
+            const totalJhpmsClasses = monthJhpmsMap[udise] || 0;
+            const totalEdustatHours = monthEdustatMap[udise] || 0;
 
             const jhpmsConcern = totalJhpmsClasses === 0 ? 7.5 : 0;
             const edustatConcern = totalEdustatHours === 0 ? 7.5 : 0;
@@ -183,7 +223,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             };
         })
         .sort((a, b) => b.score - a.score);
-    }, [data.schools, allVisits, manpowerMap, jhpmsLab, edustat, selectedMonthStr]);
+    }, [data.schools, absoluteLastVisitMap, monthVisitsCountMap, manpowerMap, monthJhpmsMap, monthEdustatMap, selectedMonthStr]);
 
     // Curated Monthly visit plan contains top 40 schools
     const top40Schools = useMemo(() => {
