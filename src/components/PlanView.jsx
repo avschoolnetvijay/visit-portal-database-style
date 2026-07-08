@@ -241,36 +241,104 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 score: totalScore
             };
         })
-        .sort((a, b) => {
-            // Sort primarily by completed visits count in range (ascending) to guarantee full coverage first
-            if (a.completedInPeriod !== b.completedInPeriod) {
-                return a.completedInPeriod - b.completedInPeriod;
-            }
-            // Sort secondarily by risk score (descending)
-            return b.score - a.score;
-        });
+        .sort((a, b) => b.score - a.score);
     }, [data.schools, absoluteLastVisitMap, rangeVisitsCountMap, manpowerMap, rangeJhpmsMap, rangeEdustatMap, durationMonths]);
 
-    // Curated visit plan contains top schools up to capacity
+    // Curated visit plan contains top schools up to capacity, dynamically scheduling round-robin coverage
     const topPlannedSchools = useMemo(() => {
+        const planned = [];
         const isMultiMonth = durationMonths > 1;
-        return priorities.slice(0, maxVisitsCapacity).map((school, index) => {
-            if (isMultiMonth) {
-                // E.g., if duration is 3 months, allocate index 0-39 to Month 1, 40-79 to Month 2, 80-119 to Month 3
-                const monthIndex = Math.min(durationMonths, Math.floor(index / 40) + 1);
-                return {
-                    ...school,
-                    planningSlot: `Month ${monthIndex}`
-                };
-            } else {
-                const weekIndex = Math.min(4, Math.floor(index / 10) + 1); // 10 schools per week
-                return {
-                    ...school,
-                    planningSlot: `Week ${weekIndex}`
-                };
-            }
+
+        // Initialize simulation state for completed visits of each school UDISE
+        const simCompletedMap = {};
+        priorities.forEach(s => {
+            simCompletedMap[s.udise_code] = s.completedInPeriod || 0;
         });
-    }, [priorities, durationMonths, maxVisitsCapacity]);
+
+        // Helper to recalculate priority score inside simulation loop
+        const getSimPriorityScore = (s, simCompleted) => {
+            const target = (s.monthly_target || 1) * durationMonths;
+            const deficit = Math.max(0, target - simCompleted);
+            const deficitScore = target > 0 ? (deficit / target) * 30 : 0;
+            
+            // Base score without original deficit component + new simulated deficit component
+            const baseRiskWithoutDeficit = s.score - (s.deficit > 0 ? (s.deficit / s.target) * 30 : 0);
+            return Math.round(baseRiskWithoutDeficit + deficitScore);
+        };
+
+        if (isMultiMonth) {
+            // Loop for each month index
+            for (let m = 1; m <= durationMonths; m++) {
+                // Get eligible schools for this month (i.e. those that haven't reached their target yet)
+                const eligible = priorities.map(s => {
+                    const simCompleted = simCompletedMap[s.udise_code] || 0;
+                    const target = (s.monthly_target || 1) * durationMonths;
+                    const deficit = Math.max(0, target - simCompleted);
+                    return {
+                        ...s,
+                        simCompleted,
+                        deficit,
+                        simScore: getSimPriorityScore(s, simCompleted)
+                    };
+                })
+                .filter(s => s.deficit > 0)
+                .sort((a, b) => {
+                    // Sort primarily by completed visits count in range (ascending) to guarantee full coverage
+                    if (a.simCompleted !== b.simCompleted) {
+                        return a.simCompleted - b.simCompleted;
+                    }
+                    // Sort secondarily by dynamic risk score (descending)
+                    return b.simScore - a.simScore;
+                });
+
+                // Pick top 40 schools for this month
+                const monthSelection = eligible.slice(0, 40);
+                monthSelection.forEach((school) => {
+                    planned.push({
+                        ...school,
+                        planningSlot: `Month ${m}`,
+                        overallRank: planned.length + 1
+                    });
+                    // Increment simulation visits count for this school
+                    simCompletedMap[school.udise_code] = (simCompletedMap[school.udise_code] || 0) + 1;
+                });
+            }
+        } else {
+            // For single month, we have 4 weeks (10 schools per week)
+            for (let w = 1; w <= 4; w++) {
+                const eligible = priorities.map(s => {
+                    const simCompleted = simCompletedMap[s.udise_code] || 0;
+                    const target = s.monthly_target || 1;
+                    const deficit = Math.max(0, target - simCompleted);
+                    return {
+                        ...s,
+                        simCompleted,
+                        deficit,
+                        simScore: getSimPriorityScore(s, simCompleted)
+                    };
+                })
+                .filter(s => s.deficit > 0)
+                .sort((a, b) => {
+                    if (a.simCompleted !== b.simCompleted) {
+                        return a.simCompleted - b.simCompleted;
+                    }
+                    return b.simScore - a.simScore;
+                });
+
+                const weekSelection = eligible.slice(0, 10);
+                weekSelection.forEach(school => {
+                    planned.push({
+                        ...school,
+                        planningSlot: `Week ${w}`,
+                        overallRank: planned.length + 1
+                    });
+                    simCompletedMap[school.udise_code] = (simCompletedMap[school.udise_code] || 0) + 1;
+                });
+            }
+        }
+
+        return planned;
+    }, [priorities, durationMonths]);
 
     // Dynamic slot list generator based on duration
     const slotOptions = useMemo(() => {
@@ -590,7 +658,8 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                             {paginatedSchools.map((s, i) => {
                                 const rank = startIdx + i + 1;
                                 const details = getPriorityDetails(s.score);
-                                const isRowExpanded = expandedUdise === s.udise_code;
+                                const uniqueKey = `${s.udise_code}-${s.planningSlot}`;
+                                const isRowExpanded = expandedUdise === uniqueKey;
 
                                 // Custom tasks list for checklist mapping
                                 const schoolChecklist = [
@@ -607,7 +676,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                 const pctVal = Math.round((completedCount / schoolChecklist.length) * 100);
 
                                 return (
-                                    <React.Fragment key={s.udise_code}>
+                                    <React.Fragment key={uniqueKey}>
                                         <tr className={`hover:bg-slate-50/40 dark:hover:bg-slate-850/10 transition-colors ${
                                             s.score >= 80 ? 'bg-rose-50/20 dark:bg-rose-950/5' : ''
                                         }`}>
@@ -669,7 +738,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
 
                                                     {/* Checklist Drawer Toggle */}
                                                     <button
-                                                        onClick={() => setExpandedUdise(isRowExpanded ? null : s.udise_code)}
+                                                        onClick={() => setExpandedUdise(isRowExpanded ? null : uniqueKey)}
                                                         className={`p-1.5 rounded-lg border shadow-sm transition text-xs font-bold ${
                                                             isRowExpanded
                                                                 ? 'bg-teal-650 text-white border-teal-700'
