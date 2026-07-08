@@ -1,36 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Icons } from './Icons';
-import { exportToExcel, formatDate, parseDateRobust } from '../utils';
+import { exportToExcel, formatDate, parseDateRobust, getMonthsInRange } from '../utils';
 
 const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat = [], edustatMaster = [], schools = [], startDate, endDate }) => {
-    // 1. Month Picker State setup
-    const monthOptions = useMemo(() => {
-        const options = [];
-        const today = new Date();
-        // Generate the last 9 months and next 3 months to provide a robust selection scope
-        for (let i = -9; i <= 2; i++) {
-            const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
-            options.push({
-                label: d.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
-                value: `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`,
-                year: d.getFullYear(),
-                monthIndex: d.getMonth()
-            });
-        }
-        return options;
-    }, []);
+    // 1. Dynamic Months Duration calculation
+    const durationMonths = useMemo(() => {
+        return getMonthsInRange(startDate, endDate) || 1;
+    }, [startDate, endDate]);
 
-    const defaultMonth = useMemo(() => {
-        const today = new Date();
-        return `${today.getFullYear()}-${String(today.getMonth()).padStart(2, '0')}`;
-    }, []);
-
-    const [selectedMonthStr, setSelectedMonthStr] = useState(() => {
-        // Fallback to first available if defaultMonth is somehow out of options
-        return monthOptions.some(o => o.value === defaultMonth) ? defaultMonth : monthOptions[0]?.value;
-    });
-
-    const [selectedWeek, setSelectedWeek] = useState('All'); // 'All', 'Week 1', 'Week 2', 'Week 3', 'Week 4'
+    const [selectedSlot, setSelectedSlot] = useState('All'); // 'All', 'Week 1'/'Month 1', etc.
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -56,6 +34,15 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         return String(val).replace(/["']/g, '').trim();
     };
 
+    // Helper function to format Date object to YYYY-MM-DD
+    const formatDateToYYYYMMDD = (d) => {
+        if (!d || isNaN(d.getTime())) return '';
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    };
+
     // Normalize manpower roster to extract active/vacant CC statuses
     const manpowerMap = useMemo(() => {
         const map = {};
@@ -78,7 +65,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         return map;
     }, [manpower]);
 
-    // Precalculated absolute last visit dates for all schools
+    // Precalculated absolute last visit dates for all schools (ignores range filters to find overall last visit)
     const absoluteLastVisitMap = useMemo(() => {
         const map = {};
         (allVisits || []).forEach(v => {
@@ -98,12 +85,9 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         return map;
     }, [allVisits]);
 
-    // Precalculated completed visits count in selected month for all schools
-    const monthVisitsCountMap = useMemo(() => {
+    // Precalculated completed visits count in selected date range for all schools
+    const rangeVisitsCountMap = useMemo(() => {
         const map = {};
-        if (!selectedMonthStr) return map;
-        const [year, monthIdx] = selectedMonthStr.split('-').map(Number);
-        
         (allVisits || []).forEach(v => {
             const rawUdise = v.udise_code || v.udise || getValLocal(v, 'udise') || '';
             const udise = cleanUdiseLocal(rawUdise);
@@ -111,19 +95,19 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             
             const rawDate = v.visit_date || getValLocal(v, 'visit') || getValLocal(v, 'date');
             const dObj = parseDateRobust(rawDate);
-            if (dObj && !isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
-                map[udise] = (map[udise] || 0) + 1;
+            if (dObj && !isNaN(dObj.getTime())) {
+                const dateStr = formatDateToYYYYMMDD(dObj);
+                if (dateStr >= startDate && dateStr <= endDate) {
+                    map[udise] = (map[udise] || 0) + 1;
+                }
             }
         });
         return map;
-    }, [allVisits, selectedMonthStr]);
+    }, [allVisits, startDate, endDate]);
 
-    // Precalculated classes logged in selected month for all schools
-    const monthJhpmsMap = useMemo(() => {
+    // Precalculated classes logged in selected date range for all schools
+    const rangeJhpmsMap = useMemo(() => {
         const map = {};
-        if (!selectedMonthStr) return map;
-        const [year, monthIdx] = selectedMonthStr.split('-').map(Number);
-
         (jhpmsLab || []).forEach(j => {
             const rawUdise = j.udise || j.udise_code || getValLocal(j, 'udise') || getValLocal(j, 'udise_code') || '';
             const udise = cleanUdiseLocal(rawUdise);
@@ -132,20 +116,20 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             const rawDate = j.date || j.Date || getValLocal(j, 'date') || getValLocal(j, 'visit_date');
             const dObj = parseDateRobust(rawDate);
             
-            if (dObj && !isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
-                // Each row in jhpmsLab represents 1 class conducted
-                map[udise] = (map[udise] || 0) + 1;
+            if (dObj && !isNaN(dObj.getTime())) {
+                const dateStr = formatDateToYYYYMMDD(dObj);
+                if (dateStr >= startDate && dateStr <= endDate) {
+                    // Each row in jhpmsLab represents 1 class conducted
+                    map[udise] = (map[udise] || 0) + 1;
+                }
             }
         });
         return map;
-    }, [jhpmsLab, selectedMonthStr]);
+    }, [jhpmsLab, startDate, endDate]);
 
-    // Precalculated usage hours logged in selected month for all schools
-    const monthEdustatMap = useMemo(() => {
+    // Precalculated usage hours logged in selected date range for all schools
+    const rangeEdustatMap = useMemo(() => {
         const map = {};
-        if (!selectedMonthStr) return map;
-        const [year, monthIdx] = selectedMonthStr.split('-').map(Number);
-
         (edustat || []).forEach(e => {
             const rawUdise = e.udise || e.udise_code || getValLocal(e, 'udise') || getValLocal(e, 'udise_code') || '';
             const udise = cleanUdiseLocal(rawUdise);
@@ -154,29 +138,31 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             const rawDate = e.date || e.Date || getValLocal(e, 'date');
             const dObj = parseDateRobust(rawDate);
             
-            if (dObj && !isNaN(dObj.getTime()) && dObj.getFullYear() === year && dObj.getMonth() === monthIdx) {
-                const hoursVal = e._hours !== undefined ? e._hours : (e.hours !== undefined ? Number(e.hours) : Number(getValLocal(e, 'hours') || getValLocal(e, 'used') || 0));
-                map[udise] = (map[udise] || 0) + hoursVal;
+            if (dObj && !isNaN(dObj.getTime())) {
+                const dateStr = formatDateToYYYYMMDD(dObj);
+                if (dateStr >= startDate && dateStr <= endDate) {
+                    const hoursVal = e._hours !== undefined ? e._hours : (e.hours !== undefined ? Number(e.hours) : Number(getValLocal(e, 'hours') || getValLocal(e, 'used') || 0));
+                    map[udise] = (map[udise] || 0) + hoursVal;
+                }
             }
         });
         return map;
-    }, [edustat, selectedMonthStr]);
+    }, [edustat, startDate, endDate]);
 
     // Build the prioritized school visits roster
     const priorities = useMemo(() => {
-        if (!selectedMonthStr) return [];
         const today = new Date();
 
         return data.schools.map(s => {
             const udise = String(s.udise_code).trim();
-            const target = s.monthly_target || 1;
+            const target = (s.monthly_target || 1) * durationMonths;
 
             // A. Calculate Absolute Aging (All visits regardless of filters)
             const absLastVisitDate = absoluteLastVisitMap[udise] || null;
 
             let daysSince = 999;
             if (absLastVisitDate) {
-                daysSince = Math.floor((today - new Date(absLastVisitDate)) / (1000 * 60 * 60 * 24));
+                daysSince = Math.floor((today - parseDateRobust(absLastVisitDate)) / (1000 * 60 * 60 * 24));
             }
 
             // Weight calculation for Aging (max 35 points)
@@ -187,10 +173,10 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             else if (daysSince >= 30) agingScore = 15;
             else if (daysSince >= 15) agingScore = 5;
 
-            // B. Target Deficit for selected month (max 30 points)
-            const completedInMonth = monthVisitsCountMap[udise] || 0;
+            // B. Target Deficit for selected range (max 30 points)
+            const completedInPeriod = rangeVisitsCountMap[udise] || 0;
 
-            const deficit = Math.max(0, target - completedInMonth);
+            const deficit = Math.max(0, target - completedInPeriod);
             const deficitScore = target > 0 ? (deficit / target) * 30 : 0;
 
             // C. Manpower Vacancy (max 20 points)
@@ -198,9 +184,9 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             const isVacant = mp.status === 'Vacant';
             const vacancyScore = isVacant ? 20 : 0;
 
-            // D. Critical concerns in selected month (max 15 points)
-            const totalJhpmsClasses = monthJhpmsMap[udise] || 0;
-            const totalEdustatHours = monthEdustatMap[udise] || 0;
+            // D. Critical concerns in selected date range (max 15 points)
+            const totalJhpmsClasses = rangeJhpmsMap[udise] || 0;
+            const totalEdustatHours = rangeEdustatMap[udise] || 0;
 
             const jhpmsConcern = totalJhpmsClasses === 0 ? 7.5 : 0;
             const edustatConcern = totalEdustatHours === 0 ? 7.5 : 0;
@@ -221,16 +207,16 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 reasons.push(`⏳ Long overdue (Not visited in ${daysSince} days)`);
             }
             if (deficit > 0) {
-                reasons.push(`📊 Target deficit (${deficit} of ${target} visits pending for this month)`);
+                reasons.push(`📊 Target deficit (${deficit} of ${target} visits pending in range)`);
             }
             if (isVacant) {
                 reasons.push("👤 ICT Instructor post is vacant (Candidate Mobilization needed)");
             }
             if (totalJhpmsClasses === 0) {
-                reasons.push("📉 JHPMS concern (0 classes logged this month)");
+                reasons.push("📉 JHPMS concern (0 classes logged in range)");
             }
             if (totalEdustatHours === 0) {
-                reasons.push("💻 EduStat concern (0 usage hours synced this month)");
+                reasons.push("💻 EduStat concern (0 usage hours synced in range)");
             }
 
             // Fallback default reason if everything looks fine but still flagged
@@ -243,7 +229,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 daysSince,
                 absLastVisitDate,
                 deficit,
-                completedInMonth,
+                completedInPeriod,
                 target,
                 isVacant,
                 reasons,
@@ -251,19 +237,42 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             };
         })
         .sort((a, b) => b.score - a.score);
-    }, [data.schools, absoluteLastVisitMap, monthVisitsCountMap, manpowerMap, monthJhpmsMap, monthEdustatMap, selectedMonthStr]);
+    }, [data.schools, absoluteLastVisitMap, rangeVisitsCountMap, manpowerMap, rangeJhpmsMap, rangeEdustatMap, durationMonths]);
 
-    // Curated Monthly visit plan contains top 40 schools
+    // Curated visit plan contains top 40 schools
     const top40Schools = useMemo(() => {
+        const isMultiMonth = durationMonths > 1;
         return priorities.slice(0, 40).map((school, index) => {
-            // Assign a planning week dynamically (Weeks 1 to 4)
-            const weekIndex = Math.floor(index / 10) + 1; // 10 schools per week
-            return {
-                ...school,
-                planningWeek: `Week ${weekIndex}`
-            };
+            if (isMultiMonth) {
+                // E.g., if duration is 3 months, divide index 0-39 by (40 / durationMonths) to get Month 1, Month 2, Month 3
+                const monthIndex = Math.min(durationMonths, Math.floor(index / (40 / durationMonths)) + 1);
+                return {
+                    ...school,
+                    planningSlot: `Month ${monthIndex}`
+                };
+            } else {
+                const weekIndex = Math.floor(index / 10) + 1; // 10 schools per week
+                return {
+                    ...school,
+                    planningSlot: `Week ${weekIndex}`
+                };
+            }
         });
-    }, [priorities]);
+    }, [priorities, durationMonths]);
+
+    // Dynamic slot list generator based on duration
+    const slotOptions = useMemo(() => {
+        const slots = ['All'];
+        const isMultiMonth = durationMonths > 1;
+        if (isMultiMonth) {
+            for (let i = 1; i <= durationMonths; i++) {
+                slots.push(`Month ${i}`);
+            }
+        } else {
+            slots.push('Week 1', 'Week 2', 'Week 3', 'Week 4');
+        }
+        return slots;
+    }, [durationMonths]);
 
     // Grouping Top 40 by District/Block to optimize travel
     const blockClusters = useMemo(() => {
@@ -283,16 +292,17 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         return top40Schools.filter(s => s.isVacant).length;
     }, [top40Schools]);
 
-    // Filter Top 40 list by Week selection
+    // Filter Top 40 list by Slot selection
     const filteredTop40 = useMemo(() => {
-        if (selectedWeek === 'All') return top40Schools;
-        return top40Schools.filter(s => s.planningWeek === selectedWeek);
-    }, [top40Schools, selectedWeek]);
+        if (selectedSlot === 'All') return top40Schools;
+        return top40Schools.filter(s => s.planningSlot === selectedSlot);
+    }, [top40Schools, selectedSlot]);
 
-    // Pagination calculations
+    // Reset slot filter and page when range parameters change
     useEffect(() => {
+        setSelectedSlot('All');
         setCurrentPage(1);
-    }, [selectedMonthStr, selectedWeek]);
+    }, [startDate, endDate]);
 
     const totalPages = rowsPerPage === -1 ? 1 : Math.ceil(filteredTop40.length / rowsPerPage);
     const activePage = Math.min(currentPage, totalPages) || 1;
@@ -310,6 +320,14 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         return { label: 'MEDIUM', color: 'bg-teal-600 shadow-teal-100 dark:bg-teal-700', action: 'Routine Visit Planning' };
     };
 
+    // Helper to resolve slot badge color dynamically
+    const getSlotBadgeColor = (slot) => {
+        if (slot.includes('1')) return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950/20 dark:text-cyan-400';
+        if (slot.includes('2')) return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/20 dark:text-indigo-400';
+        if (slot.includes('3')) return 'bg-purple-100 text-purple-800 dark:bg-purple-950/20 dark:text-purple-400';
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-950/20 dark:text-amber-400';
+    };
+
     // Copy formatted visit details to clipboard for direct WhatsApp sharing
     const handleCopyWhatsApp = (school) => {
         const text = `*🏫 SCHOOL VISIT BRIEF: ${school.school_name}*\n` +
@@ -317,7 +335,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                      `*Block/District:* ${school.block} / ${school.district}\n` +
                      `*Assigned Visitor:* ${school.visitor_name || 'Unassigned'}\n` +
                      `*Priority Rank & Score:* ${school.score} pts (${getPriorityDetails(school.score).label})\n` +
-                     `*Scheduled Slot:* ${school.planningWeek}\n` +
+                     `*Scheduled Slot:* ${school.planningSlot}\n` +
                      `*Days Since Last Visit:* ${school.daysSince === 999 ? 'Never visited' : `${school.daysSince} days`}\n\n` +
                      `*Why this school is prioritized?*\n` +
                      school.reasons.map((r, i) => `  ${i + 1}. ${r}`).join('\n') + `\n\n` +
@@ -345,7 +363,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
     const handleExportExcel = () => {
         const excelData = top40Schools.map((s, idx) => ({
             "Rank": idx + 1,
-            "Scheduled Week": s.planningWeek,
+            "Scheduled Slot": s.planningSlot,
             "School Name": s.school_name,
             "UDISE Code": s.udise_code,
             "District": s.district,
@@ -355,10 +373,10 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             "Abs Days Since Last Visit": s.daysSince === 999 ? 'Never' : s.daysSince,
             "Absolute Last Visit Date": s.absLastVisitDate ? formatDate(s.absLastVisitDate) : 'Never',
             "Staff Status": s.isVacant ? 'Vacant' : 'Active',
-            "Deficit This Month": s.deficit,
+            "Deficit In Range": s.deficit,
             "Rationales": s.reasons.join(' | ')
         }));
-        exportToExcel(excelData, `Monthly_Visit_Plan_${selectedMonthStr}`);
+        exportToExcel(excelData, `Visit_Plan_${startDate}_to_${endDate}`);
     };
 
     return (
@@ -370,22 +388,19 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                         <Icons.Plan className="w-5 h-5" />
                     </div>
                     <div className="text-left">
-                        <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">Team Monthly Visit Planner</h2>
+                        <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">Team Custom Range Visit Planner</h2>
                         <p className="text-[11.5px] text-slate-400 font-medium mt-0.5">Weighted Priority Engine • Curated Top 40 Roster</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap uppercase tracking-wider">Select Month:</label>
-                    <select
-                        value={selectedMonthStr}
-                        onChange={(e) => setSelectedMonthStr(e.target.value)}
-                        className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer w-full md:w-56 shadow-sm transition"
-                    >
-                        {monthOptions.map(m => (
-                            <option key={m.value} value={m.value}>{m.label}</option>
-                        ))}
-                    </select>
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-2 shadow-sm text-xs font-bold text-slate-750 dark:text-slate-300">
+                    <span className="text-slate-400 uppercase tracking-wider text-[10px] font-black mr-1">Planning Period:</span>
+                    <span>{formatDate(startDate)}</span>
+                    <span className="text-slate-350 mx-1">to</span>
+                    <span>{formatDate(endDate)}</span>
+                    <span className="ml-2 bg-teal-500/10 text-teal-600 dark:text-teal-400 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider">
+                        {durationMonths} {durationMonths === 1 ? 'Month' : 'Months'}
+                    </span>
                 </div>
             </div>
 
@@ -402,7 +417,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                     </div>
                 </div>
 
-                <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 p-4 rounded-2xl shadow-sm flex items-center gap-4">
+                <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-855 p-4 rounded-2xl shadow-sm flex items-center gap-4">
                     <div className="p-3 bg-rose-500/10 text-rose-600 rounded-xl">
                         <Icons.Users className="w-6 h-6" />
                     </div>
@@ -413,7 +428,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                     </div>
                 </div>
 
-                <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 p-4 rounded-2xl shadow-sm flex items-center gap-4 col-span-1 sm:col-span-2">
+                <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-855 p-4 rounded-2xl shadow-sm flex items-center gap-4 col-span-1 sm:col-span-2">
                     <div className="p-3 bg-cyan-500/10 text-cyan-600 rounded-xl">
                         <Icons.ExecutiveClipboard className="w-6 h-6" />
                     </div>
@@ -449,29 +464,29 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 {/* Info & Calculation Banner */}
                 <div className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-150 dark:border-slate-800 p-3 px-6 text-xs text-slate-500 dark:text-slate-400 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shrink-0">
                     <div className="text-left leading-normal">
-                        ℹ️ <strong className="text-slate-700 dark:text-slate-350">Weighted Risk Logic:</strong> Priority score (out of 100) dynamically weights: **Absolute Aging** (35 pts), **Target Deficit in month** (30 pts), **CC Staffing Vacancy** (20 pts), and **Critical Usage Concerns** (JHPMS/EduStat zero-logs) (15 pts).
+                        ℹ️ <strong className="text-slate-700 dark:text-slate-350">Weighted Risk Logic:</strong> Priority score (out of 100) dynamically weights: **Absolute Aging** (35 pts), **Target Deficit in period** (30 pts), **CC Staffing Vacancy** (20 pts), and **Critical Usage Concerns** (JHPMS/EduStat zero-logs) (15 pts).
                     </div>
                 </div>
 
-                {/* Weekly Scheduler Tabs Bar */}
+                {/* Weekly / Monthly Scheduler Tabs Bar */}
                 <div className="bg-white dark:bg-slate-900 border-b border-slate-150 dark:border-slate-800 px-6 py-2 flex items-center justify-between gap-4 shrink-0 overflow-x-auto no-print">
                     <div className="flex gap-1.5 select-none">
-                        {['All', 'Week 1', 'Week 2', 'Week 3', 'Week 4'].map((week) => {
-                            const count = week === 'All' ? top40Schools.length : top40Schools.filter(s => s.planningWeek === week).length;
-                            const isSelected = selectedWeek === week;
+                        {slotOptions.map((slot) => {
+                            const count = slot === 'All' ? top40Schools.length : top40Schools.filter(s => s.planningSlot === slot).length;
+                            const isSelected = selectedSlot === slot;
                             return (
                                 <button
-                                    key={week}
-                                    onClick={() => setSelectedWeek(week)}
+                                    key={slot}
+                                    onClick={() => setSelectedSlot(slot)}
                                     className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition-colors flex items-center gap-1.5 ${
                                         isSelected
                                             ? 'bg-teal-600 text-white'
-                                            : 'bg-slate-50 hover:bg-slate-100 text-slate-600 dark:bg-slate-850 dark:text-slate-300 dark:hover:bg-slate-800'
+                                            : 'bg-slate-50 hover:bg-slate-100 text-slate-600 dark:bg-slate-855 dark:text-slate-300 dark:hover:bg-slate-800'
                                     }`}
                                 >
-                                    <span>{week}</span>
+                                    <span>{slot}</span>
                                     <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
-                                        isSelected ? 'bg-teal-700 text-teal-100' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                                        isSelected ? 'bg-teal-700 text-teal-100' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-440'
                                     }`}>
                                         {count}
                                     </span>
@@ -526,13 +541,8 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3.5 text-center">
-                                                <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wide ${
-                                                    s.planningWeek === 'Week 1' ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950/20 dark:text-cyan-400' :
-                                                    s.planningWeek === 'Week 2' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/20 dark:text-indigo-400' :
-                                                    s.planningWeek === 'Week 3' ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/20 dark:text-purple-400' :
-                                                    'bg-amber-100 text-amber-800 dark:bg-amber-950/20 dark:text-amber-400'
-                                                }`}>
-                                                    {s.planningWeek}
+                                                <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wide ${getSlotBadgeColor(s.planningSlot)}`}>
+                                                    {s.planningSlot}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3.5 text-left">
@@ -559,7 +569,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                         {details.label}
                                                     </span>
                                                     {s.reasons.map((reason, idx) => (
-                                                        <span key={idx} className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-805 text-slate-600 dark:text-slate-350 border border-slate-200 dark:border-slate-700/60 px-2 py-0.5 rounded-full text-[9px] font-bold">
+                                                        <span key={idx} className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-850 text-slate-600 dark:text-slate-350 border border-slate-200 dark:border-slate-700/60 px-2 py-0.5 rounded-full text-[9px] font-bold">
                                                             {reason}
                                                         </span>
                                                     ))}
@@ -604,7 +614,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                         <div className="flex-1 text-left w-full">
                                                             <div className="flex items-center gap-2 mb-3">
                                                                 <Icons.Compliance className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                                                                <h4 className="text-xs font-black text-slate-700 dark:text-slate-250 uppercase tracking-wider">Field Visit Audit Checklist</h4>
+                                                                <h4 className="text-xs font-black text-slate-700 dark:text-slate-255 uppercase tracking-wider">Field Visit Audit Checklist</h4>
                                                             </div>
                                                             <div className="space-y-2">
                                                                 {schoolChecklist.map((task, idx) => {
