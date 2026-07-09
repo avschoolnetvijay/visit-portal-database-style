@@ -1648,6 +1648,26 @@ const OverallAnalysis = ({
     return map;
   }, [currentVisits, validUdises]);
 
+  const absoluteLastVisitMap = useMemo(() => {
+    const map = {};
+    (preprocessedVisits || []).forEach((v) => {
+      if (v._cleanUdise && validUdises.has(v._cleanUdise)) {
+        const udise = v._cleanUdise;
+        const type = (v.visit_type || '').toLowerCase();
+        const isIct = type.includes('ict');
+        if (!isIct) return; // Only count ICT visits for target completion!
+
+        if (v._parsedTime) {
+          const d = new Date(v._parsedTime);
+          if (!map[udise] || d > map[udise]) {
+            map[udise] = d;
+          }
+        }
+      }
+    });
+    return map;
+  }, [preprocessedVisits, validUdises]);
+
   // 6. Enriched School Records compilation with joins & scores (respecting spelling mappings)
   const enriched = useMemo(() => {
     const maxJhpms = Math.max(1, ...Object.values(jhpmsMap));
@@ -1689,7 +1709,8 @@ const OverallAnalysis = ({
       const fieldVisits = vis.count;
       const monthlyTarget = s.monthly_target || 1;
       const targetVisits = monthlyTarget * durationMonths;
-      const lastVisitDate = s.lastVisit || vis.lastDate;
+      const absoluteLastVisit = absoluteLastVisitMap[udise] || null;
+      const lastVisitDate = s.lastVisit || absoluteLastVisit || vis.lastDate;
 
       // Component Sub-scores (0-100)
       const jhpmsScore = isJhpmsActive ? clamp((jhpmsClasses / maxJhpms) * 100) : 0;
@@ -1786,7 +1807,7 @@ const OverallAnalysis = ({
         avgClassPerDay
       };
     });
-  }, [fSchools, jhpmsMap, jhpmsSplitMap, edustatMap, edustatSyncMap, manpowerMap, visitMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, weights, validWdays, ccNameMapping, durationMonths, preprocessedVisits]);
+  }, [fSchools, jhpmsMap, jhpmsSplitMap, edustatMap, edustatSyncMap, manpowerMap, visitMap, absoluteLastVisitMap, isJhpmsActive, isEdustatActive, isVisitActive, isManpowerActive, weights, validWdays, ccNameMapping, durationMonths, preprocessedVisits]);
 
   // 7. Enriched dataset with Prop-Filters applied (Exceptions & Performance Bands)
   const finalEnriched = useMemo(() => {
