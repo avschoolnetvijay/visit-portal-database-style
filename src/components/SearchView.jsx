@@ -196,18 +196,31 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
     else if (uniqueCount === 0) status = 'Not Visited';
     else status = 'In Progress';
 
-    const udise = String(school.udise_code);
+    const cleanStrUdise = (u) => {
+      if (!u) return '';
+      let s = String(u).trim();
+      if (s.endsWith('.0')) {
+        s = s.substring(0, s.length - 2);
+      }
+      return s;
+    };
+
+    const udise = cleanStrUdise(school.udise_code);
     const start = new Date(startDate);
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
     const sVisits = visits.filter(v => {
       const d = new Date(v.visit_date);
-      return String(v.udise_code) === udise && d >= start && d <= end;
+      return cleanStrUdise(v.udise_code) === udise && d >= start && d <= end;
     }).sort((a, b) => new Date(b.visit_date) - new Date(a.visit_date));
 
-    const lastVisitDate = sVisits.length > 0 ? new Date(sVisits[0].visit_date) : null;
-    const daysSinceLast = lastVisitDate ? Math.floor((maxLogDate - lastVisitDate) / (1000 * 60 * 60 * 24)) : 999;
+    // Resolve absolute last visit info from unfiltered history
+    const allSchoolVisits = visits.filter(v => cleanStrUdise(v.udise_code) === udise)
+      .sort((a, b) => new Date(b.visit_date) - new Date(a.visit_date));
+
+    const absoluteLastVisitDate = allSchoolVisits.length > 0 ? new Date(allSchoolVisits[0].visit_date) : null;
+    const daysSinceLast = absoluteLastVisitDate ? Math.floor((maxLogDate - absoluteLastVisitDate) / (1000 * 60 * 60 * 24)) : 999;
 
     const insights = [];
     if (uniqueCount === 0) insights.push({ t: 'Critical', m: 'No visits recorded in this period.' });
@@ -223,7 +236,7 @@ const SearchView = ({ schools, visits, startDate, endDate, onDrillDown, darkMode
       gap,
       status,
       insights,
-      lastVisit: lastVisitDate ? formatDate(sVisits[0].visit_date) : 'Never'
+      lastVisit: absoluteLastVisitDate ? formatDate(allSchoolVisits[0].visit_date) : 'Never'
     };
   }, [selectedItem, visits, startDate, endDate, searchType]);
 

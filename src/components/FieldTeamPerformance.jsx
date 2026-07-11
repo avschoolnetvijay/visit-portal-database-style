@@ -2,6 +2,15 @@ import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { exportToExcel, parseDateRobust } from '../utils';
 import { Icons } from './Icons';
 
+const cleanUdise = (u) => {
+    if (!u) return '';
+    let s = String(u).trim();
+    if (s.endsWith('.0')) {
+        s = s.substring(0, s.length - 2);
+    }
+    return s;
+};
+
 const FieldTeamPerformance = ({ 
     schools, 
     visits, 
@@ -82,14 +91,19 @@ const FieldTeamPerformance = ({
                 };
             }
             ccMap[ccKey].totalSchools++;
-            ccMap[ccKey].udises.add(String(s.udise_code || '').trim());
+            ccMap[ccKey].udises.add(cleanUdise(s.udise_code));
         });
 
         // 2. Process Manpower (Count working instructors)
         manpower.forEach(m => {
-            const udise = String(m.udise || getVal(m, 'udise') || '').trim();
-            const status = String(getVal(m, 'status') || '').toUpperCase();
-            if (status.includes('WORKING')) {
+            const udise = cleanUdise(m.udise || getVal(m, 'udise'));
+            const status = String(getVal(m, 'status') || '').trim();
+            const sUpper = status.toUpperCase();
+            
+            // Count as working if status contains WORKING, ACTIVE, or is empty (defaults to Active in details view)
+            const isWorking = sUpper.includes('WORKING') || sUpper.includes('ACTIVE') || status === '';
+            
+            if (isWorking) {
                 // Find which CC owns this UDISE
                 Object.values(ccMap).forEach(ccData => {
                     if (ccData.udises.has(udise)) {
@@ -434,12 +448,12 @@ const FieldTeamPerformance = ({
         // Generate data based on viewType
         if (viewType === 'devices') {
             // Find all master devices for this CC's UDISE codes
-            const masterDevices = (edustatMaster || []).filter(m => ccUdises.has(String(m.udise || '').trim()));
+            const masterDevices = (edustatMaster || []).filter(m => ccUdises.has(cleanUdise(m.udise || getVal(m, 'udise'))));
 
             // Find active serial numbers in date range
             const filteredEdustat = edustat.filter(row => {
                 const dateStr = formatDateStr(row.date || getVal(row, 'date'));
-                return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(String(row.udise || '').trim());
+                return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(cleanUdise(row.udise || getVal(row, 'udise')));
             });
 
             const activeSerials = new Set();
@@ -473,8 +487,8 @@ const FieldTeamPerformance = ({
             }
 
             return filteredDevices.map((m, idx) => {
-                const udise = String(m.udise || '').trim();
-                const schoolRec = schools.find(s => String(s.udise_code || '').trim() === udise);
+                const udise = cleanUdise(m.udise || getVal(m, 'udise'));
+                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
                 
                 let status = 'Idle / Not Used';
                 if (String(m.installed || '').toUpperCase() === 'NO') status = 'Not Installed';
@@ -493,11 +507,11 @@ const FieldTeamPerformance = ({
         }
 
         if (viewType === 'instructors') {
-            const ccManpower = manpower.filter(m => ccUdises.has(String(m.udise || getVal(m, 'udise') || '').trim()));
+            const ccManpower = manpower.filter(m => ccUdises.has(cleanUdise(m.udise || getVal(m, 'udise'))));
             
             const listData = ccManpower.map((m, idx) => {
-                const udise = String(m.udise || getVal(m, 'udise') || '').trim();
-                const schoolRec = schools.find(s => String(s.udise_code || '').trim() === udise);
+                const udise = cleanUdise(m.udise || getVal(m, 'udise'));
+                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
                 const rawStatus = m.status || getVal(m, 'status') || 'Active';
                 
                 let instructorStatus = 'N/A';
@@ -577,14 +591,14 @@ const FieldTeamPerformance = ({
 
         if (viewType === 'classes') {
             const filteredJhpms = jhpmsLab.filter(l => {
-                const udise = String(l.udise || getVal(l, 'udise') || '').trim();
+                const udise = cleanUdise(l.udise || getVal(l, 'udise'));
                 const dateStr = formatDateStr(l.date || getVal(l, 'date'));
                 return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(udise);
             });
 
             let classRows = [];
             filteredJhpms.forEach(l => {
-                const udise = String(l.udise || getVal(l, 'udise') || '').trim();
+                const udise = cleanUdise(l.udise || getVal(l, 'udise'));
                 const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
                 
                 const teacherKey = Object.keys(l).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('subjectteacher'));
@@ -594,7 +608,7 @@ const FieldTeamPerformance = ({
                 const subject = subjectKey ? String(l[subjectKey] || '').trim().toUpperCase() : '';
                 
                 const remarks = l.remarks || getVal(l, 'remarks') || getVal(l, 'topic') || '-';
-                const schoolRec = schools.find(s => String(s.udise_code || '').trim() === udise);
+                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
 
                 const isIct = !subject.split(/[^A-Z0-9]+/).includes('MIS') && (labType.includes('ICT') && subject.includes('COMPUTER'));
                 const isSmart = !subject.split(/[^A-Z0-9]+/).includes('MIS') && !(labType.includes('ICT') && subject.includes('COMPUTER')) && labType.includes('SMART');
@@ -626,12 +640,12 @@ const FieldTeamPerformance = ({
         if (viewType === 'visits') {
             const ccVisits = visits.filter(v => {
                 const dateStr = formatDateStr(v.visit_date || getVal(v, 'date'));
-                return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(String(v.udise_code || '').trim());
+                return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(cleanUdise(v.udise_code));
             });
 
             let visitRows = ccVisits.map(v => {
-                const udise = String(v.udise_code || '').trim();
-                const schoolRec = schools.find(s => String(s.udise_code || '').trim() === udise);
+                const udise = cleanUdise(v.udise_code);
+                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
 
                 return {
                     date: formatDateClean(v.visit_date || getVal(v, 'date')),
@@ -661,30 +675,30 @@ const FieldTeamPerformance = ({
         }
 
         // Default viewType === 'schools'
-        const ccSchoolsList = schools.filter(s => ccUdises.has(String(s.udise_code || '').trim()));
+        const ccSchoolsList = schools.filter(s => ccUdises.has(cleanUdise(s.udise_code)));
 
         // Filtered datasets for the active date range
         const rangeVisits = visits.filter(v => {
             const dateStr = formatDateStr(v.visit_date);
-            return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(String(v.udise_code || '').trim());
+            return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(cleanUdise(v.udise_code));
         });
 
         const rangeJhpms = jhpmsLab.filter(l => {
-            const udise = String(l.udise || getVal(l, 'udise') || '').trim();
+            const udise = cleanUdise(l.udise || getVal(l, 'udise') || '');
             const dateStr = formatDateStr(l.date || getVal(l, 'date'));
             return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(udise);
         });
 
         const rangeEdustat = edustat.filter(e => {
             const dateStr = formatDateStr(e.date || getVal(e, 'date'));
-            return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(String(e.udise || '').trim());
+            return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(cleanUdise(e.udise || getVal(e, 'udise') || ''));
         });
 
         const schDetailsList = ccSchoolsList.map((s, idx) => {
-            const udise = String(s.udise_code || '').trim();
+            const udise = cleanUdise(s.udise_code);
 
             // 1. Instructor Status
-            const instructorRec = manpower.find(m => String(m.udise || getVal(m, 'udise') || '').trim() === udise);
+            const instructorRec = manpower.find(m => cleanUdise(m.udise || getVal(m, 'udise') || '') === udise);
             const rawStatus = instructorRec ? (instructorRec.status || getVal(instructorRec, 'status') || 'Active') : 'N/A';
             let instructorStatus = 'N/A';
             if (rawStatus) {
@@ -701,7 +715,7 @@ const FieldTeamPerformance = ({
             let edustatNotInstalled = 0;
 
             (edustatMaster || []).forEach(m => {
-                if (String(m.udise || '').trim() === udise) {
+                if (cleanUdise(m.udise) === udise) {
                     const device = String(m.device || '').toUpperCase();
                     const installed = String(m.installed || '').toUpperCase();
                     if (installed === 'YES') {
@@ -718,7 +732,7 @@ const FieldTeamPerformance = ({
             let ictClasses = 0;
             let smartClasses = 0;
             rangeJhpms.forEach(l => {
-                const rowUdise = String(l.udise || getVal(l, 'udise') || '').trim();
+                const rowUdise = cleanUdise(l.udise || getVal(l, 'udise') || '');
                 if (rowUdise !== udise) return;
 
                 const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
@@ -749,7 +763,7 @@ const FieldTeamPerformance = ({
             });
 
             rangeEdustat.forEach(e => {
-                const rowUdise = String(e.udise || '').trim();
+                const rowUdise = cleanUdise(e.udise || getVal(e, 'udise') || '');
                 if (rowUdise !== udise) return;
 
                 const serial = String(e.serial || '').trim();
@@ -765,12 +779,20 @@ const FieldTeamPerformance = ({
                 }
             });
 
-            // 5. Visits count
+            // 5. Visits count (range-filtered) & Last Visit Date (absolute history)
             let visitsCount = 0;
             let lastVisitDate = '-';
+            
+            // Count visits within target range
             rangeVisits.forEach(v => {
-                if (String(v.udise_code || '').trim() !== udise) return;
-                visitsCount++;
+                if (cleanUdise(v.udise_code) === udise) {
+                    visitsCount++;
+                }
+            });
+
+            // Find absolute latest visit date in history
+            visits.forEach(v => {
+                if (cleanUdise(v.udise_code) !== udise) return;
                 const vDateStr = formatDateStr(v.visit_date);
                 if (vDateStr) {
                     if (lastVisitDate === '-' || vDateStr > lastVisitDate) {

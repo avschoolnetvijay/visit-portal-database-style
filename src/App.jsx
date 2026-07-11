@@ -1125,14 +1125,22 @@ const App = () => {
                         m.visitDates.add(dateStr);
                     }
                 }
-                
-                const dObj = new Date(v.visit_date);
-                if (!isNaN(dObj.getTime())) {
-                    if (!m.lastVisit || dObj > new Date(m.lastVisit)) m.lastVisit = v.visit_date;
-                }
 
                 if (type.includes('smart')) m.smartRecords++;
                 if (type.includes('ict')) m.ictRecords++;
+            }
+        });
+
+        // Resolve absolute last visit date from unfiltered combinedVisits
+        combinedVisits.forEach(v => {
+            if (metrics[v.udise_code]) {
+                const m = metrics[v.udise_code];
+                const dObj = new Date(v.visit_date);
+                if (!isNaN(dObj.getTime())) {
+                    if (!m.lastVisit || dObj > new Date(m.lastVisit)) {
+                        m.lastVisit = v.visit_date;
+                    }
+                }
             }
         });
 
