@@ -3,17 +3,44 @@ import { Icons } from './Icons';
 import { exportToExcel, formatDate, parseDateRobust, getMonthsInRange } from '../utils';
 
 const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat = [], edustatMaster = [], schools = [], startDate, endDate }) => {
-    // 1. Dynamic Months Duration calculation
+    // 1. Dynamic Months within selected QPR date range
+    const planningMonths = useMemo(() => {
+        const list = [];
+        const start = parseDateRobust(startDate);
+        const end = parseDateRobust(endDate);
+        if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return [];
+        
+        let curr = new Date(start.getFullYear(), start.getMonth(), 1);
+        const endLimit = new Date(end.getFullYear(), end.getMonth(), 1);
+        while (curr <= endLimit) {
+            const label = curr.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+            const value = curr.toISOString().substring(0, 7); // YYYY-MM
+            list.push({ label, value });
+            curr.setMonth(curr.getMonth() + 1);
+        }
+        return list;
+    }, [startDate, endDate]);
+
+    const [selectedPlanningMonth, setSelectedPlanningMonth] = useState('');
+
+    useEffect(() => {
+        if (planningMonths.length > 0) {
+            const todayYYYYMM = new Date().toISOString().substring(0, 7);
+            const found = planningMonths.find(m => m.value === todayYYYYMM);
+            setSelectedPlanningMonth(found ? found.value : planningMonths[0].value);
+        } else {
+            setSelectedPlanningMonth('');
+        }
+    }, [planningMonths]);
+
     const durationMonths = useMemo(() => {
         return getMonthsInRange(startDate, endDate) || 1;
     }, [startDate, endDate]);
 
-    // Operational capacity scales to 40 visits per month
-    const maxVisitsCapacity = useMemo(() => {
-        return 40 * durationMonths;
-    }, [durationMonths]);
+    // Capacity is fixed at 40 visits per coordinator per month
+    const maxVisitsCapacity = 40;
 
-    const [selectedSlot, setSelectedSlot] = useState('All'); // 'All', 'Week 1'/'Month 1', etc.
+    const [selectedSlot, setSelectedSlot] = useState('All'); // 'All', 'Week 1', 'Week 2', etc.
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -36,7 +63,11 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
     // Helper function to clean UDISE codes
     const cleanUdiseLocal = (val) => {
         if (!val) return '';
-        return String(val).replace(/["']/g, '').trim();
+        let s = String(val).replace(/["']/g, '').trim();
+        if (s.endsWith('.0')) {
+            s = s.substring(0, s.length - 2);
+        }
+        return s;
     };
 
     // Helper function to format Date object to YYYY-MM-DD
@@ -90,7 +121,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         return map;
     }, [allVisits]);
 
-    // Precalculated completed visits count in selected date range for all schools
+    // Precalculated completed visits count in selected QPR date range for all schools
     const rangeVisitsCountMap = useMemo(() => {
         const map = {};
         (allVisits || []).forEach(v => {
@@ -124,7 +155,6 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             if (dObj && !isNaN(dObj.getTime())) {
                 const dateStr = formatDateToYYYYMMDD(dObj);
                 if (dateStr >= startDate && dateStr <= endDate) {
-                    // Each row in jhpmsLab represents 1 class conducted
                     map[udise] = (map[udise] || 0) + 1;
                 }
             }
@@ -154,13 +184,60 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         return map;
     }, [edustat, startDate, endDate]);
 
+    // Precalculated District Averages for JHPMS classes and Edustat hours
+    const districtAverages = useMemo(() => {
+        const stats = {};
+        
+        // Count schools per district
+        data.schools.forEach(s => {
+            const dist = String(s.district || 'Unknown').trim().toUpperCase();
+            if (!stats[dist]) {
+                stats[dist] = { schoolCount: 0, totalJhpms: 0, totalEdustat: 0 };
+            }
+            stats[dist].schoolCount++;
+        });
+
+        // Sum JHPMS classes logged for each school in district
+        Object.entries(rangeJhpmsMap).forEach(([udise, count]) => {
+            const schoolRec = data.schools.find(s => cleanUdiseLocal(s.udise_code) === udise);
+            if (schoolRec) {
+                const dist = String(schoolRec.district || 'Unknown').trim().toUpperCase();
+                if (stats[dist]) {
+                    stats[dist].totalJhpms += count;
+                }
+            }
+        });
+
+        // Sum Edustat hours logged for each school in district
+        Object.entries(rangeEdustatMap).forEach(([udise, hours]) => {
+            const schoolRec = data.schools.find(s => cleanUdiseLocal(s.udise_code) === udise);
+            if (schoolRec) {
+                const dist = String(schoolRec.district || 'Unknown').trim().toUpperCase();
+                if (stats[dist]) {
+                    stats[dist].totalEdustat += hours;
+                }
+            }
+        });
+
+        // Compute averages
+        const averages = {};
+        Object.entries(stats).forEach(([dist, item]) => {
+            averages[dist] = {
+                avgJhpms: item.schoolCount > 0 ? parseFloat((item.totalJhpms / item.schoolCount).toFixed(1)) : 0,
+                avgEdustat: item.schoolCount > 0 ? parseFloat((item.totalEdustat / item.schoolCount).toFixed(1)) : 0
+            };
+        });
+
+        return averages;
+    }, [data.schools, rangeJhpmsMap, rangeEdustatMap]);
+
     // Build the prioritized school visits roster
     const priorities = useMemo(() => {
         const today = new Date();
 
         return data.schools.map(s => {
-            const udise = String(s.udise_code).trim();
-            const target = (s.monthly_target || 1) * durationMonths;
+            const udise = cleanUdiseLocal(s.udise_code);
+            const target = (s.monthly_target || 1) * durationMonths; // QPR target
 
             // A. Calculate Absolute Aging (All visits regardless of filters)
             const absLastVisitDate = absoluteLastVisitMap[udise] || null;
@@ -170,61 +247,66 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 daysSince = Math.floor((today - parseDateRobust(absLastVisitDate)) / (1000 * 60 * 60 * 24));
             }
 
-            // Weight calculation for Aging (max 35 points)
+            // Weight calculation for Aging (max 30 points)
             let agingScore = 0;
-            if (daysSince === 999) agingScore = 35;
-            else if (daysSince >= 60) agingScore = 35;
-            else if (daysSince >= 45) agingScore = 25;
-            else if (daysSince >= 30) agingScore = 15;
+            if (daysSince === 999 || daysSince >= 60) agingScore = 30;
+            else if (daysSince >= 45) agingScore = 20;
+            else if (daysSince >= 30) agingScore = 10;
             else if (daysSince >= 15) agingScore = 5;
 
-            // B. Target Deficit for selected range (max 30 points)
+            // B. QPR Target Deficit (max 35 points)
             const completedInPeriod = rangeVisitsCountMap[udise] || 0;
-
             const deficit = Math.max(0, target - completedInPeriod);
-            const deficitScore = target > 0 ? (deficit / target) * 30 : 0;
+            let deficitScore = 0;
+            if (deficit >= 3) deficitScore = 35;
+            else if (deficit === 2) deficitScore = 25;
+            else if (deficit === 1) deficitScore = 15;
 
-            // C. Manpower Vacancy (max 20 points)
+            // C. Manpower Vacancy (max 15 points)
             const mp = manpowerMap[udise] || { status: 'Vacant', name: '-' };
             const isVacant = mp.status === 'Vacant';
-            const vacancyScore = isVacant ? 20 : 0;
+            const vacancyScore = isVacant ? 15 : 0;
 
-            // D. Critical concerns in selected date range (max 15 points)
-            const totalJhpmsClasses = rangeJhpmsMap[udise] || 0;
-            const totalEdustatHours = rangeEdustatMap[udise] || 0;
+            // D. Usage & Performance Gap compared to District Averages (max 20 points)
+            const schoolJhpms = rangeJhpmsMap[udise] || 0;
+            const schoolEdustat = rangeEdustatMap[udise] || 0;
+            const distUpper = String(s.district || '').trim().toUpperCase();
+            const distAvg = districtAverages[distUpper] || { avgJhpms: 0, avgEdustat: 0 };
 
-            const jhpmsConcern = totalJhpmsClasses === 0 ? 7.5 : 0;
-            const edustatConcern = totalEdustatHours === 0 ? 7.5 : 0;
-            
-            const isLowScore = s.compositeScore !== undefined ? s.compositeScore < 40 : false;
-            const scoreConcern = isLowScore ? 5 : 0;
+            const isLowJhpms = schoolJhpms < distAvg.avgJhpms;
+            const isLowEdustat = schoolEdustat < distAvg.avgEdustat;
+            const hasUsageGap = isLowJhpms || isLowEdustat;
+            const usageGapScore = hasUsageGap ? 10 : 0;
 
-            const criticalConcernScore = Math.min(15, jhpmsConcern + edustatConcern + scoreConcern);
+            // Sync Discrepancy (10 points)
+            const hasDiscrepancy = (schoolJhpms > 0 && schoolEdustat === 0) || (schoolEdustat > 0 && schoolJhpms === 0);
+            const discrepancyScore = hasDiscrepancy ? 10 : 0;
 
-            // Total dynamic risk priority score (Capped at 100)
-            const totalScore = Math.round(agingScore + deficitScore + vacancyScore + criticalConcernScore);
+            const totalScore = Math.min(100, agingScore + deficitScore + vacancyScore + usageGapScore + discrepancyScore);
 
             // E. Dynamic actionable reasons
             const reasons = [];
             if (daysSince === 999) {
-                reasons.push("🚨 Never visited (No record in system history)");
+                reasons.push("Never visited (No record in history)");
             } else if (daysSince >= 30) {
-                reasons.push(`⏳ Long overdue (Not visited in ${daysSince} days)`);
+                reasons.push(`Long overdue (Not visited in ${daysSince} days)`);
             }
             if (deficit > 0) {
-                reasons.push(`📊 Target deficit (${deficit} of ${target} visits pending in range)`);
+                reasons.push(`Target deficit (${deficit} of ${target} visits pending in QPR)`);
             }
             if (isVacant) {
-                reasons.push("👤 ICT Instructor post is vacant (Candidate Mobilization needed)");
+                reasons.push("CC post is vacant");
             }
-            if (totalJhpmsClasses === 0) {
-                reasons.push("📉 JHPMS concern (0 classes logged in range)");
+            if (isLowJhpms) {
+                reasons.push(`Low JHPMS classes (${schoolJhpms} vs dist avg: ${distAvg.avgJhpms})`);
             }
-            if (totalEdustatHours === 0) {
-                reasons.push("💻 EduStat concern (0 usage hours synced in range)");
+            if (isLowEdustat) {
+                reasons.push(`Low EduStat hours (${schoolEdustat}h vs dist avg: ${distAvg.avgEdustat}h)`);
+            }
+            if (hasDiscrepancy) {
+                reasons.push("Sync discrepancy detected (JHPMS / EduStat log mismatch)");
             }
 
-            // Fallback default reason if everything looks fine but still flagged
             if (reasons.length === 0) {
                 reasons.push("Routine verification and baseline audit");
             }
@@ -237,122 +319,74 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 completedInPeriod,
                 target,
                 isVacant,
+                isLowJhpms,
+                isLowEdustat,
+                hasDiscrepancy,
+                distAvg,
+                schoolJhpms,
+                schoolEdustat,
                 reasons,
                 score: totalScore
             };
         })
         .sort((a, b) => b.score - a.score);
-    }, [data.schools, absoluteLastVisitMap, rangeVisitsCountMap, manpowerMap, rangeJhpmsMap, rangeEdustatMap, durationMonths]);
+    }, [data.schools, absoluteLastVisitMap, rangeVisitsCountMap, manpowerMap, rangeJhpmsMap, rangeEdustatMap, districtAverages, durationMonths]);
 
-    // Curated visit plan contains top schools up to capacity, dynamically scheduling round-robin coverage
+    // Curated visit plan contains top schools up to capacity (40 per coordinator), prioritizing by coverage cycle (Round Robin)
     const topPlannedSchools = useMemo(() => {
         const planned = [];
-        const isMultiMonth = durationMonths > 1;
+        if (!selectedPlanningMonth) return [];
 
-        // Initialize simulation state for completed visits of each school UDISE
-        const simCompletedMap = {};
+        // Group priorities by coordinator (visitor_name)
+        const ccGroups = {};
         priorities.forEach(s => {
-            simCompletedMap[s.udise_code] = s.completedInPeriod || 0;
+            const visitor = s.visitor_name || 'Unassigned';
+            if (!ccGroups[visitor]) ccGroups[visitor] = [];
+            ccGroups[visitor].push(s);
         });
 
-        // Helper to recalculate priority score inside simulation loop
-        const getSimPriorityScore = (s, simCompleted) => {
-            const target = (s.monthly_target || 1) * durationMonths;
-            const deficit = Math.max(0, target - simCompleted);
-            const deficitScore = target > 0 ? (deficit / target) * 30 : 0;
-            
-            // Base score without original deficit component + new simulated deficit component
-            const baseRiskWithoutDeficit = s.score - (s.deficit > 0 ? (s.deficit / s.target) * 30 : 0);
-            return Math.round(baseRiskWithoutDeficit + deficitScore);
-        };
+        // Process each coordinator group
+        Object.entries(ccGroups).forEach(([visitor, schoolsList]) => {
+            // Sort by completed visits in range (ascending) to guarantee full coverage, then by priority score (descending)
+            const sorted = [...schoolsList].sort((a, b) => {
+                if (a.completedInPeriod !== b.completedInPeriod) {
+                    return a.completedInPeriod - b.completedInPeriod; // Coverage cycle priority
+                }
+                return b.score - a.score;
+            });
 
-        if (isMultiMonth) {
-            // Loop for each month index
-            for (let m = 1; m <= durationMonths; m++) {
-                // Get eligible schools for this month (i.e. those that haven't reached their target yet)
-                const eligible = priorities.map(s => {
-                    const simCompleted = simCompletedMap[s.udise_code] || 0;
-                    const target = (s.monthly_target || 1) * durationMonths;
-                    const deficit = Math.max(0, target - simCompleted);
-                    return {
-                        ...s,
-                        simCompleted,
-                        deficit,
-                        simScore: getSimPriorityScore(s, simCompleted)
-                    };
-                })
-                .filter(s => s.deficit > 0)
-                .sort((a, b) => {
-                    // Sort primarily by completed visits count in range (ascending) to guarantee full coverage
-                    if (a.simCompleted !== b.simCompleted) {
-                        return a.simCompleted - b.simCompleted;
-                    }
-                    // Sort secondarily by dynamic risk score (descending)
-                    return b.simScore - a.simScore;
+            // Take up to 40 schools max
+            const selected = sorted.slice(0, 40);
+
+            // Map to Weeks 1-4 (10 schools per week)
+            selected.forEach((school, index) => {
+                const weekNum = Math.floor(index / 10) + 1; // 10 schools per week
+                planned.push({
+                    ...school,
+                    planningSlot: `Week ${weekNum}`,
+                    overallRank: index + 1
                 });
+            });
+        });
 
-                // Pick top 40 schools for this month
-                const monthSelection = eligible.slice(0, 40);
-                monthSelection.forEach((school) => {
-                    planned.push({
-                        ...school,
-                        planningSlot: `Month ${m}`,
-                        overallRank: planned.length + 1
-                    });
-                    // Increment simulation visits count for this school
-                    simCompletedMap[school.udise_code] = (simCompletedMap[school.udise_code] || 0) + 1;
-                });
-            }
-        } else {
-            // For single month, we have 4 weeks (10 schools per week)
-            for (let w = 1; w <= 4; w++) {
-                const eligible = priorities.map(s => {
-                    const simCompleted = simCompletedMap[s.udise_code] || 0;
-                    const target = s.monthly_target || 1;
-                    const deficit = Math.max(0, target - simCompleted);
-                    return {
-                        ...s,
-                        simCompleted,
-                        deficit,
-                        simScore: getSimPriorityScore(s, simCompleted)
-                    };
-                })
-                .filter(s => s.deficit > 0)
-                .sort((a, b) => {
-                    if (a.simCompleted !== b.simCompleted) {
-                        return a.simCompleted - b.simCompleted;
-                    }
-                    return b.simScore - a.simScore;
-                });
+        // Sort overall planned schools by visitor_name, then planningSlot, then overallRank
+        return planned.sort((a, b) => {
+            const ccA = a.visitor_name || 'Unassigned';
+            const ccB = b.visitor_name || 'Unassigned';
+            if (ccA !== ccB) return ccA.localeCompare(ccB);
+            return a.planningSlot.localeCompare(b.planningSlot);
+        });
+    }, [priorities, selectedPlanningMonth]);
 
-                const weekSelection = eligible.slice(0, 10);
-                weekSelection.forEach(school => {
-                    planned.push({
-                        ...school,
-                        planningSlot: `Week ${w}`,
-                        overallRank: planned.length + 1
-                    });
-                    simCompletedMap[school.udise_code] = (simCompletedMap[school.udise_code] || 0) + 1;
-                });
-            }
-        }
+    const uniqueCoordinatorsCount = useMemo(() => {
+        const visitors = new Set(priorities.map(s => s.visitor_name || 'Unassigned'));
+        return visitors.size;
+    }, [priorities]);
 
-        return planned;
-    }, [priorities, durationMonths]);
-
-    // Dynamic slot list generator based on duration
+    // Slots are always Weeks 1-4 for the chosen month
     const slotOptions = useMemo(() => {
-        const slots = ['All'];
-        const isMultiMonth = durationMonths > 1;
-        if (isMultiMonth) {
-            for (let i = 1; i <= durationMonths; i++) {
-                slots.push(`Month ${i}`);
-            }
-        } else {
-            slots.push('Week 1', 'Week 2', 'Week 3', 'Week 4');
-        }
-        return slots;
-    }, [durationMonths]);
+        return ['All', 'Week 1', 'Week 2', 'Week 3', 'Week 4'];
+    }, []);
 
     // Calculate range coverage statistics from priorities list
     const coverageStats = useMemo(() => {
@@ -403,7 +437,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
     useEffect(() => {
         setSelectedSlot('All');
         setCurrentPage(1);
-    }, [startDate, endDate]);
+    }, [startDate, endDate, selectedPlanningMonth]);
 
     const totalPages = rowsPerPage === -1 ? 1 : Math.ceil(filteredTopSchools.length / rowsPerPage);
     const activePage = Math.min(currentPage, totalPages) || 1;
@@ -416,9 +450,9 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
 
     // Get color code and labels based on score bounds
     const getPriorityDetails = (score) => {
-        if (score >= 80) return { label: 'CRITICAL', color: 'bg-rose-600 shadow-rose-100 dark:bg-rose-700', action: '🚨 Visit Immediately (Risk Level Max)' };
-        if (score >= 50) return { label: 'HIGH', color: 'bg-amber-600 shadow-amber-100 dark:bg-amber-700', action: '⚠️ High Priority: Schedule soon' };
-        return { label: 'MEDIUM', color: 'bg-teal-600 shadow-teal-100 dark:bg-teal-700', action: 'Routine Visit Planning' };
+        if (score >= 85) return { label: 'CRITICAL', color: 'bg-rose-600 shadow-rose-100 dark:bg-rose-700', action: '🚨 Urgent Inspection Required' };
+        if (score >= 50) return { label: 'HIGH', color: 'bg-amber-600 shadow-amber-100 dark:bg-amber-700', action: '⚠️ High Risk: Schedule soon' };
+        return { label: 'MEDIUM', color: 'bg-teal-650 shadow-teal-100 dark:bg-teal-700', action: 'Routine Visit Planning' };
     };
 
     // Helper to resolve slot badge color dynamically
@@ -463,7 +497,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
 
     const handleExportExcel = () => {
         const excelData = topPlannedSchools.map((s, idx) => ({
-            "Rank": idx + 1,
+            "Rank": s.overallRank,
             "Scheduled Slot": s.planningSlot,
             "School Name": s.school_name,
             "UDISE Code": s.udise_code,
@@ -475,9 +509,13 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             "Absolute Last Visit Date": s.absLastVisitDate ? formatDate(s.absLastVisitDate) : 'Never',
             "Staff Status": s.isVacant ? 'Vacant' : 'Active',
             "Deficit In Period": s.deficit,
+            "JHPMS Classes": s.schoolJhpms,
+            "EduStat Hours": s.schoolEdustat,
+            "District JHPMS Avg": s.distAvg.avgJhpms,
+            "District EduStat Avg": s.distAvg.avgEdustat,
             "Rationales": s.reasons.join(' | ')
         }));
-        exportToExcel(excelData, `Visit_Plan_${startDate}_to_${endDate}`);
+        exportToExcel(excelData, `Visit_Plan_${selectedPlanningMonth}_QPR_${startDate}_to_${endDate}`);
     };
 
     return (
@@ -489,19 +527,38 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                         <Icons.Plan className="w-5 h-5" />
                     </div>
                     <div className="text-left">
-                        <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">Team Custom Range Visit Planner</h2>
-                        <p className="text-[11.5px] text-slate-400 font-medium mt-0.5">Weighted Priority Engine • Curated Roster Plan</p>
+                        <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">Team QPR Visit Planner</h2>
+                        <p className="text-[11.5px] text-slate-400 font-medium mt-0.5">Weighted Priority Engine • Round-Robin Coverage Plan</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-2 shadow-sm text-xs font-bold text-slate-750 dark:text-slate-300">
-                    <span className="text-slate-400 uppercase tracking-wider text-[10px] font-black mr-1">Planning Period:</span>
-                    <span>{formatDate(startDate)}</span>
-                    <span className="text-slate-350 mx-1">to</span>
-                    <span>{formatDate(endDate)}</span>
-                    <span className="ml-2 bg-teal-500/10 text-teal-600 dark:text-teal-400 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider">
-                        {durationMonths} {durationMonths === 1 ? 'Month' : 'Months'}
-                    </span>
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Planning Month Selection */}
+                    <div className="flex items-center gap-2">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Target Month:</label>
+                        <select
+                            value={selectedPlanningMonth}
+                            onChange={(e) => {
+                                setSelectedPlanningMonth(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-750 dark:text-slate-300 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 cursor-pointer shadow-sm"
+                        >
+                            {planningMonths.map((m) => (
+                                <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-2 shadow-sm text-xs font-bold text-slate-750 dark:text-slate-300">
+                        <span className="text-slate-400 uppercase tracking-wider text-[10px] font-black mr-1">QPR Period:</span>
+                        <span>{formatDate(startDate)}</span>
+                        <span className="text-slate-350 mx-1">to</span>
+                        <span>{formatDate(endDate)}</span>
+                        <span className="ml-2 bg-teal-500/10 text-teal-600 dark:text-teal-400 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider">
+                            {durationMonths} {durationMonths === 1 ? 'Month' : 'Months'}
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -513,9 +570,9 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                         <Icons.Trophy className="w-6 h-6" />
                     </div>
                     <div className="text-left min-w-0">
-                        <div className="text-[9px] font-bold text-slate-450 uppercase tracking-wider font-sans truncate">Total Planned Visits</div>
+                        <div className="text-[9px] font-bold text-slate-450 uppercase tracking-wider font-sans truncate">Planned Visits ({selectedPlanningMonth ? planningMonths.find(m=>m.value===selectedPlanningMonth)?.label.split(' ')[0] : ''})</div>
                         <div className="text-lg font-black text-slate-800 dark:text-slate-100 mt-0.5 truncate">{topPlannedSchools.length} Visits</div>
-                        <div className="text-[9px] text-slate-400 mt-1 font-semibold">Capacity: {maxVisitsCapacity} max</div>
+                        <div className="text-[9px] text-slate-400 mt-1 font-semibold">Max Cap: 40 per CC ({40 * uniqueCoordinatorsCount} total)</div>
                     </div>
                 </div>
 
@@ -537,7 +594,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                         <Icons.Users className="w-6 h-6" />
                     </div>
                     <div className="text-left min-w-0">
-                        <div className="text-[9px] font-bold text-slate-455 uppercase tracking-wider font-sans truncate">CC Vacancies</div>
+                        <div className="text-[9px] font-bold text-slate-455 uppercase tracking-wider font-sans truncate">CC Vacancies (Plan)</div>
                         <div className="text-lg font-black text-slate-800 dark:text-slate-100 mt-0.5 truncate">{vacancyCountInPlan} Schools</div>
                         <div className="text-[9px] text-slate-400 mt-1 font-semibold">Focus mobilization</div>
                     </div>
@@ -561,17 +618,17 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                     </div>
                 </div>
 
-                {/* Card 5: Visit Coverage Distribution */}
+                {/* Card 5: QPR Coverage Distribution */}
                 <div className="portal-card bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-855 p-3 rounded-2xl shadow-sm flex flex-col justify-between h-full">
                     <div className="text-left w-full">
-                        <div className="text-[9px] font-bold text-slate-455 uppercase tracking-wider font-sans mb-1.5 truncate">Coverage Distribution</div>
+                        <div className="text-[9px] font-bold text-slate-455 uppercase tracking-wider font-sans mb-1.5 truncate">QPR Coverage (Visits)</div>
                         <div className="grid grid-cols-5 gap-0.5 text-center">
                             <div className="bg-slate-50 dark:bg-slate-850 py-1 rounded border dark:border-slate-700/50">
                                 <div className="text-[10px] font-black text-rose-600">{coverageStats.v0}</div>
                                 <div className="text-[7.5px] font-bold text-slate-400 mt-0.5">0 Vis</div>
                             </div>
                             <div className="bg-slate-50 dark:bg-slate-850 py-1 rounded border dark:border-slate-700/50">
-                                <div className="text-[10px] font-black text-teal-600">{coverageStats.v1}</div>
+                                <div className="text-[10px] font-black text-teal-650">{coverageStats.v1}</div>
                                 <div className="text-[7.5px] font-bold text-slate-400 mt-0.5">1 Vis</div>
                             </div>
                             <div className="bg-slate-50 dark:bg-slate-850 py-1 rounded border dark:border-slate-700/50">
@@ -609,11 +666,11 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 {/* Info & Calculation Banner */}
                 <div className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-150 dark:border-slate-800 p-3 px-6 text-xs text-slate-500 dark:text-slate-400 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shrink-0">
                     <div className="text-left leading-normal">
-                        ℹ️ <strong className="text-slate-700 dark:text-slate-350">Weighted Risk Logic:</strong> Priority score (out of 100) dynamically weights: **Absolute Aging** (35 pts), **Target Deficit in period** (30 pts), **CC Staffing Vacancy** (20 pts), and **Critical Usage Concerns** (JHPMS/EduStat zero-logs) (15 pts).
+                        ℹ️ <strong className="text-slate-700 dark:text-slate-350">QPR Scheduling Logic:</strong> Priorities use a coverage-first algorithm (0-visits cycle prioritized first), sub-ordered by risk score: **Absolute Aging** (30 pts), **QPR Target Deficit** (35 pts), **CC Vacancy** (15 pts), **District Usage Gap** (10 pts), and **JHPMS/EduStat Sync Discrepancy** (10 pts).
                     </div>
                 </div>
 
-                {/* Weekly / Monthly Scheduler Tabs Bar */}
+                {/* Weekly Scheduler Tabs Bar */}
                 <div className="bg-white dark:bg-slate-900 border-b border-slate-150 dark:border-slate-800 px-6 py-2 flex items-center justify-between gap-4 shrink-0 overflow-x-auto no-print">
                     <div className="flex gap-1.5 select-none">
                         {slotOptions.map((slot) => {
@@ -625,13 +682,13 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                     onClick={() => setSelectedSlot(slot)}
                                     className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition-colors flex items-center gap-1.5 ${
                                         isSelected
-                                            ? 'bg-teal-600 text-white'
+                                            ? 'bg-teal-650 text-white'
                                             : 'bg-slate-50 hover:bg-slate-100 text-slate-600 dark:bg-slate-855 dark:text-slate-300 dark:hover:bg-slate-800'
                                     }`}
                                 >
                                     <span>{slot}</span>
                                     <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
-                                        isSelected ? 'bg-teal-700 text-teal-100' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-440'
+                                        isSelected ? 'bg-teal-750 text-teal-100' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-440'
                                     }`}>
                                         {count}
                                     </span>
@@ -661,16 +718,16 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                 const uniqueKey = `${s.udise_code}-${s.planningSlot}`;
                                 const isRowExpanded = expandedUdise === uniqueKey;
 
-                                // Custom tasks list for checklist mapping
+                                // Custom checklist tasks based on issues
                                 const schoolChecklist = [
                                     ...(s.isVacant ? ["Conduct CC candidate mobilization & coordinate deployment status"] : []),
                                     ...(s.daysSince >= 30 || s.daysSince === 999 ? ["Conduct full site hardware audits (system, screens, connectivity)"] : []),
-                                    ...(s.reasons.some(r => r.includes("JHPMS")) ? ["Investigate JHPMS class logger setup and sync server connection"] : []),
-                                    ...(s.reasons.some(r => r.includes("EduStat")) ? ["Verify EduStat software device local sync and login records"] : []),
+                                    ...(s.isLowJhpms ? [`Investigate low JHPMS usage (${s.schoolJhpms} classes vs district avg ${s.distAvg.avgJhpms})`] : []),
+                                    ...(s.isLowEdustat ? [`Investigate low EduStat hours (${s.schoolEdustat}h vs district avg ${s.distAvg.avgEdustat}h)`] : []),
+                                    ...(s.hasDiscrepancy ? ["Verify JHPMS class logger vs EduStat local client sync logs to resolve discrepancy"] : []),
                                     "Conduct general visitor validation and log standard audit entry"
                                 ];
 
-                                // Calculate checklist progress
                                 const checkedTasks = checklistState[s.udise_code] || {};
                                 const completedCount = schoolChecklist.filter((_, idx) => checkedTasks[idx]).length;
                                 const pctVal = Math.round((completedCount / schoolChecklist.length) * 100);
@@ -678,9 +735,9 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                 return (
                                     <React.Fragment key={uniqueKey}>
                                         <tr className={`hover:bg-slate-50/40 dark:hover:bg-slate-850/10 transition-colors ${
-                                            s.score >= 80 ? 'bg-rose-50/20 dark:bg-rose-950/5' : ''
+                                            s.score >= 85 ? 'bg-rose-50/20 dark:bg-rose-950/5' : ''
                                         }`}>
-                                            <td className="px-4 py-3.5 text-center font-black text-slate-400">
+                                            <td className="px-4 py-3.5 text-center font-black text-slate-455">
                                                 <div className="flex flex-col items-center">
                                                     <span className="text-xs">{rank}</span>
                                                     <span className="text-[9px] text-slate-400 font-bold mt-0.5">({s.score} pts)</span>
@@ -695,10 +752,10 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                 <div className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[220px]" title={s.school_name}>
                                                     {s.school_name}
                                                 </div>
-                                                <div className="flex items-center gap-1.5 mt-1 font-mono text-[10px] text-slate-400">
+                                                <div className="flex items-center gap-1.5 mt-1 font-mono text-[10px] text-slate-450">
                                                     <span>UDISE: {s.udise_code}</span>
                                                     <span>•</span>
-                                                    <span className="bg-slate-100 dark:bg-slate-800 px-1 rounded font-sans text-[8.5px] font-bold text-slate-500 uppercase tracking-wide">{s.project_name}</span>
+                                                    <span className="bg-slate-100 dark:bg-slate-800 px-1 rounded font-sans text-[8.5px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{s.project_name}</span>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3.5 text-left">
@@ -714,35 +771,65 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                     <span className={`px-2 py-0.5 rounded text-[9px] font-black text-white shrink-0 shadow-sm ${details.color}`}>
                                                         {details.label}
                                                     </span>
-                                                    {s.reasons.map((reason, idx) => (
-                                                        <span key={idx} className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-850 text-slate-600 dark:text-slate-350 border border-slate-200 dark:border-slate-700/60 px-2 py-0.5 rounded-full text-[9px] font-bold">
-                                                            {reason}
+                                                    
+                                                    {/* Custom Indicator Badges */}
+                                                    {s.daysSince === 999 && (
+                                                        <span className="inline-flex items-center gap-0.5 bg-rose-50 text-rose-700 dark:bg-rose-950/20 dark:text-rose-450 border border-rose-200 dark:border-rose-900/30 px-2 py-0.5 rounded-full text-[9px] font-bold shadow-sm">
+                                                            🚨 Never Visited
                                                         </span>
-                                                    ))}
+                                                    )}
+                                                    {s.daysSince >= 30 && s.daysSince !== 999 && (
+                                                        <span className="inline-flex items-center gap-0.5 bg-amber-50 text-amber-705 dark:bg-amber-950/20 dark:text-amber-450 border border-amber-205 dark:border-amber-900/30 px-2 py-0.5 rounded-full text-[9px] font-bold shadow-sm">
+                                                            ⏳ Aging: {s.daysSince}d
+                                                        </span>
+                                                    )}
+                                                    {s.deficit > 0 && (
+                                                        <span className="inline-flex items-center gap-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/30 px-2 py-0.5 rounded-full text-[9px] font-bold shadow-sm">
+                                                            📊 Deficit: {s.deficit} / {s.target}
+                                                        </span>
+                                                    )}
+                                                    {s.isVacant && (
+                                                        <span className="inline-flex items-center gap-0.5 bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400 border border-red-200 dark:border-red-900/30 px-2 py-0.5 rounded-full text-[9px] font-bold shadow-sm">
+                                                            👤 Staff Vacant
+                                                        </span>
+                                                    )}
+                                                    {s.isLowJhpms && (
+                                                        <span className="inline-flex items-center gap-0.5 bg-pink-50 text-pink-700 dark:bg-pink-950/20 dark:text-pink-405 border border-pink-200 dark:border-pink-900/30 px-2 py-0.5 rounded-full text-[9px] font-bold shadow-sm" title={`JHPMS Classes: ${s.schoolJhpms} (District Avg: ${s.distAvg.avgJhpms})`}>
+                                                            📉 Low JHPMS ({s.schoolJhpms} vs {s.distAvg.avgJhpms})
+                                                        </span>
+                                                    )}
+                                                    {s.isLowEdustat && (
+                                                        <span className="inline-flex items-center gap-0.5 bg-yellow-50 text-yellow-705 dark:bg-yellow-950/20 dark:text-yellow-450 border border-yellow-200 dark:border-yellow-900/30 px-2 py-0.5 rounded-full text-[9px] font-bold shadow-sm" title={`EduStat Hours: ${s.schoolEdustat} (District Avg: ${s.distAvg.avgEdustat})`}>
+                                                            💻 Low EduStat ({s.schoolEdustat}h vs {s.distAvg.avgEdustat}h)
+                                                        </span>
+                                                    )}
+                                                    {s.hasDiscrepancy && (
+                                                        <span className="inline-flex items-center gap-0.5 bg-orange-50 text-orange-700 dark:bg-orange-950/20 dark:text-orange-450 border border-orange-200 dark:border-orange-900/30 px-2 py-0.5 rounded-full text-[9px] font-bold shadow-sm">
+                                                            ⚠️ Sync Discrepancy
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3.5 text-center no-print">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    {/* Copied/WhatsApp button */}
                                                     <button
                                                         onClick={() => handleCopyWhatsApp(s)}
                                                         className={`p-1.5 rounded-lg border shadow-sm transition text-xs font-bold ${
                                                             copiedUdise === s.udise_code
                                                                 ? 'bg-emerald-100 text-emerald-850 border-emerald-300 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
-                                                                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-750'
+                                                                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-205 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-750'
                                                         }`}
                                                         title="Copy WhatsApp Brief"
                                                     >
                                                         {copiedUdise === s.udise_code ? 'Copied ✓' : '📲 Share'}
                                                     </button>
 
-                                                    {/* Checklist Drawer Toggle */}
                                                     <button
                                                         onClick={() => setExpandedUdise(isRowExpanded ? null : uniqueKey)}
                                                         className={`p-1.5 rounded-lg border shadow-sm transition text-xs font-bold ${
                                                             isRowExpanded
                                                                 ? 'bg-teal-650 text-white border-teal-700'
-                                                                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-750'
+                                                                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-205 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-750'
                                                         }`}
                                                     >
                                                         {isRowExpanded ? 'Close ↑' : '📋 Tasks'}
@@ -760,7 +847,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                         <div className="flex-1 text-left w-full">
                                                             <div className="flex items-center gap-2 mb-3">
                                                                 <Icons.Compliance className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                                                                <h4 className="text-xs font-black text-slate-700 dark:text-slate-255 uppercase tracking-wider">Field Visit Audit Checklist</h4>
+                                                                <h4 className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider">Field Visit Audit Checklist</h4>
                                                             </div>
                                                             <div className="space-y-2">
                                                                 {schoolChecklist.map((task, idx) => {
@@ -785,7 +872,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                         </div>
 
                                                         {/* Task Progress & share metrics card */}
-                                                        <div className="w-full md:w-64 bg-white dark:bg-slate-850 border border-slate-150 dark:border-slate-800 rounded-xl p-4 shadow-sm text-left shrink-0 self-stretch flex flex-col justify-between">
+                                                        <div className="w-full md:w-64 bg-white dark:bg-slate-855 border border-slate-150 dark:border-slate-800 rounded-xl p-4 shadow-sm text-left shrink-0 self-stretch flex flex-col justify-between">
                                                             <div>
                                                                 <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Visit Checklist Progress</span>
                                                                 <div className="flex items-end gap-2 mt-1">
@@ -793,7 +880,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                                     <span className="text-xs font-bold text-slate-400 mb-1">({completedCount} of {schoolChecklist.length} done)</span>
                                                                 </div>
                                                                 {/* Progress Bar */}
-                                                                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden mt-3 shadow-inner">
+                                                                <div className="w-full bg-slate-105 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden mt-3 shadow-inner">
                                                                     <div
                                                                         className="h-full bg-teal-600 rounded-full transition-all duration-300"
                                                                         style={{ width: `${pctVal}%` }}
@@ -802,11 +889,13 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                                             </div>
 
                                                             <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-855">
-                                                                <div className="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wide">Last Audit Data</div>
+                                                                <div className="text-[10px] text-slate-450 font-bold mb-1 uppercase tracking-wide">QPR & District Metrics</div>
                                                                 <div className="text-[10px] text-slate-650 dark:text-slate-350 font-semibold space-y-1">
-                                                                    <div>🗓️ Last Visited: <span className="font-bold text-slate-800 dark:text-slate-200">{s.absLastVisitDate ? formatDate(s.absLastVisitDate) : 'Never'}</span></div>
-                                                                    <div>💼 Assigned Visitor: <span className="font-bold text-slate-800 dark:text-slate-200">{s.visitor_name || 'Unassigned'}</span></div>
-                                                                    <div>⚙️ Composite Rating: <span className={`font-black ${s.compositeScore < 40 ? 'text-rose-600' : 'text-teal-700 dark:text-teal-400'}`}>{s.compositeScore !== undefined ? `${Math.round(s.compositeScore)}%` : 'N/A'}</span></div>
+                                                                    <div>📊 QPR Target: <span className="font-bold text-slate-850 dark:text-slate-200">{s.target} visits ({s.completedInPeriod} completed)</span></div>
+                                                                    <div>📉 JHPMS Classes: <span className="font-bold text-slate-850 dark:text-slate-200">{s.schoolJhpms} (District Avg: {s.distAvg.avgJhpms})</span></div>
+                                                                    <div>💻 EduStat Hours: <span className="font-bold text-slate-850 dark:text-slate-200">{s.schoolEdustat}h (District Avg: {s.distAvg.avgEdustat}h)</span></div>
+                                                                    <div>🗓️ Last Visited: <span className="font-bold text-slate-850 dark:text-slate-200">{s.absLastVisitDate ? formatDate(s.absLastVisitDate) : 'Never'}</span></div>
+                                                                    <div>⚙️ Composite Rating: <span className={`font-black ${s.compositeScore < 40 ? 'text-rose-650' : 'text-teal-700 dark:text-teal-400'}`}>{s.compositeScore !== undefined ? `${Math.round(s.compositeScore)}%` : 'N/A'}</span></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -822,7 +911,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                     <td colSpan="6" className="text-center p-12 text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-900/30">
                                         <Icons.Compliance className="w-12 h-12 text-teal-500/20 mx-auto mb-3" />
                                         <span className="text-sm font-semibold text-slate-500 block">No schools matched filters</span>
-                                        <span className="text-xs text-slate-400 italic mt-1 block">Adjust selected week, month, or sidebar filters.</span>
+                                        <span className="text-xs text-slate-400 italic mt-1 block">Adjust selected week or sidebar filters.</span>
                                     </td>
                                 </tr>
                             )}
