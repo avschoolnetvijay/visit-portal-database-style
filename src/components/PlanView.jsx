@@ -295,7 +295,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 reasons.push(`Target deficit (${deficit} of ${target} visits pending in QPR)`);
             }
             if (isVacant) {
-                reasons.push("CC post is vacant");
+                reasons.push("ICT Instructor post is vacant");
             }
             if (isLowJhpms) {
                 reasons.push(`Low JHPMS classes (${schoolJhpms} vs dist avg: ${distAvg.avgJhpms})`);
