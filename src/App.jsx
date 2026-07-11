@@ -13,6 +13,7 @@ const Setup = React.lazy(() => import('./components/Setup'));
 import DrillDownModal from './components/DrillDownModal';
 const FieldTeamPerformance = React.lazy(() => import('./components/FieldTeamPerformance'));
 const SchoolPerformance = React.lazy(() => import('./components/SchoolPerformance'));
+const SchoolWiseSearch = React.lazy(() => import('./components/SchoolWiseSearch'));
 const ProfileCreation = React.lazy(() => import('./components/ProfileCreation'));
 const OverallAnalysis = React.lazy(() => import('./components/OverallAnalysis'));
 const Helpdesk = React.lazy(() => import('./components/Helpdesk'));
@@ -28,6 +29,7 @@ const prefetchTab = (tabId) => {
         case 'setup': import('./components/Setup'); break;
         case 'team-performance': import('./components/FieldTeamPerformance'); break;
         case 'school-performance': import('./components/SchoolPerformance'); break;
+        case 'school-search': import('./components/SchoolWiseSearch'); break;
         case 'user-creation':
         case 'user-list':
         case 'user-permissions': import('./components/ProfileCreation'); break;
@@ -434,7 +436,8 @@ const App = () => {
                 icon: Icons.Performance,
                 items: [
                     { id: 'team-performance', label: 'Field Team Performance', icon: Icons.Performance },
-                    { id: 'school-performance', label: 'School Performance', icon: Icons.Trophy }
+                    { id: 'school-performance', label: 'School Performance', icon: Icons.Trophy },
+                    { id: 'school-search', label: 'School Wise Search', icon: Icons.GlobalSearch }
                 ]
             },
             {
@@ -1957,6 +1960,7 @@ const App = () => {
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
         if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
         if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
+        if (activeTab === 'school-search') return <SchoolWiseSearch schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} visits={combinedVisits} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} darkMode={darkMode} onDrillDown={handleDrillDown} />;
         if (activeTab === 'plan') return <PlanView data={processedData} allVisits={combinedVisits} manpower={manpower} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} schools={schools} startDate={startDate} endDate={endDate} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
