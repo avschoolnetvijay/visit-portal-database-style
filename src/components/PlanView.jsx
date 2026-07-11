@@ -521,7 +521,27 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             "District EduStat Avg": s.distAvg.avgEdustat,
             "Action Plan": s.reasons.join('\n')
         }));
-        exportToExcel(excelData, `Visit_Plan_${selectedPlanningMonth}_QPR_${startDate}_to_${endDate}`);
+
+        // Format selected month name (e.g. 2026-08 -> Aug-2026)
+        let monthStr = 'Plan';
+        if (selectedPlanningMonth) {
+            const parts = selectedPlanningMonth.split('-');
+            if (parts.length >= 2) {
+                const year = parts[0];
+                const monthIdx = parseInt(parts[1], 10) - 1;
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                if (monthIdx >= 0 && monthIdx < 12) {
+                    monthStr = `${monthNames[monthIdx]}-${year}`;
+                }
+            }
+        }
+
+        // Get CC name suffix (if only one CC is in the plan, use their name; otherwise use "All_Coordinators")
+        const uniqueCCs = Array.from(new Set(topPlannedSchools.map(s => s.visitor_name || 'Unassigned')));
+        const ccSuffix = uniqueCCs.length === 1 ? uniqueCCs[0] : (uniqueCCs.length > 1 ? "All_Coordinators" : "Unassigned");
+        const ccSuffixClean = ccSuffix.replace(/\s+/g, '_');
+
+        exportToExcel(excelData, `Visit_Plan_${monthStr}_${ccSuffixClean}`);
     };
 
     return (

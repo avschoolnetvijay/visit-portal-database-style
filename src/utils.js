@@ -116,10 +116,10 @@ export const exportToExcel = (data, fileName) => {
   };
 
   const borderStyle = {
-    top: { style: "thin", color: { rgb: "E2E8F0" } },
-    bottom: { style: "thin", color: { rgb: "E2E8F0" } },
-    left: { style: "thin", color: { rgb: "E2E8F0" } },
-    right: { style: "thin", color: { rgb: "E2E8F0" } }
+    top: { style: "thin", color: { rgb: "94A3B8" } },
+    bottom: { style: "thin", color: { rgb: "94A3B8" } },
+    left: { style: "thin", color: { rgb: "94A3B8" } },
+    right: { style: "thin", color: { rgb: "94A3B8" } }
   };
 
   // Helper to determine cell styling based on data row and column values
