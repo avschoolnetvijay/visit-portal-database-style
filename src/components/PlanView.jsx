@@ -14,7 +14,9 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
         const endLimit = new Date(end.getFullYear(), end.getMonth(), 1);
         while (curr <= endLimit) {
             const label = curr.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-            const value = curr.toISOString().substring(0, 7); // YYYY-MM
+            const yyyy = curr.getFullYear();
+            const mm = String(curr.getMonth() + 1).padStart(2, '0');
+            const value = `${yyyy}-${mm}`;
             list.push({ label, value });
             curr.setMonth(curr.getMonth() + 1);
         }
@@ -25,7 +27,8 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
 
     useEffect(() => {
         if (planningMonths.length > 0) {
-            const todayYYYYMM = new Date().toISOString().substring(0, 7);
+            const tDate = new Date();
+            const todayYYYYMM = `${tDate.getFullYear()}-${String(tDate.getMonth() + 1).padStart(2, '0')}`;
             const found = planningMonths.find(m => m.value === todayYYYYMM);
             setSelectedPlanningMonth(found ? found.value : planningMonths[0].value);
         } else {
