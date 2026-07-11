@@ -127,7 +127,7 @@ export const exportToExcel = (data, fileName) => {
     let style = {
       font: { name: "Segoe UI", sz: 10 },
       border: borderStyle,
-      alignment: { vertical: "center" }
+      alignment: { vertical: "center", wrapText: true }
     };
 
     // Row Zebra Striping
@@ -153,14 +153,14 @@ export const exportToExcel = (data, fileName) => {
     // Special column-based formatting and color highlights
     const colLower = colName.toLowerCase();
     
-    // Status Highlighting
-    if (colLower.includes('status')) {
-      const statusStr = String(rowVal[colName]).toUpperCase();
+    // Status / Instructor Highlighting
+    if (colLower.includes('status') || colLower.includes('instructor')) {
+      const statusStr = String(rowVal[colName] || '').toUpperCase();
       if (statusStr.includes('ACTIVE') || statusStr.includes('WORKING')) {
         style.fill = { fgColor: { rgb: "DCFCE7" } }; // Green 100
         style.font.color = { rgb: "15803D" }; // Green 700
         style.font.bold = true;
-      } else if (statusStr.includes('RESIGN') || statusStr.includes('TERMINATE')) {
+      } else if (statusStr.includes('RESIGN') || statusStr.includes('TERMINATE') || statusStr.includes('VACANT')) {
         style.fill = { fgColor: { rgb: "FEE2E2" } }; // Red 100
         style.font.color = { rgb: "B91C1C" }; // Red 700
         style.font.bold = true;
@@ -174,6 +174,12 @@ export const exportToExcel = (data, fileName) => {
       style.font.color = { rgb: "4338CA" }; // Indigo 700
       style.font.bold = true;
       style.alignment.horizontal = "center";
+    }
+
+    // Action Plan / Rationale Alignment
+    if (colLower.includes('action') || colLower.includes('plan') || colLower.includes('rationale')) {
+      style.alignment.vertical = "top";
+      style.alignment.horizontal = "left";
     }
 
     // Align numeric columns center/right

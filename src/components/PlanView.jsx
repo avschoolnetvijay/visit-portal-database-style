@@ -513,13 +513,13 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             "Priority Score": s.score,
             "Abs Days Since Last Visit": s.daysSince === 999 ? 'Never' : s.daysSince,
             "Absolute Last Visit Date": s.absLastVisitDate ? formatDate(s.absLastVisitDate) : 'Never',
-            "Staff Status": s.isVacant ? 'Vacant' : 'Active',
-            "Deficit In Period": s.deficit,
+            "Ict Instructor": s.isVacant ? 'Vacant' : 'Active',
+            "Pending visit in this QPR": s.deficit,
             "JHPMS Classes": s.schoolJhpms,
             "EduStat Hours": s.schoolEdustat,
             "District JHPMS Avg": s.distAvg.avgJhpms,
             "District EduStat Avg": s.distAvg.avgEdustat,
-            "Rationales": s.reasons.join(' | ')
+            "Action Plan": s.reasons.join('\n')
         }));
         exportToExcel(excelData, `Visit_Plan_${selectedPlanningMonth}_QPR_${startDate}_to_${endDate}`);
     };
@@ -713,7 +713,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                                 <th className="px-4 py-3 bg-slate-50 dark:bg-slate-855 font-extrabold text-slate-500 uppercase tracking-wider text-center w-24">Slot</th>
                                 <th className="px-4 py-3 bg-slate-50 dark:bg-slate-855 font-extrabold text-slate-500 uppercase tracking-wider w-[240px]">School Details</th>
                                 <th className="px-4 py-3 bg-slate-50 dark:bg-slate-855 font-extrabold text-slate-500 uppercase tracking-wider w-[200px]">Assigned CC / Block</th>
-                                <th className="px-4 py-3 bg-slate-50 dark:bg-slate-855 font-extrabold text-slate-500 uppercase tracking-wider">Priority Rationale & Root Causes</th>
+                                <th className="px-4 py-3 bg-slate-50 dark:bg-slate-855 font-extrabold text-slate-500 uppercase tracking-wider">Action Plan</th>
                                 <th className="px-4 py-3 bg-slate-50 dark:bg-slate-855 font-extrabold text-slate-500 uppercase tracking-wider text-center w-36 no-print">Actions</th>
                             </tr>
                         </thead>
