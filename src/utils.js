@@ -220,6 +220,153 @@ export const exportToExcel = (data, fileName) => {
   XLSX.writeFile(wb, `${fileName}.xlsx`);
 };
 
+export const exportMultiSheetToExcel = (sheetsArray, fileName) => {
+  if (!sheetsArray || sheetsArray.length === 0) return;
+
+  const wb = XLSX.utils.book_new();
+
+  // Define standard style presets
+  const headerStyle = {
+    fill: { fgColor: { rgb: "0F766E" } }, // Teal 700
+    font: { name: "Segoe UI", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: {
+      top: { style: "thin", color: { rgb: "0D9488" } },
+      bottom: { style: "medium", color: { rgb: "0D9488" } },
+      left: { style: "thin", color: { rgb: "0D9488" } },
+      right: { style: "thin", color: { rgb: "0D9488" } }
+    }
+  };
+
+  const borderStyle = {
+    top: { style: "thin", color: { rgb: "94A3B8" } },
+    bottom: { style: "thin", color: { rgb: "94A3B8" } },
+    left: { style: "thin", color: { rgb: "94A3B8" } },
+    right: { style: "thin", color: { rgb: "94A3B8" } }
+  };
+
+  // Helper to determine cell styling based on data row and column values
+  const getCellStyles = (rowVal, colName, isAlternateRow) => {
+    let style = {
+      font: { name: "Segoe UI", sz: 10 },
+      border: borderStyle,
+      alignment: { vertical: "center", wrapText: true }
+    };
+
+    if (isAlternateRow) {
+      style.fill = { fgColor: { rgb: "F8FAFC" } }; // Slate 50
+    } else {
+      style.fill = { fgColor: { rgb: "FFFFFF" } };
+    }
+
+    const rankVal = parseInt(rowVal['Rank'] || rowVal['rank'] || rowVal['Slno'] || rowVal['slno']);
+    if (rankVal === 1) {
+      style.fill = { fgColor: { rgb: "FEF3C7" } }; // Amber 100 (Gold)
+      style.font.bold = true;
+    } else if (rankVal === 2) {
+      style.fill = { fgColor: { rgb: "F1F5F9" } }; // Slate 100 (Silver)
+      style.font.bold = true;
+    } else if (rankVal === 3) {
+      style.fill = { fgColor: { rgb: "FFEDD5" } }; // Orange 100 (Bronze)
+      style.font.bold = true;
+    }
+
+    const colLower = colName.toLowerCase();
+    
+    if (colLower.includes('status') || colLower.includes('instructor')) {
+      const statusStr = String(rowVal[colName] || '').toUpperCase();
+      if (statusStr.includes('ACTIVE') || statusStr.includes('WORKING')) {
+        style.fill = { fgColor: { rgb: "DCFCE7" } }; // Green 100
+        style.font.color = { rgb: "15803D" }; // Green 700
+        style.font.bold = true;
+      } else if (statusStr.includes('RESIGN') || statusStr.includes('TERMINATE') || statusStr.includes('VACANT')) {
+        style.fill = { fgColor: { rgb: "FEE2E2" } }; // Red 100
+        style.font.color = { rgb: "B91C1C" }; // Red 700
+        style.font.bold = true;
+      }
+      style.alignment.horizontal = "center";
+    }
+
+    if (colLower.includes('score') || colLower.includes('percent') || colLower.includes('%') || colLower.includes('combined')) {
+      style.fill = { fgColor: { rgb: "E0E7FF" } }; // Indigo 100
+      style.font.color = { rgb: "4338CA" }; // Indigo 700
+      style.font.bold = true;
+      style.alignment.horizontal = "center";
+    }
+
+    // Action Plan / Rationale Alignment
+    if (colLower.includes('action') || colLower.includes('plan') || colLower.includes('rationale')) {
+      style.alignment.vertical = "top";
+      style.alignment.horizontal = "left";
+    }
+
+    const cellVal = rowVal[colName];
+    if (typeof cellVal === 'number') {
+      style.alignment.horizontal = "right";
+    } else if (colLower.includes('udise') || colLower.includes('date') || colLower.includes('rank') || colLower.includes('slno')) {
+      style.alignment.horizontal = "center";
+    } else {
+      style.alignment.horizontal = "left";
+    }
+
+    return style;
+  };
+
+  sheetsArray.forEach(sheetItem => {
+    const { name, data } = sheetItem;
+    if (!data || data.length === 0) return;
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const cols = Object.keys(data[0] || {});
+
+    // Column Auto-Widths calculation
+    const colWidths = cols.map(col => {
+      let maxLen = String(col).length;
+      data.forEach(row => {
+        const val = row[col];
+        if (val !== null && val !== undefined) {
+          maxLen = Math.max(maxLen, String(val).length);
+        }
+      });
+      return { wch: Math.min(Math.max(maxLen + 4, 10), 50) };
+    });
+    ws['!cols'] = colWidths;
+
+    const ref = ws['!ref'];
+    if (ref) {
+      const range = XLSX.utils.decode_range(ref);
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        const isHeader = (R === 0);
+        const isAlternateRow = (R % 2 === 0);
+        const rowVal = isHeader ? null : data[R - 1];
+
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+          const cell = ws[cellRef];
+          if (!cell) continue;
+
+          const colName = cols[C];
+
+          if (isHeader) {
+            cell.s = headerStyle;
+          } else {
+            cell.s = getCellStyles(rowVal, colName, isAlternateRow);
+          }
+        }
+      }
+    }
+
+    // Clean sheet name (Excel tab length max is 31 chars, no special chars)
+    const cleanName = String(name || 'Plan')
+      .replace(/[\\\/\?\*\:\[\]]/g, '')
+      .substring(0, 31);
+
+    XLSX.utils.book_append_sheet(wb, ws, cleanName);
+  });
+
+  XLSX.writeFile(wb, `${fileName}.xlsx`);
+};
+
 export const downloadSVG = (svgElement, filename) => {
   if (!svgElement) return;
   try {

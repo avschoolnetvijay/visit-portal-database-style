@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Icons } from './Icons';
-import { exportToExcel, formatDate, parseDateRobust, getMonthsInRange } from '../utils';
+import { exportToExcel, exportMultiSheetToExcel, formatDate, parseDateRobust, getMonthsInRange } from '../utils';
 
 const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat = [], edustatMaster = [], schools = [], startDate, endDate }) => {
     // 1. Dynamic Months within selected QPR date range
@@ -502,7 +502,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
     };
 
     const handleExportExcel = () => {
-        const excelData = topPlannedSchools.map((s, idx) => ({
+        const mapSchoolRow = (s) => ({
             "Rank": s.overallRank,
             "Scheduled Slot": s.planningSlot,
             "School Name": s.school_name,
@@ -520,7 +520,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             "District JHPMS Avg": s.distAvg.avgJhpms,
             "District EduStat Avg": s.distAvg.avgEdustat,
             "Action Plan": s.reasons.join('\n')
-        }));
+        });
 
         // Format selected month name (e.g. 2026-08 -> Aug-2026)
         let monthStr = 'Plan';
@@ -536,12 +536,28 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
             }
         }
 
-        // Get CC name suffix (if only one CC is in the plan, use their name; otherwise use "All_Coordinators")
+        // Get CC name list
         const uniqueCCs = Array.from(new Set(topPlannedSchools.map(s => s.visitor_name || 'Unassigned')));
-        const ccSuffix = uniqueCCs.length === 1 ? uniqueCCs[0] : (uniqueCCs.length > 1 ? "All_Coordinators" : "Unassigned");
-        const ccSuffixClean = ccSuffix.replace(/\s+/g, '_');
 
-        exportToExcel(excelData, `Visit_Plan_${monthStr}_${ccSuffixClean}`);
+        if (uniqueCCs.length <= 1) {
+            // Single CC Export
+            const ccName = uniqueCCs[0] || 'Unassigned';
+            const excelData = topPlannedSchools.map(s => mapSchoolRow(s));
+            const ccSuffixClean = ccName.replace(/\s+/g, '_');
+            exportToExcel(excelData, `Visit_Plan_${monthStr}_${ccSuffixClean}`);
+        } else {
+            // Multiple CC Export -> Generate multiple sheets
+            const sheetsArray = uniqueCCs.map(ccName => {
+                const ccSchools = topPlannedSchools.filter(s => (s.visitor_name || 'Unassigned') === ccName);
+                const sheetData = ccSchools.map(s => mapSchoolRow(s));
+                return {
+                    name: ccName,
+                    data: sheetData
+                };
+            });
+
+            exportMultiSheetToExcel(sheetsArray, `Visit_Plan_${monthStr}_All_Coordinators`);
+        }
     };
 
     return (
