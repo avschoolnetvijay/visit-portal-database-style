@@ -1518,7 +1518,7 @@ const FieldTeamPerformance = ({
 
                         {/* Modal Body / Scrollable Table */}
                         <div className="overflow-auto flex-1 p-4 bg-slate-50/50 dark:bg-slate-900/30">
-                            <div className="border border-gray-200 dark:border-white/5 rounded-xl shadow-inner overflow-hidden bg-white dark:bg-slate-950">
+                            <div className="border border-gray-200 dark:border-white/5 rounded-xl shadow-inner overflow-x-auto bg-white dark:bg-slate-950">
                                 <table className="w-full text-left text-xs whitespace-nowrap">
                                     <thead className="bg-teal-800 dark:bg-teal-905 text-white sticky top-0 z-30 font-bold">
                                         {drilldownViewType === 'devices' && (
