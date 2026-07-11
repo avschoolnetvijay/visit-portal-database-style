@@ -329,7 +329,10 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 score: totalScore
             };
         })
-        .sort((a, b) => b.score - a.score);
+        .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return b.daysSince - a.daysSince;
+        });
     }, [data.schools, absoluteLastVisitMap, rangeVisitsCountMap, manpowerMap, rangeJhpmsMap, rangeEdustatMap, districtAverages, durationMonths]);
 
     // Curated visit plan contains top schools up to capacity (40 per coordinator), prioritizing by coverage cycle (Round Robin)
@@ -347,12 +350,15 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
 
         // Process each coordinator group
         Object.entries(ccGroups).forEach(([visitor, schoolsList]) => {
-            // Sort by completed visits in range (ascending) to guarantee full coverage, then by priority score (descending)
+            // Sort by completed visits in range (ascending) to guarantee full coverage, then by priority score (descending), then by daysSince (descending)
             const sorted = [...schoolsList].sort((a, b) => {
                 if (a.completedInPeriod !== b.completedInPeriod) {
                     return a.completedInPeriod - b.completedInPeriod; // Coverage cycle priority
                 }
-                return b.score - a.score;
+                if (b.score !== a.score) {
+                    return b.score - a.score;
+                }
+                return b.daysSince - a.daysSince; // Tie-breaker: higher aging first
             });
 
             // Take up to 40 schools max
