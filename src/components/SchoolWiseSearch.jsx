@@ -648,7 +648,7 @@ const SchoolWiseSearch = ({
                             {/* Card 2: Logged Days */}
                             <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3">
                                 <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                                    <Icons.Calendar className="w-5 h-5" />
+                                    <Icons.Plan className="w-5 h-5" />
                                 </div>
                                 <div>
                                     <label className="text-[10px] text-gray-400 uppercase font-bold">JHPMS Logged Days</label>
@@ -685,7 +685,7 @@ const SchoolWiseSearch = ({
                                         ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400' 
                                         : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400'
                                 }`}>
-                                    <Icons.Exclamation className="w-5 h-5" />
+                                    <Icons.Alert className="w-5 h-5" />
                                 </div>
                                 <div>
                                     <label className="text-[10px] text-gray-400 uppercase font-bold">Unsynced Devices</label>
@@ -822,7 +822,7 @@ const SchoolWiseSearch = ({
                             </h3>
                             {schoolProfile.insightsList.length === 0 ? (
                                 <div className="text-xs text-green-700 bg-green-50 dark:bg-green-950/20 dark:text-green-400 p-3.5 rounded-xl border border-green-100 dark:border-green-900/30 flex items-center gap-2">
-                                    <Icons.Verify className="w-5 h-5 shrink-0" />
+                                    <Icons.Reports className="w-5 h-5 shrink-0" />
                                     <span>Everything looks aligned! All systems, sync devices, and audits are running within standard ranges.</span>
                                 </div>
                             ) : (
@@ -839,7 +839,7 @@ const SchoolWiseSearch = ({
                                             }`}
                                         >
                                             <div className="mt-0.5 shrink-0">
-                                                {ins.type === 'danger' ? <Icons.Exclamation className="w-4 h-4" /> : <Icons.Settings className="w-4 h-4" />}
+                                                {ins.type === 'danger' ? <Icons.Alert className="w-4 h-4" /> : <Icons.Setup className="w-4 h-4" />}
                                             </div>
                                             <span>{ins.text}</span>
                                         </div>
