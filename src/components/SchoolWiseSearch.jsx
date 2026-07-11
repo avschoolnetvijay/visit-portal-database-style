@@ -69,20 +69,101 @@ const SchoolWiseSearch = ({
         setSuggestions([]);
     };
 
+    // 1. Pre-filter JHPMS logs inside the selected date range once
+    const filteredJhpmsRange = useMemo(() => {
+        const list = [];
+        (jhpmsLab || []).forEach(row => {
+            const rawDate = row.date || getVal(row, 'date');
+            const d = parseDateRobust(rawDate);
+            if (d) {
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-${dd}`;
+                
+                if (dateStr >= startDate && dateStr <= endDate) {
+                    list.push(row);
+                }
+            }
+        });
+        return list;
+    }, [jhpmsLab, startDate, endDate]);
+
+    // 2. Pre-filter EduStat logs inside the selected date range once
+    const filteredEdustatRange = useMemo(() => {
+        const list = [];
+        (edustat || []).forEach(row => {
+            const rawDate = row.date || getVal(row, 'date');
+            const d = parseDateRobust(rawDate);
+            if (d) {
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-${dd}`;
+                
+                if (dateStr >= startDate && dateStr <= endDate) {
+                    list.push(row);
+                }
+            }
+        });
+        return list;
+    }, [edustat, startDate, endDate]);
+
+    // 3. Pre-calculate class count and edustat hour metrics for each UDISE in O(N) pass
+    const schoolSummaryMap = useMemo(() => {
+        const map = {};
+        
+        filteredJhpmsRange.forEach(l => {
+            const udise = String(l.udise || getVal(l, 'udise') || '').trim();
+            if (!udise) return;
+            if (!map[udise]) {
+                map[udise] = { classes: 0, hours: 0 };
+            }
+            
+            const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+            const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
+            if (!subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                if ((labType.includes('ICT') && subject.includes('COMPUTER')) || labType.includes('SMART')) {
+                    map[udise].classes++;
+                }
+            }
+        });
+
+        filteredEdustatRange.forEach(e => {
+            const udise = String(e.udise || '').trim();
+            if (!udise) return;
+            if (!map[udise]) {
+                map[udise] = { classes: 0, hours: 0 };
+            }
+            const hours = e.hours !== undefined ? Number(e.hours) : parseFloat(getVal(e, 'hours') || 0);
+            map[udise].hours += hours;
+        });
+
+        return map;
+    }, [filteredJhpmsRange, filteredEdustatRange]);
+
+    // 4. Compute overall rank once
+    const allSchoolsRanked = useMemo(() => {
+        const validWdays = Number(workingDays) > 0 ? Number(workingDays) : 1;
+        const list = schools.map(s => {
+            const udise = String(s.udise_code || '').trim();
+            const stats = schoolSummaryMap[udise] || { classes: 0, hours: 0 };
+            const combinedScore = (stats.classes / validWdays) * 0.6 + (stats.hours / validWdays) * 0.4;
+            return { udise, score: combinedScore };
+        }).sort((a, b) => b.score - a.score);
+        return list;
+    }, [schools, schoolSummaryMap, workingDays]);
+
     // Calculate details for selected school
     const schoolProfile = useMemo(() => {
         if (!selectedSchool) return null;
         const school = selectedSchool;
         const udise = String(school.udise_code || '').trim();
 
-        // 1. Filter JHPMS logs for this school inside the date range
-        const schoolJhpms = jhpmsLab.filter(l => {
+        // Filter JHPMS logs for this school inside the date range
+        const schoolJhpms = filteredJhpmsRange.filter(l => {
             const lUdise = String(l.udise || getVal(l, 'udise') || '').trim();
-            if (lUdise !== udise) return false;
-            const d = parseDateRobust(l.date || getVal(l, 'date'));
-            if (!d) return false;
-            const dateStr = d.toISOString().split('T')[0];
-            return dateStr >= startDate && dateStr <= endDate;
+            return lUdise === udise;
         });
 
         // Compute unique logged days
@@ -125,14 +206,10 @@ const SchoolWiseSearch = ({
 
         const totalJhpmsClasses = theoryCount + practicalCount;
 
-        // 2. Filter EduStat device hours
-        const schoolEdustatLogs = edustat.filter(e => {
+        // Filter EduStat device hours
+        const schoolEdustatLogs = filteredEdustatRange.filter(e => {
             const eUdise = String(e.udise || '').trim();
-            if (eUdise !== udise) return false;
-            const d = parseDateRobust(e.date || getVal(e, 'date'));
-            if (!d) return false;
-            const dateStr = d.toISOString().split('T')[0];
-            return dateStr >= startDate && dateStr <= endDate;
+            return eUdise === udise;
         });
 
         let totalEduHours = 0;
@@ -146,7 +223,7 @@ const SchoolWiseSearch = ({
             }
         });
 
-        // 3. Device Sync Auditing (EduStat Master)
+        // Device Sync Auditing (EduStat Master)
         const schoolDevices = edustatMaster.filter(d => String(d.udise).trim() === udise);
         const unsyncedDevices = schoolDevices.filter(d => {
             const serial = String(d.serial || '').trim();
@@ -155,10 +232,10 @@ const SchoolWiseSearch = ({
         });
         const unsyncedCount = unsyncedDevices.length;
 
-        // 4. Manpower & Instructor Details
+        // Manpower & Instructor Details
         const instructor = manpower.find(m => String(m.udise).trim() === udise) || null;
 
-        // 5. Visits in this QPR
+        // Visits in this QPR
         const qprVisits = visits.filter(v => {
             const vUdise = String(v.udise_code || getVal(v, 'udise') || '').trim();
             if (vUdise !== udise) return false;
@@ -168,7 +245,7 @@ const SchoolWiseSearch = ({
             return dateStr >= startDate && dateStr <= endDate;
         });
 
-        // 6. Absolute Visit History (Last Visit)
+        // Absolute Visit History (Last Visit)
         const historyVisits = visits.filter(v => {
             const vUdise = String(v.udise_code || getVal(v, 'udise') || '').trim();
             return vUdise === udise;
@@ -183,51 +260,11 @@ const SchoolWiseSearch = ({
             }
         }
 
-        // 7. Overall School Rank Calculation (JHPMS classes + Edustat hours)
-        const validWdays = Number(workingDays) > 0 ? Number(workingDays) : 1;
-        const allSchoolsRanked = schools.map(s => {
-            const sUdise = String(s.udise_code || '').trim();
-            
-            // JHPMS count
-            const sJhpms = jhpmsLab.filter(l => {
-                const lUdise = String(l.udise || getVal(l, 'udise') || '').trim();
-                if (lUdise !== sUdise) return false;
-                const d = parseDateRobust(l.date || getVal(l, 'date'));
-                const dateStr = d ? d.toISOString().split('T')[0] : '';
-                return dateStr >= startDate && dateStr <= endDate;
-            });
-            let sClasses = 0;
-            sJhpms.forEach(l => {
-                const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
-                const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
-                if (!subject.split(/[^A-Z0-9]+/).includes('MIS')) {
-                    if ((labType.includes('ICT') && subject.includes('COMPUTER')) || labType.includes('SMART')) {
-                        sClasses++;
-                    }
-                }
-            });
-
-            // Edustat hours
-            const sEdustat = edustat.filter(e => {
-                const eUdise = String(e.udise || '').trim();
-                if (eUdise !== sUdise) return false;
-                const d = parseDateRobust(e.date || getVal(e, 'date'));
-                const dateStr = d ? d.toISOString().split('T')[0] : '';
-                return dateStr >= startDate && dateStr <= endDate;
-            });
-            let sHours = 0;
-            sEdustat.forEach(e => {
-                sHours += e.hours !== undefined ? Number(e.hours) : parseFloat(getVal(e, 'hours') || 0);
-            });
-
-            const combinedScore = (sClasses / validWdays) * 0.6 + (sHours / validWdays) * 0.4;
-            return { udise: sUdise, score: combinedScore };
-        }).sort((a, b) => b.score - a.score);
-
+        // Rank Lookup
         const rankIndex = allSchoolsRanked.findIndex(item => item.udise === udise);
         const schoolRank = rankIndex !== -1 ? rankIndex + 1 : 'N/A';
 
-        // 8. Regional Averages (District & Block Benchmarks)
+        // Regional Averages (District & Block Benchmarks)
         const districtSchools = schools.filter(s => s.district === school.district);
         const blockSchools = schools.filter(s => s.block === school.block);
 
@@ -236,33 +273,9 @@ const SchoolWiseSearch = ({
             let totalHrs = 0;
             groupList.forEach(s => {
                 const sUdise = String(s.udise_code || '').trim();
-                const sJhpms = jhpmsLab.filter(l => {
-                    const lUdise = String(l.udise || getVal(l, 'udise') || '').trim();
-                    if (lUdise !== sUdise) return false;
-                    const d = parseDateRobust(l.date || getVal(l, 'date'));
-                    const dateStr = d ? d.toISOString().split('T')[0] : '';
-                    return dateStr >= startDate && dateStr <= endDate;
-                });
-                sJhpms.forEach(l => {
-                    const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
-                    const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
-                    if (!subject.split(/[^A-Z0-9]+/).includes('MIS')) {
-                        if ((labType.includes('ICT') && subject.includes('COMPUTER')) || labType.includes('SMART')) {
-                            totalCls++;
-                        }
-                    }
-                });
-
-                const sEdustat = edustat.filter(e => {
-                    const eUdise = String(e.udise || '').trim();
-                    if (eUdise !== sUdise) return false;
-                    const d = parseDateRobust(e.date || getVal(e, 'date'));
-                    const dateStr = d ? d.toISOString().split('T')[0] : '';
-                    return dateStr >= startDate && dateStr <= endDate;
-                });
-                sEdustat.forEach(e => {
-                    totalHrs += e.hours !== undefined ? Number(e.hours) : parseFloat(getVal(e, 'hours') || 0);
-                });
+                const stats = schoolSummaryMap[sUdise] || { classes: 0, hours: 0 };
+                totalCls += stats.classes;
+                totalHrs += stats.hours;
             });
 
             return {
@@ -274,7 +287,7 @@ const SchoolWiseSearch = ({
         const distAvgs = getGroupAverages(districtSchools);
         const blkAvgs = getGroupAverages(blockSchools);
 
-        // 9. Weekly logs trend (ApexCharts payload)
+        // Weekly logs trend (ApexCharts payload)
         const startD = new Date(startDate);
         const endD = new Date(endDate);
         const weeks = [];
@@ -325,7 +338,7 @@ const SchoolWiseSearch = ({
             };
         });
 
-        // 10. Automated Insights
+        // Automated Insights
         const insightsList = [];
         const isVacant = instructor ? (String(instructor.status).toUpperCase().includes('RESIGN') || String(instructor.status).toUpperCase().includes('VACANT')) : true;
 
@@ -386,7 +399,7 @@ const SchoolWiseSearch = ({
             insightsList,
             historyVisits
         };
-    }, [selectedSchool, jhpmsLab, edustat, edustatMaster, manpower, visits, startDate, endDate, workingDays]);
+    }, [selectedSchool, filteredJhpmsRange, filteredEdustatRange, edustatMaster, manpower, visits, startDate, endDate, allSchoolsRanked, schools, schoolSummaryMap]);
 
     // Chart Configuration
     const trendSeries = useMemo(() => {
@@ -451,11 +464,11 @@ const SchoolWiseSearch = ({
         if (!schoolProfile || !schoolProfile.unsyncedDevices.length) return;
         const drillData = schoolProfile.unsyncedDevices.map((d, idx) => ({
             "Sl No": idx + 1,
-            "UDISE Code": d.udise,
-            "Device Type": d.device || 'EduStat Device',
-            "Serial Number": d.serial || 'N/A',
-            "Installed": d.installed || 'N/A',
-            "Status": "Not Synced (0 Hours)"
+            "udise": d.udise,
+            "device": d.device || 'EduStat Device',
+            "serial": d.serial || 'N/A',
+            "installed": d.installed || 'N/A',
+            "status": "Not Synced (0 Hours)"
         }));
         onDrillDown(`Unsynced Devices - ${selectedSchool.school_name}`, drillData);
     };
@@ -851,7 +864,7 @@ const SchoolWiseSearch = ({
                                             <div className="absolute -left-8 w-2 h-2 rounded-full bg-teal-600 mt-1.5 outline outline-4 outline-white dark:outline-slate-900" />
                                             <div className="flex flex-col md:flex-row justify-between gap-1.5">
                                                 <div>
-                                                    <span className="font-extrabold text-gray-800 dark:text-gray-200">
+                                                    <span className="font-extrabold text-gray-850 dark:text-gray-200">
                                                         {v.visitor_name}
                                                     </span>{' '}
                                                     <span className="text-[10px] text-gray-400">
