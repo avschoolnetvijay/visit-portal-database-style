@@ -182,11 +182,22 @@ export const exportToExcel = (data, fileName) => {
       style.alignment.horizontal = "left";
     }
 
-    // Align numeric columns center/right
+    // Align numeric columns center/right (with center override for columns H to P)
     const cellVal = rowVal[colName];
-    if (typeof cellVal === 'number') {
+    if (
+      colLower.includes('score') ||
+      colLower.includes('days') ||
+      colLower.includes('date') ||
+      colLower.includes('instructor') ||
+      colLower.includes('pending') ||
+      colLower.includes('jhpms') ||
+      colLower.includes('edustat')
+    ) {
+      style.alignment.horizontal = "center";
+      style.alignment.vertical = "center";
+    } else if (typeof cellVal === 'number') {
       style.alignment.horizontal = "right";
-    } else if (colLower.includes('udise') || colLower.includes('date') || colLower.includes('rank') || colLower.includes('slno')) {
+    } else if (colLower.includes('udise') || colLower.includes('rank') || colLower.includes('slno')) {
       style.alignment.horizontal = "center";
     } else {
       style.alignment.horizontal = "left";
@@ -301,9 +312,20 @@ export const exportMultiSheetToExcel = (sheetsArray, fileName) => {
     }
 
     const cellVal = rowVal[colName];
-    if (typeof cellVal === 'number') {
+    if (
+      colLower.includes('score') ||
+      colLower.includes('days') ||
+      colLower.includes('date') ||
+      colLower.includes('instructor') ||
+      colLower.includes('pending') ||
+      colLower.includes('jhpms') ||
+      colLower.includes('edustat')
+    ) {
+      style.alignment.horizontal = "center";
+      style.alignment.vertical = "center";
+    } else if (typeof cellVal === 'number') {
       style.alignment.horizontal = "right";
-    } else if (colLower.includes('udise') || colLower.includes('date') || colLower.includes('rank') || colLower.includes('slno')) {
+    } else if (colLower.includes('udise') || colLower.includes('rank') || colLower.includes('slno')) {
       style.alignment.horizontal = "center";
     } else {
       style.alignment.horizontal = "left";
