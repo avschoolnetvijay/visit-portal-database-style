@@ -301,7 +301,7 @@ const PlanView = ({ data, allVisits = [], manpower = [], jhpmsLab = [], edustat 
                 reasons.push(`Low JHPMS classes (${schoolJhpms} vs dist avg: ${distAvg.avgJhpms})`);
             }
             if (isLowEdustat) {
-                reasons.push(`Low EduStat hours (${schoolEdustat}h vs dist avg: ${distAvg.avgEdustat}h)`);
+                reasons.push(`Low EduStat hours (${Number(schoolEdustat).toFixed(2)}h vs dist avg: ${distAvg.avgEdustat}h)`);
             }
             if (hasDiscrepancy) {
                 reasons.push("Sync discrepancy detected (JHPMS / EduStat log mismatch)");
