@@ -1714,17 +1714,36 @@ const App = () => {
                             };
                         });
                     } else if (type === 'manpower') {
+                        const parseManpowerDate = (rawDate) => {
+                            if (!rawDate) return null;
+                            if (rawDate instanceof Date) return rawDate;
+                            if (typeof rawDate === 'number') return new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+                            if (typeof rawDate === 'string') {
+                                const clean = rawDate.trim().replace(/["']/g, '');
+                                // Match MM/DD/YYYY or M/D/YYYY
+                                const match = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+                                if (match) {
+                                    const m = parseInt(match[1], 10);
+                                    const d = parseInt(match[2], 10);
+                                    const y = parseInt(match[3], 10);
+                                    return new Date(y, m - 1, d);
+                                }
+                            }
+                            return parseDateRobust(rawDate);
+                        };
+
                         normalized = data.map(r => {
                             const cleanKeys = Object.keys(r).map(k => ({ orig: k, clean: k.toLowerCase().replace(/[^a-z0-9]/g, '') }));
                             const uKey = cleanKeys.find(k => k.clean.includes('udise'))?.orig;
                             const statKey = cleanKeys.find(k => k.clean === 'status')?.orig;
                             const nameKey = cleanKeys.find(k => k.clean.includes('instructorname') || (k.clean.includes('instructor') && k.clean.includes('name')))?.orig;
                             const joinDateKey = cleanKeys.find(k => k.clean.includes('joiningdate') || k.clean.includes('dateofjoining') || k.clean === 'doj' || k.clean.includes('join'))?.orig;
+                            const statusDateKey = cleanKeys.find(k => k.clean.includes('statusdate'))?.orig;
                             
                             const rawJoinDate = joinDateKey ? r[joinDateKey] : '';
                             let parsedJoinDate = '';
                             if (rawJoinDate) {
-                                const dObj = parseDateRobust(rawJoinDate);
+                                const dObj = parseManpowerDate(rawJoinDate);
                                 if (dObj && !isNaN(dObj.getTime())) {
                                     const year = dObj.getFullYear();
                                     const month = String(dObj.getMonth() + 1).padStart(2, '0');
@@ -1734,12 +1753,27 @@ const App = () => {
                                     parsedJoinDate = String(rawJoinDate).trim();
                                 }
                             }
+
+                            const rawStatusDate = statusDateKey ? r[statusDateKey] : '';
+                            let parsedStatusDate = '';
+                            if (rawStatusDate) {
+                                const dObj = parseManpowerDate(rawStatusDate);
+                                if (dObj && !isNaN(dObj.getTime())) {
+                                    const year = dObj.getFullYear();
+                                    const month = String(dObj.getMonth() + 1).padStart(2, '0');
+                                    const day = String(dObj.getDate()).padStart(2, '0');
+                                    parsedStatusDate = `${year}-${month}-${day}`;
+                                } else {
+                                    parsedStatusDate = String(rawStatusDate).trim();
+                                }
+                            }
                             
                             return { 
                                 udise: uKey ? String(r[uKey]).trim() : '', 
                                 status: statKey ? String(r[statKey]).trim() : '',
                                 instructorName: nameKey ? String(r[nameKey]).trim() : '',
-                                joiningDate: parsedJoinDate
+                                joiningDate: parsedJoinDate,
+                                statusDate: parsedStatusDate
                             };
                         });
                     } else {
