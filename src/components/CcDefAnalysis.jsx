@@ -69,6 +69,20 @@ const ClockIcon = ({ className }) => (
     </svg>
 );
 
+const DeviceIcon = ({ className }) => (
+    <svg className={className || 'w-4 h-4'} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+        <line x1="8" y1="21" x2="16" y2="21" />
+        <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+);
+
+const SyncIcon = ({ className }) => (
+    <svg className={className || 'w-4 h-4'} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+    </svg>
+);
+
 // ─── Utility ───────────────────────────────────────────────────────────────────
 const parseDateLocal = (d) => {
     if (!d) return null;
@@ -92,19 +106,29 @@ const getRatingBadge = (pct) => {
 };
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
-const KpiCard = ({ icon: Icon, iconColor, value, label, sub, highlight }) => (
-    <div className={`relative bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-md border ${highlight ? 'border-teal-400 dark:border-teal-700' : 'border-slate-150 dark:border-slate-800'} flex flex-col gap-1 overflow-hidden`}>
+const KpiCard = ({ icon: Icon, iconColor, value, label, sub, highlight, onClick }) => (
+    <div 
+        onClick={onClick}
+        className={`relative bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-md border ${
+            highlight ? 'border-teal-400 dark:border-teal-700' : 'border-slate-150 dark:border-slate-800'
+        } flex flex-col gap-1 overflow-hidden transition-all duration-300 ${
+            onClick ? 'cursor-pointer hover:shadow-lg hover:border-teal-500 dark:hover:border-teal-500 transform hover:-translate-y-0.5' : ''
+        }`}
+    >
         <div className={`flex items-center justify-center w-8 h-8 rounded-xl ${iconColor} mb-1`}>
             <Icon className="w-4 h-4" />
         </div>
-        <div className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{value}</div>
+        <div className="text-2xl font-black text-gray-900 dark:text-white leading-tight flex items-baseline justify-between">
+            <span>{value}</span>
+            {onClick && <span className="text-[9px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20 px-1.5 py-0.5 rounded">🔍 Details</span>}
+        </div>
         <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 leading-tight">{label}</div>
         {sub && <div className="text-[10px] font-medium text-gray-400 dark:text-slate-500">{sub}</div>}
     </div>
 );
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = [], edustat = [], startDate, endDate, ccNameMapping = {}, darkMode = false, onNavigateToSchool }) {
+export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = [], edustat = [], startDate, endDate, ccNameMapping = {}, darkMode = false, onNavigateToSchool, manpower = [], edustatMaster = [], onDrillDown }) {
     const [selectedCC, setSelectedCC] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -143,6 +167,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
 
         // Assigned schools (mapped by visitor_name in school master)
         const assignedSchools = schools.filter(s => (s.visitor_name || '').trim() === selectedCC.trim());
+        const assignedSchoolUdises = new Set(assignedSchools.map(s => String(s.udise_code || s.udise || '').trim()));
 
         // All visits by this CC in date range
         const ccVisits = visits.filter(v => {
@@ -179,6 +204,27 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             }
         });
 
+        // Split unique day visit counts between assigned and other schools
+        const assignedUniqueVisitSet = new Set();
+        const otherUniqueVisitSet = new Set();
+        
+        ccVisits.forEach(v => {
+            const ud = String(v.udise_code || v.udise || '').trim();
+            const d = parseDateLocal(v.visit_date);
+            if (ud && d) {
+                const dateStr = d.toISOString().split('T')[0];
+                if (assignedSchoolUdises.has(ud)) {
+                    assignedUniqueVisitSet.add(`${ud}_${dateStr}`);
+                } else {
+                    otherUniqueVisitSet.add(`${ud}_${dateStr}`);
+                }
+            }
+        });
+
+        const assignedVisitsCount = assignedUniqueVisitSet.size;
+        const otherVisitsCount = otherUniqueVisitSet.size;
+        const totalVisits = assignedVisitsCount + otherVisitsCount;
+
         // Assigned school coverage
         const visitedAssigned = assignedSchools.filter(s => visitsBySchool[String(s.udise_code || s.udise || '').trim()]);
         const coveragePct = assignedSchools.length > 0 ? Math.round((visitedAssigned.length / assignedSchools.length) * 100) : 0;
@@ -202,13 +248,44 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             const ud = String(e.udise || '').trim();
             return ccUdises.has(ud) && inRange(e.date);
         });
-        const totalJhpmsClasses = ccJhpms.length;
+
+        // JHPMS classes categorization
+        let theoryCount = 0;
+        let practicalCount = 0;
+        let smartCount = 0;
+        let misCount = 0;
+
+        ccJhpms.forEach(l => {
+            const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+            const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
+            const theoryPractical = String(l.theoryPractical || getVal(l, 'theoryPractical') || getVal(l, 'theory/practical') || getVal(l, 'theorypractical') || '').toUpperCase();
+
+            if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                misCount++;
+            } else {
+                if (labType.includes('SMART')) {
+                    smartCount++;
+                }
+
+                if (theoryPractical.includes('THEORY')) {
+                    theoryCount++;
+                } else if (theoryPractical.includes('PRACTICAL')) {
+                    practicalCount++;
+                } else {
+                    if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                        theoryCount++;
+                    } else if (labType.includes('SMART')) {
+                        practicalCount++;
+                    }
+                }
+            }
+        });
+        const totalJhpmsClasses = theoryCount + practicalCount;
         const totalEduHours = ccEdustat.reduce((s, e) => s + (parseFloat(e.hours) || 0), 0);
 
-        // Visit frequency metrics - calculated as sum of unique days visited for each school
-        const totalVisits = Object.values(visitsBySchool).reduce((acc, curr) => acc + curr.uniqueDates.size, 0);
+        // Visit frequency metrics
         const uniqueSchoolsVisited = Object.keys(visitsBySchool).length;
-        const avgVisitsPerSchool = assignedSchools.length > 0 ? (totalVisits / assignedSchools.length).toFixed(1) : '0';
+        const avgVisitsPerSchool = assignedSchools.length > 0 ? (assignedVisitsCount / assignedSchools.length).toFixed(1) : '0';
 
         // Count ICT and Smart visits separately
         let totalIctVisits = 0;
@@ -217,6 +294,56 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             const typeLower = String(v.visit_type || '').toLowerCase();
             if (typeLower.includes('ict')) totalIctVisits++;
             if (typeLower.includes('smart')) totalSmartVisits++;
+        });
+
+        // Manpower & CC Required/Working/Vacant Details
+        let manpowerWorking = 0;
+        assignedSchools.forEach(s => {
+            const ud = String(s.udise_code || s.udise || '').trim();
+            const schoolManpower = manpower.filter(m => String(m.udise).trim() === ud);
+            const working = schoolManpower.some(m => String(m.status).toUpperCase().trim() === 'WORKING');
+            if (working) manpowerWorking++;
+        });
+        const manpowerRequired = assignedSchools.length;
+        const manpowerVacant = Math.max(0, manpowerRequired - manpowerWorking);
+
+        // EduStat Devices Install & Sync Details
+        const ccSchoolDevices = edustatMaster.filter(d => {
+            const ud = String(d.udise || d.udise_code || '').trim();
+            return ccUdises.has(ud);
+        });
+        let devicesTotal = ccSchoolDevices.length;
+        let devicesInstalled = 0;
+        let devicesNotInstalled = 0;
+        ccSchoolDevices.forEach(d => {
+            const inst = String(d.installed || '').toUpperCase().trim();
+            if (inst === 'YES') {
+                devicesInstalled++;
+            } else {
+                devicesNotInstalled++;
+            }
+        });
+
+        const serialHoursMap = {};
+        ccEdustat.forEach(e => {
+            const serial = String(e.serial || '').trim();
+            const hours = parseFloat(e.hours) || 0;
+            if (serial) {
+                serialHoursMap[serial] = (serialHoursMap[serial] || 0) + hours;
+            }
+        });
+
+        let devicesSynced = 0;
+        let devicesNotSynced = 0;
+        const installedDevicesList = ccSchoolDevices.filter(d => String(d.installed || '').toUpperCase().trim() === 'YES');
+        installedDevicesList.forEach(d => {
+            const serial = String(d.serial || '').trim();
+            const hours = serialHoursMap[serial] || 0;
+            if (hours > 0) {
+                devicesSynced++;
+            } else {
+                devicesNotSynced++;
+            }
         });
 
         // Date range days
@@ -307,9 +434,28 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             rank, totalCCs, projectAvgVisits, projectAvgCoverage,
             trendSeries, trendLabels, prioritySchools, lastVisit,
             lastVisitDays, compositeScore, ccRankData: ccRankData.slice(0, 10),
-            totalIctVisits, totalSmartVisits
+            totalIctVisits, totalSmartVisits,
+            
+            // New KPI values
+            assignedSchoolUdises,
+            assignedVisitsCount,
+            otherVisitsCount,
+            manpowerRequired,
+            manpowerWorking,
+            manpowerVacant,
+            theoryCount,
+            practicalCount,
+            smartCount,
+            misCount,
+            devicesTotal,
+            devicesInstalled,
+            devicesNotInstalled,
+            devicesSynced,
+            devicesNotSynced,
+            ccSchoolDevices,
+            ccEdustat
         };
-    }, [selectedCC, schools, visits, jhpmsLab, edustat, startD, endD]);
+    }, [selectedCC, schools, visits, jhpmsLab, edustat, startD, endD, manpower, edustatMaster]);
 
     // ── Chart Options ────────────────────────────────────────────────────────
     const trendChartOptions = useMemo(() => ({
@@ -335,6 +481,93 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         dataLabels: { enabled: true, style: { fontSize: '10px', fontWeight: 700, colors: [darkMode ? '#f1f5f9' : '#1e293b'] }, formatter: v => `${v}` },
         tooltip: { theme: darkMode ? 'dark' : 'light', y: { formatter: v => `${v} visits` } },
     }), [profile, darkMode, selectedCC]);
+
+    // ─── Drill down handlers ──────────────────────────────────────────────────
+    const handleTotalVisitsDrillDown = () => {
+        if (!profile || !profile.ccVisits || !onDrillDown) return;
+        const sortedVisits = [...profile.ccVisits].sort((a, b) => {
+            const da = parseDateLocal(a.visit_date);
+            const db = parseDateLocal(b.visit_date);
+            return (db?.getTime() || 0) - (da?.getTime() || 0);
+        });
+        const drillData = sortedVisits.map((v, idx) => {
+            const udise = String(v.udise_code || v.udise || '').trim();
+            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === udise);
+            const isAssigned = profile.assignedSchoolUdises.has(udise);
+            return {
+                "Sl No": idx + 1,
+                "School Name": school?.school_name || "Unknown School",
+                "UDISE": udise,
+                "Date": formatDate(v.visit_date),
+                "Visit Type": v.visit_type || "N/A",
+                "Assignment": isAssigned ? "Assigned School" : "Other School",
+                "Remarks": v.remarks || "—"
+            };
+        });
+        onDrillDown(`All CC Visits - ${selectedCC}`, drillData);
+    };
+
+    const handleOtherVisitsDrillDown = () => {
+        if (!profile || !profile.ccVisits || !onDrillDown) return;
+        const otherVisits = profile.ccVisits.filter(v => !profile.assignedSchoolUdises.has(String(v.udise_code || v.udise || '').trim()));
+        const sortedVisits = [...otherVisits].sort((a, b) => {
+            const da = parseDateLocal(a.visit_date);
+            const db = parseDateLocal(b.visit_date);
+            return (db?.getTime() || 0) - (da?.getTime() || 0);
+        });
+        const drillData = sortedVisits.map((v, idx) => {
+            const udise = String(v.udise_code || v.udise || '').trim();
+            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === udise);
+            return {
+                "Sl No": idx + 1,
+                "School Name": school?.school_name || "Unknown School",
+                "UDISE": udise,
+                "Date": formatDate(v.visit_date),
+                "Visit Type": v.visit_type || "N/A",
+                "Remarks": v.remarks || "—"
+            };
+        });
+        onDrillDown(`Other School Visits - ${selectedCC}`, drillData);
+    };
+
+    const handleDevicesDrillDown = () => {
+        if (!profile || !profile.ccSchoolDevices || !onDrillDown) return;
+        
+        const serialHoursMap = {};
+        profile.ccEdustat.forEach(e => {
+            const serial = String(e.serial || '').trim();
+            const hours = parseFloat(e.hours) || 0;
+            if (serial) {
+                serialHoursMap[serial] = (serialHoursMap[serial] || 0) + hours;
+            }
+        });
+
+        const drillData = profile.ccSchoolDevices.map((d, idx) => {
+            const ud = String(d.udise || d.udise_code || '').trim();
+            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === ud);
+            const serial = String(d.serial || '').trim();
+            const inst = String(d.installed || '').toUpperCase().trim() === 'YES';
+            const hours = serialHoursMap[serial] || 0;
+            
+            let syncStatus = "Not Synced (0 Hours)";
+            if (!inst) {
+                syncStatus = "Device Not Installed";
+            } else if (hours > 0) {
+                syncStatus = `Synced (${hours.toFixed(1)} Hours)`;
+            }
+
+            return {
+                "Sl No": idx + 1,
+                "School Name": school?.school_name || "Unknown School",
+                "UDISE": ud,
+                "Device": d.device || "EduStat Device",
+                "Serial Number": serial || "N/A",
+                "Installation Status": inst ? "Installed" : "Not Installed",
+                "Sync Status": syncStatus
+            };
+        });
+        onDrillDown(`EduStat Devices Audit - ${selectedCC}`, drillData);
+    };
 
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
@@ -427,20 +660,36 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                         </div>
                     </div>
 
-                    {/* ── KPI Grid ─────────────────────────────────── */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {/* ── Visits & Coverage KPI Grid ─────────────────── */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                         <KpiCard icon={CalendarIcon} iconColor="bg-teal-50 dark:bg-teal-900/20 text-teal-600"
-                            value={profile.totalVisits} label="Total Visits" sub={`in selected period`} />
+                            value={profile.totalVisits} label="Total Visits" sub={`Assigned: ${profile.assignedVisitsCount} · Other: ${profile.otherVisitsCount}`} onClick={handleTotalVisitsDrillDown} />
+                        <KpiCard icon={SchoolIcon} iconColor="bg-rose-50 dark:bg-rose-900/20 text-rose-600"
+                            value={profile.otherVisitsCount} label="Other School Visits" sub="Outside assigned list" onClick={handleOtherVisitsDrillDown} />
                         <KpiCard icon={SchoolIcon} iconColor="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600"
                             value={`${profile.visitedAssigned.length}/${profile.assignedSchools.length}`} label="Coverage" sub={`${profile.coveragePct}% Assigned Schools`} />
                         <KpiCard icon={TrendUpIcon} iconColor="bg-blue-50 dark:bg-blue-900/20 text-blue-600"
                             value={profile.avgVisitsPerWeek} label="Avg Visits/Week" sub="across period" />
                         <KpiCard icon={TargetIcon} iconColor="bg-amber-50 dark:bg-amber-900/20 text-amber-600"
                             value={profile.avgVisitsPerSchool} label="Avg Visits/School" sub="assigned schools" />
+                    </div>
+
+                    {/* ── Manpower, JHPMS & EduStat Device Audit Grid ───────── */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mt-3">
+                        <KpiCard icon={UserGroupIcon} iconColor="bg-teal-50 dark:bg-teal-900/20 text-teal-600"
+                            value={`${profile.manpowerWorking}/${profile.manpowerRequired}`} label="ICT Manpower" 
+                            sub={`Req: ${profile.manpowerRequired} · Work: ${profile.manpowerWorking} · Vacant: ${profile.manpowerVacant}`} />
                         <KpiCard icon={BarChartIcon} iconColor="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
-                            value={profile.totalJhpmsClasses} label="JHPMS Classes" sub="in assigned schools" />
+                            value={profile.totalJhpmsClasses} label="JHPMS Classes" 
+                            sub={`Th: ${profile.theoryCount} · Pr: ${profile.practicalCount} · Sm: ${profile.smartCount} · MIS: ${profile.misCount}`} />
                         <KpiCard icon={ClockIcon} iconColor="bg-rose-50 dark:bg-rose-900/20 text-rose-600"
                             value={profile.totalEduHours > 0 ? profile.totalEduHours.toFixed(1) : '0'} label="EduStat Hours" sub="in assigned schools" />
+                        <KpiCard icon={DeviceIcon} iconColor="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600"
+                            value={`${profile.devicesInstalled}/${profile.devicesTotal}`} label="Installed Devices" 
+                            sub={`Tot: ${profile.devicesTotal} · Inst: ${profile.devicesInstalled} · Not Inst: ${profile.devicesNotInstalled}`} onClick={handleDevicesDrillDown} />
+                        <KpiCard icon={SyncIcon} iconColor="bg-rose-50 dark:bg-rose-900/20 text-rose-600"
+                            value={`${profile.devicesSynced}/${profile.devicesInstalled}`} label="Synced Devices" 
+                            sub={`Sync: ${profile.devicesSynced} · Not Sync: ${profile.devicesNotSynced}`} onClick={handleDevicesDrillDown} />
                     </div>
 
                     {/* ── Row 2: Coverage + Trend Chart ─────────────── */}
