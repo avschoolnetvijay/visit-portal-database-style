@@ -1261,7 +1261,12 @@ const App = () => {
                 const dateVal = r[dateKey] || getValLocal(r, 'date') || getValLocal(r, 'visit_date') || getValLocal(r, 'visitdate');
                 const d = parseDateRobust(dateVal);
                 if (!d) return true; // Keep invalid dates to prevent silent loss
-                const dateStr = d.toISOString().split('T')[0];
+                
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                
                 return dateStr < delStart || dateStr > delEnd;
             });
             totalDeleted += (before - kept.length);
@@ -1613,9 +1618,23 @@ const App = () => {
                                 }
                             }
                             
+                            const rawDate = dKey ? r[dKey] : '';
+                            let parsedDate = '';
+                            if (rawDate) {
+                                const dObj = parseDateRobust(rawDate);
+                                if (dObj && !isNaN(dObj.getTime())) {
+                                    const year = dObj.getFullYear();
+                                    const month = String(dObj.getMonth() + 1).padStart(2, '0');
+                                    const day = String(dObj.getDate()).padStart(2, '0');
+                                    parsedDate = `${year}-${month}-${day}`;
+                                } else {
+                                    parsedDate = String(rawDate).trim();
+                                }
+                            }
+                            
                             return { 
                                 udise: uKey ? r[uKey] : '', 
-                                date: dKey ? r[dKey] : '',
+                                date: parsedDate,
                                 labType: labKey ? r[labKey] : '',
                                 subject: subKey ? r[subKey] : '',
                                 subjectTeacher: teacherKey ? String(r[teacherKey]).trim() : '',
@@ -1655,9 +1674,12 @@ const App = () => {
                             const rawDate = dateKey ? r[dateKey] : '';
                             let parsedDate = '';
                             if (rawDate) {
-                                const dObj = new Date(rawDate);
-                                if (!isNaN(dObj.getTime())) {
-                                    parsedDate = dObj.toISOString().split('T')[0];
+                                const dObj = parseDateRobust(rawDate);
+                                if (dObj && !isNaN(dObj.getTime())) {
+                                    const year = dObj.getFullYear();
+                                    const month = String(dObj.getMonth() + 1).padStart(2, '0');
+                                    const day = String(dObj.getDate()).padStart(2, '0');
+                                    parsedDate = `${year}-${month}-${day}`;
                                 } else {
                                     parsedDate = String(rawDate).trim();
                                 }
