@@ -284,7 +284,15 @@ const SchoolWiseSearch = ({
         const unsyncedCount = unsyncedDevices.length;
 
         // Manpower & Instructor Details
-        const instructor = manpower.find(m => String(m.udise).trim() === udise) || null;
+        const schoolManpower = manpower.filter(m => String(m.udise).trim() === udise);
+        const activeInstructor = schoolManpower.find(m => String(m.status).toUpperCase().trim() === 'WORKING');
+        
+        let lastWorkingInstructor = null;
+        if (!activeInstructor) {
+            const history = schoolManpower.filter(m => m.statusDate);
+            history.sort((a, b) => new Date(b.statusDate) - new Date(a.statusDate));
+            lastWorkingInstructor = history[0] || schoolManpower[0] || null;
+        }
 
         // Visits in this QPR
         const qprVisits = visits.filter(v => {
@@ -417,8 +425,8 @@ const SchoolWiseSearch = ({
 
         // Automated Insights
         const insightsList = [];
-        const isVacant = instructor ? (String(instructor.status).toUpperCase().includes('RESIGN') || String(instructor.status).toUpperCase().includes('VACANT')) : true;
-
+        const isVacant = !activeInstructor;
+ 
         if (isVacant) {
             insightsList.push({
                 type: 'danger',
@@ -465,7 +473,8 @@ const SchoolWiseSearch = ({
             totalEduHours,
             unsyncedCount,
             unsyncedDevices,
-            instructor,
+            activeInstructor,
+            lastWorkingInstructor,
             qprVisits,
             lastVisitObj,
             lastVisitAge,
@@ -634,20 +643,20 @@ const SchoolWiseSearch = ({
                                 <div>
                                     <label className="text-[10px] text-gray-400 uppercase font-semibold">ICT Instructor Name</label>
                                     <div className="font-bold text-sm text-gray-800 dark:text-gray-150">
-                                        {schoolProfile.instructor ? schoolProfile.instructor.instructorName : 'No instructor assigned'}
+                                        {schoolProfile.activeInstructor ? schoolProfile.activeInstructor.instructorName : 'Vacant / Not Assigned'}
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-[10px] text-gray-400 uppercase font-semibold">Roster Status</label>
                                         <div className="mt-1">
-                                            {schoolProfile.instructor ? (
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                    String(schoolProfile.instructor.status).toUpperCase().includes('ACTIVE') || String(schoolProfile.instructor.status).toUpperCase().includes('WORK')
-                                                        ? 'bg-green-100 text-green-700 dark:bg-green-950/20 dark:text-green-400'
-                                                        : 'bg-red-100 text-red-700 dark:bg-red-950/20 dark:text-red-400'
-                                                }`}>
-                                                    {schoolProfile.instructor.status}
+                                            {schoolProfile.activeInstructor ? (
+                                                <span className="px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-950/20 dark:text-green-400 rounded-full text-[10px] font-bold">
+                                                    {schoolProfile.activeInstructor.status || 'WORKING'}
+                                                </span>
+                                            ) : schoolProfile.lastWorkingInstructor ? (
+                                                <span className="px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-950/20 dark:text-red-400 rounded-full text-[10px] font-bold uppercase">
+                                                    {schoolProfile.lastWorkingInstructor.status || 'VACANT'}
                                                 </span>
                                             ) : (
                                                 <span className="px-2 py-0.5 bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400 rounded-full text-[10px] font-bold">Vacant</span>
@@ -657,10 +666,31 @@ const SchoolWiseSearch = ({
                                     <div>
                                         <label className="text-[10px] text-gray-400 uppercase font-semibold">Date of Joining</label>
                                         <div className="font-bold text-gray-800 dark:text-gray-150 mt-0.5">
-                                            {schoolProfile.instructor?.joiningDate ? formatDate(schoolProfile.instructor.joiningDate) : 'N/A'}
+                                            {schoolProfile.activeInstructor?.joiningDate ? formatDate(schoolProfile.activeInstructor.joiningDate) : 'N/A'}
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Dynamic Last Working Instructor Details (Visible only when vacant/resigned/terminated) */}
+                                {!schoolProfile.activeInstructor && schoolProfile.lastWorkingInstructor && (
+                                    <div className="mt-3.5 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-gray-150 dark:border-slate-800/70 text-xs">
+                                        <span className="font-extrabold text-gray-500 dark:text-slate-400 block uppercase text-[9px] tracking-wider mb-1.5 border-b border-gray-200/50 dark:border-slate-800 pb-1">
+                                            Last Working Instructor Details
+                                        </span>
+                                        <div className="space-y-1 text-[11px] text-gray-700 dark:text-gray-300 font-bold">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-500 font-medium">Name:</span>
+                                                <span className="text-gray-900 dark:text-white font-black">{schoolProfile.lastWorkingInstructor.instructorName || 'N/A'}</span>
+                                            </div>
+                                            <div className="flex justify-between mt-1">
+                                                <span className="text-gray-500 font-medium">Last Status Date:</span>
+                                                <span className="text-teal-900 dark:text-teal-400 font-black">
+                                                    {schoolProfile.lastWorkingInstructor.statusDate ? formatDate(schoolProfile.lastWorkingInstructor.statusDate) : 'N/A'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
