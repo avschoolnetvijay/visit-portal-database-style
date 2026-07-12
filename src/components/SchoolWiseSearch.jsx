@@ -315,12 +315,13 @@ const SchoolWiseSearch = ({
         const rankIndex = allSchoolsRanked.findIndex(item => item.udise === udise);
         const schoolRank = rankIndex !== -1 ? rankIndex + 1 : 'N/A';
 
-        // Regional Averages (District & Block Benchmarks)
-        const districtSchools = schools.filter(s => s.district === school.district);
-        const blockSchools = schools.filter(s => s.block === school.block);
+        // Regional Averages (District & Block Benchmarks within this Project)
+        const projectSchools = schools.filter(s => s.project_name === school.project_name);
+        const districtProjectSchools = schools.filter(s => s.district === school.district && s.project_name === school.project_name);
+        const blockProjectSchools = schools.filter(s => s.block === school.block && s.project_name === school.project_name);
 
-        // 1. Calculate District Rank
-        const districtSchoolsRanked = districtSchools.map(s => {
+        // 1. Calculate District-Project Rank (within same district and same project)
+        const districtProjectSchoolsRanked = districtProjectSchools.map(s => {
             const sUdise = String(s.udise_code || '').trim();
             const stats = schoolSummaryMap[sUdise] || { classes: 0, hours: 0 };
             const validWdays = Number(workingDays) > 0 ? Number(workingDays) : 1;
@@ -328,11 +329,10 @@ const SchoolWiseSearch = ({
             return { udise: sUdise, score };
         }).sort((a, b) => b.score - a.score);
         
-        const distRankIndex = districtSchoolsRanked.findIndex(item => item.udise === udise);
+        const distRankIndex = districtProjectSchoolsRanked.findIndex(item => item.udise === udise);
         const districtRank = distRankIndex !== -1 ? distRankIndex + 1 : 'N/A';
 
-        // 2. Calculate Project Rank
-        const projectSchools = schools.filter(s => s.project_name === school.project_name);
+        // 2. Calculate Project Rank (within same project)
         const projectSchoolsRanked = projectSchools.map(s => {
             const sUdise = String(s.udise_code || '').trim();
             const stats = schoolSummaryMap[sUdise] || { classes: 0, hours: 0 };
@@ -360,8 +360,9 @@ const SchoolWiseSearch = ({
             };
         };
 
-        const distAvgs = getGroupAverages(districtSchools);
-        const blkAvgs = getGroupAverages(blockSchools);
+        const projectAvgs = getGroupAverages(projectSchools);
+        const distProjectAvgs = getGroupAverages(districtProjectSchools);
+        const blkProjectAvgs = getGroupAverages(blockProjectSchools);
 
         // Weekly logs trend (ApexCharts payload)
         const startD = new Date(startDate);
@@ -471,11 +472,12 @@ const SchoolWiseSearch = ({
             schoolRank,
             totalRanked: allSchoolsRanked.length,
             districtRank,
-            totalDistrictRanked: districtSchoolsRanked.length,
+            totalDistrictRanked: districtProjectSchoolsRanked.length,
             projectRank,
             totalProjectRanked: projectSchoolsRanked.length,
-            distAvgs,
-            blkAvgs,
+            projectAvgs,
+            distProjectAvgs,
+            blkProjectAvgs,
             weeklyTrend,
             insightsList,
             historyVisits
@@ -856,60 +858,84 @@ const SchoolWiseSearch = ({
                                 
                                 {/* JHPMS Benchmarks */}
                                 <div className="space-y-4">
-                                    <h4 className="text-xs font-black text-gray-800 dark:text-gray-200">Average Classes vs Regional Averages</h4>
+                                    <h4 className="text-xs font-black text-gray-800 dark:text-gray-200">Average Classes vs Regional Averages (Within Project)</h4>
                                     
-                                    {/* District JHPMS */}
-                                    <div className="space-y-1.5">
+                                    {/* Project-wise Benchmark */}
+                                    <div className="space-y-1.5 border-b border-gray-550/10 dark:border-slate-850 pb-2.5">
                                         <div className="flex justify-between text-xs font-extrabold text-gray-700 dark:text-gray-300">
-                                            <span>District Average ({selectedSchool.district})</span>
-                                            <span>{schoolProfile.distAvgs.avgClasses.toFixed(1)} classes</span>
+                                            <span>Project Average ({selectedSchool.project_name || 'N/A'})</span>
+                                            <span>{schoolProfile.projectAvgs.avgClasses.toFixed(1)} classes</span>
                                         </div>
                                         <div className="relative h-2.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalJhpmsClasses, schoolProfile.distAvgs.avgClasses)}`} style={{ width: `${Math.min(100, (schoolProfile.totalJhpmsClasses / Math.max(1, schoolProfile.distAvgs.avgClasses)) * 50)}%` }} />
-                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="District Average Marker" />
+                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalJhpmsClasses, schoolProfile.projectAvgs.avgClasses)}`} style={{ width: `${Math.min(100, (schoolProfile.totalJhpmsClasses / Math.max(1, schoolProfile.projectAvgs.avgClasses)) * 50)}%` }} />
+                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="Project Average Marker" />
                                         </div>
-                                        <span className="text-[11px] text-gray-700 dark:text-gray-400 font-extrabold">School Total Classes: {schoolProfile.totalJhpmsClasses}</span>
                                     </div>
 
-                                    {/* Block JHPMS */}
-                                    <div className="space-y-1.5">
+                                    {/* District this Project Benchmark */}
+                                    <div className="space-y-1.5 border-b border-gray-550/10 dark:border-slate-850 pb-2.5">
                                         <div className="flex justify-between text-xs font-extrabold text-gray-700 dark:text-gray-300">
-                                            <span>Block Average ({selectedSchool.block})</span>
-                                            <span>{schoolProfile.blkAvgs.avgClasses.toFixed(1)} classes</span>
+                                            <span>District-Project Average ({selectedSchool.district})</span>
+                                            <span>{schoolProfile.distProjectAvgs.avgClasses.toFixed(1)} classes</span>
                                         </div>
                                         <div className="relative h-2.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalJhpmsClasses, schoolProfile.blkAvgs.avgClasses)}`} style={{ width: `${Math.min(100, (schoolProfile.totalJhpmsClasses / Math.max(1, schoolProfile.blkAvgs.avgClasses)) * 50)}%` }} />
-                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="Block Average Marker" />
+                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalJhpmsClasses, schoolProfile.distProjectAvgs.avgClasses)}`} style={{ width: `${Math.min(100, (schoolProfile.totalJhpmsClasses / Math.max(1, schoolProfile.distProjectAvgs.avgClasses)) * 50)}%` }} />
+                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="District-Project Average Marker" />
+                                        </div>
+                                        <span className="text-[11px] text-gray-750 dark:text-gray-400 font-extrabold">School Total Classes: {schoolProfile.totalJhpmsClasses}</span>
+                                    </div>
+
+                                    {/* Block wise this Project Benchmark */}
+                                    <div className="space-y-1.5">
+                                        <div className="flex justify-between text-xs font-extrabold text-gray-700 dark:text-gray-300">
+                                            <span>Block-Project Average ({selectedSchool.block})</span>
+                                            <span>{schoolProfile.blkProjectAvgs.avgClasses.toFixed(1)} classes</span>
+                                        </div>
+                                        <div className="relative h-2.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalJhpmsClasses, schoolProfile.blkProjectAvgs.avgClasses)}`} style={{ width: `${Math.min(100, (schoolProfile.totalJhpmsClasses / Math.max(1, schoolProfile.blkProjectAvgs.avgClasses)) * 50)}%` }} />
+                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="Block-Project Average Marker" />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* EduStat Benchmarks */}
                                 <div className="space-y-4">
-                                    <h4 className="text-xs font-black text-gray-800 dark:text-gray-200">Average Device Hours vs Regional Averages</h4>
+                                    <h4 className="text-xs font-black text-gray-800 dark:text-gray-200">Average Device Hours vs Regional Averages (Within Project)</h4>
                                     
-                                    {/* District EduStat */}
-                                    <div className="space-y-1.5">
+                                    {/* Project-wise Benchmark */}
+                                    <div className="space-y-1.5 border-b border-gray-550/10 dark:border-slate-850 pb-2.5">
                                         <div className="flex justify-between text-xs font-extrabold text-gray-700 dark:text-gray-300">
-                                            <span>District Average ({selectedSchool.district})</span>
-                                            <span>{schoolProfile.distAvgs.avgHours.toFixed(1)} hrs</span>
+                                            <span>Project Average ({selectedSchool.project_name || 'N/A'})</span>
+                                            <span>{schoolProfile.projectAvgs.avgHours.toFixed(1)} hrs</span>
                                         </div>
                                         <div className="relative h-2.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalEduHours, schoolProfile.distAvgs.avgHours)}`} style={{ width: `${Math.min(100, (schoolProfile.totalEduHours / Math.max(1, schoolProfile.distAvgs.avgHours)) * 50)}%` }} />
-                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="District Average Marker" />
+                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalEduHours, schoolProfile.projectAvgs.avgHours)}`} style={{ width: `${Math.min(100, (schoolProfile.totalEduHours / Math.max(1, schoolProfile.projectAvgs.avgHours)) * 50)}%` }} />
+                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="Project Average Marker" />
                                         </div>
-                                        <span className="text-[11px] text-gray-700 dark:text-gray-400 font-extrabold">School Total Hours: {schoolProfile.totalEduHours.toFixed(1)}</span>
                                     </div>
 
-                                    {/* Block EduStat */}
-                                    <div className="space-y-1.5">
+                                    {/* District this Project Benchmark */}
+                                    <div className="space-y-1.5 border-b border-gray-550/10 dark:border-slate-850 pb-2.5">
                                         <div className="flex justify-between text-xs font-extrabold text-gray-700 dark:text-gray-300">
-                                            <span>Block Average ({selectedSchool.block})</span>
-                                            <span>{schoolProfile.blkAvgs.avgHours.toFixed(1)} hrs</span>
+                                            <span>District-Project Average ({selectedSchool.district})</span>
+                                            <span>{schoolProfile.distProjectAvgs.avgHours.toFixed(1)} hrs</span>
                                         </div>
                                         <div className="relative h-2.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalEduHours, schoolProfile.blkAvgs.avgHours)}`} style={{ width: `${Math.min(100, (schoolProfile.totalEduHours / Math.max(1, schoolProfile.blkAvgs.avgHours)) * 50)}%` }} />
-                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="Block Average Marker" />
+                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalEduHours, schoolProfile.distProjectAvgs.avgHours)}`} style={{ width: `${Math.min(100, (schoolProfile.totalEduHours / Math.max(1, schoolProfile.distProjectAvgs.avgHours)) * 50)}%` }} />
+                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="District-Project Average Marker" />
+                                        </div>
+                                        <span className="text-[11px] text-gray-755 dark:text-gray-400 font-extrabold">School Total Hours: {schoolProfile.totalEduHours.toFixed(1)}</span>
+                                    </div>
+
+                                    {/* Block wise this Project Benchmark */}
+                                    <div className="space-y-1.5">
+                                        <div className="flex justify-between text-xs font-extrabold text-gray-700 dark:text-gray-300">
+                                            <span>Block-Project Average ({selectedSchool.block})</span>
+                                            <span>{schoolProfile.blkProjectAvgs.avgHours.toFixed(1)} hrs</span>
+                                        </div>
+                                        <div className="relative h-2.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalEduHours, schoolProfile.blkProjectAvgs.avgHours)}`} style={{ width: `${Math.min(100, (schoolProfile.totalEduHours / Math.max(1, schoolProfile.blkProjectAvgs.avgHours)) * 50)}%` }} />
+                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="Block-Project Average Marker" />
                                         </div>
                                     </div>
                                 </div>
