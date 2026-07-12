@@ -475,6 +475,73 @@ const SchoolWiseSearch = ({
             });
         }
 
+        // Unique dates count in QPR
+        const qprDates = new Set();
+        qprVisits.forEach(v => {
+            const d = parseDateRobust(v.visit_date);
+            if (d) {
+                qprDates.add(d.toISOString().split('T')[0]);
+            }
+        });
+        const qprVisitsUniqueDaysCount = qprDates.size;
+
+        // Group history visits by date to merge same-day visits
+        const groupedHistory = [];
+        const seenDates = {}; // dateStr -> index in groupedHistory
+
+        // Sort all history visits by date descending first
+        const sortedHistory = [...historyVisits].sort((a, b) => {
+            const da = parseDateRobust(a.visit_date);
+            const db = parseDateRobust(b.visit_date);
+            return (db?.getTime() || 0) - (da?.getTime() || 0);
+        });
+
+        sortedHistory.forEach(v => {
+            const d = parseDateRobust(v.visit_date);
+            if (!d) return;
+            const dateStr = d.toISOString().split('T')[0];
+            const visitor = v.visitor_name || 'Coordinator';
+
+            if (seenDates[dateStr] !== undefined) {
+                const existing = groupedHistory[seenDates[dateStr]];
+                existing.types.add(String(v.visit_type || '').toUpperCase().trim());
+                if (v.purpose && !existing.purposes.includes(v.purpose)) {
+                    existing.purposes.push(v.purpose);
+                }
+            } else {
+                const types = new Set();
+                types.add(String(v.visit_type || '').toUpperCase().trim());
+                groupedHistory.push({
+                    visit_date: v.visit_date,
+                    visitor_name: visitor,
+                    types: types,
+                    purposes: v.purpose ? [v.purpose] : []
+                });
+                seenDates[dateStr] = groupedHistory.length - 1;
+            }
+        });
+
+        const historyVisitsUniqueDays = groupedHistory.map(g => {
+            const typeList = Array.from(g.types);
+            let displayType = 'Visit';
+            const hasIct = typeList.some(t => t.includes('ICT'));
+            const hasSmart = typeList.some(t => t.includes('SMART'));
+            if (hasIct && hasSmart) {
+                displayType = 'ICT+Smart';
+            } else if (hasIct) {
+                displayType = 'ICT';
+            } else if (hasSmart) {
+                displayType = 'Smart';
+            } else if (typeList.length > 0) {
+                displayType = typeList[0];
+            }
+            return {
+                ...g,
+                visit_type: displayType,
+                purpose: g.purposes.join('; ')
+            };
+        });
+
         return {
             jhpmsLoggedDays,
             theoryCount,
@@ -488,6 +555,7 @@ const SchoolWiseSearch = ({
             activeInstructor,
             lastWorkingInstructor,
             qprVisits,
+            qprVisitsUniqueDaysCount,
             lastVisitObj,
             lastVisitAge,
             schoolRank,
@@ -501,7 +569,8 @@ const SchoolWiseSearch = ({
             blkProjectAvgs,
             weeklyTrend,
             insightsList,
-            historyVisits
+            historyVisits,
+            historyVisitsUniqueDays
         };
     }, [selectedSchool, filteredJhpmsRange, filteredEdustatRange, edustatMaster, manpower, visits, startDate, endDate, allSchoolsRanked, schools, schoolSummaryMap]);
 
@@ -721,11 +790,11 @@ const SchoolWiseSearch = ({
                                 <div className="flex justify-between items-center">
                                     <span className="font-semibold text-gray-600 dark:text-gray-400">CC Visit in this QPR?</span>
                                     <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold shadow-sm ${
-                                        schoolProfile.qprVisits.length > 0
+                                        schoolProfile.qprVisitsUniqueDaysCount > 0
                                             ? 'bg-green-150 text-green-800 border border-green-200 dark:bg-green-950/20 dark:text-green-400 dark:border-green-900/30'
                                             : 'bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/30'
                                     }`}>
-                                        {schoolProfile.qprVisits.length > 0 ? `Yes (${schoolProfile.qprVisits.length} visits)` : 'No'}
+                                        {schoolProfile.qprVisitsUniqueDaysCount > 0 ? `Yes (${schoolProfile.qprVisitsUniqueDaysCount} visits)` : 'No'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center">
@@ -1055,13 +1124,13 @@ const SchoolWiseSearch = ({
                             <h3 className="text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-400 mb-4 flex items-center gap-1.5 border-b border-gray-100 dark:border-slate-800 pb-2">
                                 ⏱ Recent Audit Visits History
                             </h3>
-                            {schoolProfile.historyVisits.length === 0 ? (
+                            {schoolProfile.historyVisitsUniqueDays.length === 0 ? (
                                 <div className="text-xs text-gray-400 italic text-center py-8">
                                     No historical audit visits logged for this school.
                                 </div>
                             ) : (
                                 <div className="space-y-4 relative before:absolute before:top-1.5 before:bottom-1.5 before:left-3 before:w-0.5 before:bg-gray-100 dark:before:bg-slate-800 pl-8">
-                                    {schoolProfile.historyVisits.slice(0, 5).map((v, idx) => (
+                                    {schoolProfile.historyVisitsUniqueDays.slice(0, 5).map((v, idx) => (
                                         <div key={idx} className="relative text-xs">
                                             <div className="absolute -left-8 w-2 h-2 rounded-full bg-teal-600 mt-1.5 outline outline-4 outline-white dark:outline-slate-900" />
                                             <div className="flex flex-col md:flex-row justify-between gap-1.5">
@@ -1069,7 +1138,7 @@ const SchoolWiseSearch = ({
                                                     <span className="font-extrabold text-gray-850 dark:text-gray-200">
                                                         {v.visitor_name}
                                                     </span>{' '}
-                                                    <span className="text-[10px] text-gray-400">
+                                                    <span className="text-[10px] text-gray-400 font-bold">
                                                         ({v.visit_type})
                                                     </span>
                                                 </div>

@@ -160,13 +160,22 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         // School-level visit summary
         const visitsBySchool = {};
         ccVisits.forEach(v => {
-            const udise = String(v.udise_code || v.udise || '').trim();
-            if (!udise) return;
-            if (!visitsBySchool[udise]) visitsBySchool[udise] = { visits: [], lastDate: null };
-            visitsBySchool[udise].visits.push(v);
+            const ud = String(v.udise_code || v.udise || '').trim();
+            if (!ud) return;
+            if (!visitsBySchool[ud]) {
+                visitsBySchool[ud] = { 
+                    visits: [], 
+                    lastDate: null,
+                    uniqueDates: new Set()
+                };
+            }
+            visitsBySchool[ud].visits.push(v);
             const d = parseDateLocal(v.visit_date);
-            if (d && (!visitsBySchool[udise].lastDate || d > parseDateLocal(visitsBySchool[udise].lastDate))) {
-                visitsBySchool[udise].lastDate = v.visit_date;
+            if (d) {
+                visitsBySchool[ud].uniqueDates.add(d.toISOString().split('T')[0]);
+            }
+            if (d && (!visitsBySchool[ud].lastDate || d > parseDateLocal(visitsBySchool[ud].lastDate))) {
+                visitsBySchool[ud].lastDate = v.visit_date;
             }
         });
 
@@ -180,7 +189,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         // Repeat visits alert: schools visited 3+ times while others unvisited
         const repeatVisits = assignedSchools.filter(s => {
             const ud = String(s.udise_code || s.udise || '').trim();
-            return visitsBySchool[ud] && visitsBySchool[ud].visits.length >= 3 && unvisited.length > 0;
+            return visitsBySchool[ud] && visitsBySchool[ud].uniqueDates.size >= 3 && unvisited.length > 0;
         });
 
         // JHPMS data for CC's schools
@@ -196,25 +205,48 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         const totalJhpmsClasses = ccJhpms.length;
         const totalEduHours = ccEdustat.reduce((s, e) => s + (parseFloat(e.hours) || 0), 0);
 
-        // Visit frequency metrics
-        const totalVisits = ccVisits.length;
+        // Visit frequency metrics - calculated as sum of unique days visited for each school
+        const totalVisits = Object.values(visitsBySchool).reduce((acc, curr) => acc + curr.uniqueDates.size, 0);
         const uniqueSchoolsVisited = Object.keys(visitsBySchool).length;
         const avgVisitsPerSchool = assignedSchools.length > 0 ? (totalVisits / assignedSchools.length).toFixed(1) : '0';
+
+        // Count ICT and Smart visits separately
+        let totalIctVisits = 0;
+        let totalSmartVisits = 0;
+        ccVisits.forEach(v => {
+            const typeLower = String(v.visit_type || '').toLowerCase();
+            if (typeLower.includes('ict')) totalIctVisits++;
+            if (typeLower.includes('smart')) totalSmartVisits++;
+        });
 
         // Date range days
         const rangeDays = startD && endD ? Math.max(1, Math.ceil((endD - startD) / 86400000) + 1) : 30;
         const avgVisitsPerWeek = ((totalVisits / rangeDays) * 7).toFixed(1);
 
-        // Ranking among all CCs in same project
+        // Ranking among all CCs in same project - based on unique days visit count
         const allProjectCCs = [...new Set(schools.filter(s => {
             const proj = assignedSchools[0]?.project_name;
             return proj ? s.project_name === proj : true;
         }).map(s => (s.visitor_name || '').trim()).filter(Boolean))];
 
         const ccRankData = allProjectCCs.map(cc => {
-            const ccV = visits.filter(v => (v.visitor_name || v.cc_name || '').trim() === cc && inRange(v.visit_date)).length;
+            const ccVisitsForCC = visits.filter(v => (v.visitor_name || v.cc_name || '').trim() === cc && inRange(v.visit_date));
+            const ccSchoolDateSet = new Set();
+            ccVisitsForCC.forEach(v => {
+                const ud = String(v.udise_code || v.udise || '').trim();
+                const d = parseDateLocal(v.visit_date);
+                if (ud && d) {
+                    ccSchoolDateSet.add(`${ud}_${d.toISOString().split('T')[0]}`);
+                }
+            });
+            const ccV = ccSchoolDateSet.size;
             const ccSchools = schools.filter(s => (s.visitor_name || '').trim() === cc).length;
-            const pct = ccSchools > 0 ? (visits.filter(v => (v.visitor_name || '').trim() === cc && inRange(v.visit_date) && ccSchools > 0).length / ccSchools) * 100 : 0;
+            const ccAssignedSchools = schools.filter(s => (s.visitor_name || '').trim() === cc);
+            const ccVisitedSchools = ccAssignedSchools.filter(s => {
+                const ud = String(s.udise_code || s.udise || '').trim();
+                return ccVisitsForCC.some(v => String(v.udise_code || v.udise || '').trim() === ud);
+            });
+            const pct = ccSchools > 0 ? (ccVisitedSchools.length / ccSchools) * 100 : 0;
             return { cc, visits: ccV, assigned: ccSchools, pct: Math.min(100, pct) };
         }).sort((a, b) => b.pct - a.pct || b.visits - a.visits);
 
@@ -222,15 +254,18 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         const rank = rankIndex + 1;
         const totalCCs = ccRankData.length;
 
-        // Project avg visits
-        const projectAvgVisits = ccRankData.length > 0 ? (ccRankData.reduce((s, r) => s + r.visits, 0) / ccRankData.length).toFixed(1) : 0;
-        const projectAvgCoverage = ccRankData.length > 0 ? (ccRankData.reduce((s, r) => s + r.pct, 0) / ccRankData.length).toFixed(1) : 0;
-
-        // Weekly trend
+        // Weekly trend - unique school-dates per week
         const weekMap = {};
+        const seenSchoolDates = new Set();
         ccVisits.forEach(v => {
+            const ud = String(v.udise_code || v.udise || '').trim();
             const d = parseDateLocal(v.visit_date);
-            if (!d) return;
+            if (!d || !ud) return;
+            const dateStr = d.toISOString().split('T')[0];
+            const signature = `${ud}_${dateStr}`;
+            if (seenSchoolDates.has(signature)) return;
+            seenSchoolDates.add(signature);
+
             const sunday = new Date(d);
             sunday.setDate(d.getDate() - d.getDay());
             const key = sunday.toISOString().split('T')[0];
@@ -267,7 +302,8 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             avgVisitsPerWeek, totalJhpmsClasses, totalEduHours,
             rank, totalCCs, projectAvgVisits, projectAvgCoverage,
             trendSeries, trendLabels, prioritySchools, lastVisit,
-            lastVisitDays, compositeScore, ccRankData: ccRankData.slice(0, 10)
+            lastVisitDays, compositeScore, ccRankData: ccRankData.slice(0, 10),
+            totalIctVisits, totalSmartVisits
         };
     }, [selectedCC, schools, visits, jhpmsLab, edustat, startD, endD]);
 
@@ -451,6 +487,14 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                     <span className="text-gray-500 dark:text-slate-400 font-medium">Unique Schools Visited</span>
                                     <span className="font-black text-teal-700 dark:text-teal-400">{profile.uniqueSchoolsVisited}</span>
                                 </div>
+                                <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-1">
+                                    <span className="text-gray-500 dark:text-slate-400 font-medium">Total ICT Visits</span>
+                                    <span className="font-extrabold text-blue-600 dark:text-blue-400">{profile.totalIctVisits}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-500 dark:text-slate-400 font-medium">Total Smart Class Visits</span>
+                                    <span className="font-extrabold text-teal-600 dark:text-teal-400">{profile.totalSmartVisits}</span>
+                                </div>
                             </div>
                         </div>
 
@@ -507,7 +551,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                                     <span className="text-[10px] font-bold text-red-500 dark:text-red-400">Not Visited</span>
                                                 )}
                                                 <span className={`w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center ${visited ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
-                                                    {cnt > 0 ? cnt : '0'}
+                                                    {vData?.uniqueDates?.size || 0}
                                                 </span>
                                                 <ChevronRight className="w-3 h-3 text-gray-400" />
                                             </div>
