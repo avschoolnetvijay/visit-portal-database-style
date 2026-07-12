@@ -18,6 +18,7 @@ const ProfileCreation = React.lazy(() => import('./components/ProfileCreation'))
 const OverallAnalysis = React.lazy(() => import('./components/OverallAnalysis'));
 const Helpdesk = React.lazy(() => import('./components/Helpdesk'));
 const Chatbot = React.lazy(() => import('./components/Chatbot'));
+const CcDefAnalysis = React.lazy(() => import('./components/CcDefAnalysis'));
 
 const prefetchTab = (tabId) => {
     switch (tabId) {
@@ -36,6 +37,7 @@ const prefetchTab = (tabId) => {
         case 'overall-analysis': import('./components/OverallAnalysis'); break;
         case 'helpdesk': import('./components/Helpdesk'); break;
         case 'chatbot': import('./components/Chatbot'); break;
+        case 'cc-analysis': import('./components/CcDefAnalysis'); break;
         default: break;
     }
 };
@@ -437,7 +439,8 @@ const App = () => {
                 items: [
                     { id: 'team-performance', label: 'Field Team Performance', icon: Icons.Performance },
                     { id: 'school-performance', label: 'School Performance', icon: Icons.Trophy },
-                    { id: 'school-search', label: 'School Wise Search', icon: Icons.GlobalSearch }
+                    { id: 'school-search', label: 'School Wise Search', icon: Icons.GlobalSearch },
+                    { id: 'cc-analysis', label: 'CC/DEF Analysis', icon: Icons.Users }
                 ]
             },
             {
@@ -2138,6 +2141,7 @@ const App = () => {
         if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
         if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
         if (activeTab === 'school-search') return <SchoolWiseSearch schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} visits={combinedVisits} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} darkMode={darkMode} onDrillDown={handleDrillDown} />;
+        if (activeTab === 'cc-analysis') return <CcDefAnalysis schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} startDate={startDate} endDate={endDate} ccNameMapping={ccNameMapping} darkMode={darkMode} onDrillDown={handleDrillDown} />;
         if (activeTab === 'plan') return <PlanView data={processedData} allVisits={combinedVisits} manpower={manpower} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} schools={schools} startDate={startDate} endDate={endDate} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;
