@@ -26,6 +26,46 @@ const getBenchmarkColor = (val, avg) => {
     return 'bg-rose-600';
 };
 
+// Clean icons for breakdown cards
+const MonitorIcon = ({ className }) => (
+    <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+        <line x1="8" y1="21" x2="16" y2="21" />
+        <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+);
+
+const BookIcon = ({ className }) => (
+    <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+);
+
+const ClipboardIcon = ({ className }) => (
+    <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+    </svg>
+);
+
+const SmartBoardIcon = ({ className }) => (
+    <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="3" width="20" height="13" rx="2" />
+        <line x1="2" y1="12" x2="22" y2="12" />
+        <path d="M12 16v4" />
+        <path d="M8 20h8" />
+    </svg>
+);
+
+const DatabaseIcon = ({ className }) => (
+    <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="12" cy="5" rx="9" ry="3" />
+        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+        <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" />
+    </svg>
+);
+
 const SchoolWiseSearch = ({
     schools = [],
     jhpmsLab = [],
@@ -279,6 +319,31 @@ const SchoolWiseSearch = ({
         const districtSchools = schools.filter(s => s.district === school.district);
         const blockSchools = schools.filter(s => s.block === school.block);
 
+        // 1. Calculate District Rank
+        const districtSchoolsRanked = districtSchools.map(s => {
+            const sUdise = String(s.udise_code || '').trim();
+            const stats = schoolSummaryMap[sUdise] || { classes: 0, hours: 0 };
+            const validWdays = Number(workingDays) > 0 ? Number(workingDays) : 1;
+            const score = (stats.classes / validWdays) * 0.6 + (stats.hours / validWdays) * 0.4;
+            return { udise: sUdise, score };
+        }).sort((a, b) => b.score - a.score);
+        
+        const distRankIndex = districtSchoolsRanked.findIndex(item => item.udise === udise);
+        const districtRank = distRankIndex !== -1 ? distRankIndex + 1 : 'N/A';
+
+        // 2. Calculate Project Rank
+        const projectSchools = schools.filter(s => s.project_name === school.project_name);
+        const projectSchoolsRanked = projectSchools.map(s => {
+            const sUdise = String(s.udise_code || '').trim();
+            const stats = schoolSummaryMap[sUdise] || { classes: 0, hours: 0 };
+            const validWdays = Number(workingDays) > 0 ? Number(workingDays) : 1;
+            const score = (stats.classes / validWdays) * 0.6 + (stats.hours / validWdays) * 0.4;
+            return { udise: sUdise, score };
+        }).sort((a, b) => b.score - a.score);
+
+        const projRankIndex = projectSchoolsRanked.findIndex(item => item.udise === udise);
+        const projectRank = projRankIndex !== -1 ? projRankIndex + 1 : 'N/A';
+
         const getGroupAverages = (groupList) => {
             let totalCls = 0;
             let totalHrs = 0;
@@ -405,6 +470,10 @@ const SchoolWiseSearch = ({
             lastVisitAge,
             schoolRank,
             totalRanked: allSchoolsRanked.length,
+            districtRank,
+            totalDistrictRanked: districtSchoolsRanked.length,
+            projectRank,
+            totalProjectRanked: projectSchoolsRanked.length,
             distAvgs,
             blkAvgs,
             weeklyTrend,
@@ -539,17 +608,17 @@ const SchoolWiseSearch = ({
                     <div className="flex flex-col gap-4">
                         
                         {/* School Basic Card */}
-                        <div className="bg-gradient-to-br from-teal-900 to-teal-850 dark:from-slate-900 dark:to-slate-900/90 text-white rounded-2xl p-5 shadow-md relative overflow-hidden border border-teal-800 dark:border-slate-800">
-                            <div className="relative z-10">
-                                <span className="px-2 py-0.5 bg-teal-500/20 text-teal-350 dark:text-teal-400 rounded-md text-[10px] uppercase font-bold tracking-wider mb-2 inline-block">School Profile Summary</span>
-                                <h2 className="text-lg font-black leading-snug mb-1">{selectedSchool.school_name}</h2>
-                                <p className="text-xs text-teal-200 dark:text-gray-400 font-medium mb-4">UDISE: {selectedSchool.udise_code}</p>
+                        <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-2xl p-5 shadow-md relative overflow-hidden border-l-4 border-l-teal-700">
+                            <div>
+                                <span className="px-2 py-0.5 bg-teal-750 text-white rounded-md text-[10px] uppercase font-bold tracking-wider mb-2 inline-block">School Profile Summary</span>
+                                <h2 className="text-lg font-black leading-snug mb-1 text-teal-950 dark:text-white">{selectedSchool.school_name}</h2>
+                                <p className="text-xs text-gray-550 dark:text-gray-400 font-bold mb-4">UDISE: {selectedSchool.udise_code}</p>
 
-                                <div className="space-y-2.5 text-xs border-t border-teal-800 dark:border-slate-800 pt-4">
-                                    <div className="flex justify-between"><span className="text-teal-200 dark:text-gray-400">District:</span><span className="font-bold">{selectedSchool.district}</span></div>
-                                    <div className="flex justify-between"><span className="text-teal-200 dark:text-gray-400">Block:</span><span className="font-bold">{selectedSchool.block}</span></div>
-                                    <div className="flex justify-between"><span className="text-teal-200 dark:text-gray-400">Project:</span><span className="font-bold">{selectedSchool.project_name || 'N/A'}</span></div>
-                                    <div className="flex justify-between"><span className="text-teal-200 dark:text-gray-400">Visitor (CC):</span><span className="font-bold">{selectedSchool.visitor_name || 'Unassigned'}</span></div>
+                                <div className="space-y-2.5 text-xs border-t border-gray-150 dark:border-slate-800 pt-4 text-gray-800 dark:text-gray-200">
+                                    <div className="flex justify-between"><span className="text-gray-600 font-bold dark:text-gray-450">District:</span><span className="font-black text-gray-900 dark:text-white">{selectedSchool.district}</span></div>
+                                    <div className="flex justify-between"><span className="text-gray-600 font-bold dark:text-gray-450">Block:</span><span className="font-black text-gray-900 dark:text-white">{selectedSchool.block}</span></div>
+                                    <div className="flex justify-between"><span className="text-gray-600 font-bold dark:text-gray-450">Project:</span><span className="font-black text-gray-900 dark:text-white">{selectedSchool.project_name || 'N/A'}</span></div>
+                                    <div className="flex justify-between"><span className="text-gray-600 font-bold dark:text-gray-450">Visitor (CC):</span><span className="font-black text-teal-900 dark:text-teal-400">{selectedSchool.visitor_name || 'Unassigned'}</span></div>
                                 </div>
                             </div>
                         </div>
@@ -644,15 +713,33 @@ const SchoolWiseSearch = ({
                         {/* KPI Cards Row */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             
-                            {/* Card 1: School Rank */}
-                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4 shadow-md flex items-center gap-3">
-                                <div className="p-2.5 bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-400 rounded-xl">
-                                    <Icons.Trophy className="w-5 h-5" />
+                            {/* Card 1: School Ranks */}
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-2xl p-3 shadow-md flex flex-col justify-center gap-2">
+                                <div className="flex items-center gap-2 border-b border-gray-100 dark:border-slate-800 pb-1.5">
+                                    <Icons.Trophy className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                                    <span className="text-[11px] text-gray-700 uppercase font-black tracking-wide dark:text-slate-400">School Ranks</span>
                                 </div>
-                                <div>
-                                    <label className="text-[11px] text-gray-650 uppercase font-extrabold tracking-wide dark:text-slate-400">Overall Rank</label>
-                                    <div className="text-xl font-extrabold text-gray-900 dark:text-white mt-0.5">
-                                        #{schoolProfile.schoolRank} <span className="text-xs text-gray-500 font-bold dark:text-slate-400">/ {schoolProfile.totalRanked}</span>
+                                <div className="grid grid-cols-3 gap-1 divide-x divide-gray-100 dark:divide-slate-800 text-center">
+                                    <div>
+                                        <div className="text-[9px] text-gray-500 uppercase font-extrabold tracking-wider">District</div>
+                                        <div className="text-xs font-black text-gray-900 dark:text-white mt-0.5">
+                                            #{schoolProfile.districtRank}
+                                        </div>
+                                        <div className="text-[8px] text-gray-400 font-medium">of {schoolProfile.totalDistrictRanked}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-[9px] text-gray-500 uppercase font-extrabold tracking-wider">Project</div>
+                                        <div className="text-xs font-black text-gray-900 dark:text-white mt-0.5">
+                                            #{schoolProfile.projectRank}
+                                        </div>
+                                        <div className="text-[8px] text-gray-400 font-medium">of {schoolProfile.totalProjectRanked}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-[9px] text-gray-500 uppercase font-extrabold tracking-wider">Overall</div>
+                                        <div className="text-xs font-black text-teal-800 dark:text-teal-400 mt-0.5">
+                                            #{schoolProfile.schoolRank}
+                                        </div>
+                                        <div className="text-[8px] text-teal-600 font-extrabold">of {schoolProfile.totalRanked}</div>
                                     </div>
                                 </div>
                             </div>
@@ -714,34 +801,49 @@ const SchoolWiseSearch = ({
 
                         {/* Usage & Class Performance breakdown Grid (5 Cards) */}
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3.5 shadow-md text-center">
-                                <label className="text-[11px] text-gray-700 uppercase font-extrabold block mb-1 dark:text-slate-350">Total Classes</label>
-                                <div className="text-2xl font-black text-teal-850 dark:text-teal-400">{schoolProfile.totalJhpmsClasses}</div>
-                                <span className="text-[10px] text-gray-600 block mt-0.5 font-semibold">JHPMS log total</span>
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
+                                <div className="flex items-center justify-center gap-1.5 text-gray-700 dark:text-slate-350 border-b border-gray-150 dark:border-slate-850 pb-1">
+                                    <ClipboardIcon className="w-3.5 h-3.5 text-teal-600" />
+                                    <span className="text-[11px] uppercase font-extrabold">Total</span>
+                                </div>
+                                <div className="text-2xl font-black text-teal-850 dark:text-teal-400 my-1">{schoolProfile.totalJhpmsClasses}</div>
+                                <span className="text-[9px] text-gray-500 font-semibold block">Classes Logged</span>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3.5 shadow-md text-center">
-                                <label className="text-[11px] text-gray-700 uppercase font-extrabold block mb-1 dark:text-slate-350">Theory Classes</label>
-                                <div className="text-2xl font-black text-indigo-800 dark:text-indigo-400">{schoolProfile.theoryCount}</div>
-                                <span className="text-[10px] text-indigo-750 font-black bg-indigo-100/80 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full inline-block mt-0.5">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
+                                <div className="flex items-center justify-center gap-1.5 text-gray-700 dark:text-slate-350 border-b border-gray-150 dark:border-slate-850 pb-1">
+                                    <BookIcon className="w-3.5 h-3.5 text-indigo-600" />
+                                    <span className="text-[11px] uppercase font-extrabold">Theory</span>
+                                </div>
+                                <div className="text-2xl font-black text-indigo-800 dark:text-indigo-400 my-1">{schoolProfile.theoryCount}</div>
+                                <span className="text-[9px] text-indigo-750 font-bold bg-indigo-50 dark:bg-indigo-950/20 px-1.5 py-0.5 rounded-full inline-block">
                                     {schoolProfile.totalJhpmsClasses > 0 ? Math.round((schoolProfile.theoryCount / schoolProfile.totalJhpmsClasses) * 100) : 0}%
                                 </span>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3.5 shadow-md text-center">
-                                <label className="text-[11px] text-gray-700 uppercase font-extrabold block mb-1 dark:text-slate-350">Practical Classes</label>
-                                <div className="text-2xl font-black text-amber-800 dark:text-amber-400">{schoolProfile.practicalCount}</div>
-                                <span className="text-[10px] text-amber-750 font-black bg-amber-100/80 dark:bg-amber-950/40 px-2 py-0.5 rounded-full inline-block mt-0.5">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
+                                <div className="flex items-center justify-center gap-1.5 text-gray-700 dark:text-slate-350 border-b border-gray-150 dark:border-slate-850 pb-1">
+                                    <MonitorIcon className="w-3.5 h-3.5 text-amber-600" />
+                                    <span className="text-[11px] uppercase font-extrabold">Practical</span>
+                                </div>
+                                <div className="text-2xl font-black text-amber-800 dark:text-amber-400 my-1">{schoolProfile.practicalCount}</div>
+                                <span className="text-[9px] text-amber-750 font-bold bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded-full inline-block">
                                     {schoolProfile.totalJhpmsClasses > 0 ? Math.round((schoolProfile.practicalCount / schoolProfile.totalJhpmsClasses) * 100) : 0}%
                                 </span>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3.5 shadow-md text-center">
-                                <label className="text-[11px] text-gray-700 uppercase font-extrabold block mb-1 dark:text-slate-350">Smart Classes</label>
-                                <div className="text-2xl font-black text-emerald-850 dark:text-emerald-400">{schoolProfile.smartCount}</div>
-                                <span className="text-[10px] text-gray-600 block mt-0.5 font-semibold">Interactive board</span>
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
+                                <div className="flex items-center justify-center gap-1.5 text-gray-700 dark:text-slate-350 border-b border-gray-150 dark:border-slate-850 pb-1">
+                                    <SmartBoardIcon className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span className="text-[11px] uppercase font-extrabold">Smart</span>
+                                </div>
+                                <div className="text-2xl font-black text-emerald-850 dark:text-emerald-400 my-1">{schoolProfile.smartCount}</div>
+                                <span className="text-[9px] text-gray-500 font-semibold block">Interactive Board</span>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3.5 shadow-md text-center col-span-2 md:col-span-1">
-                                <label className="text-[11px] text-gray-700 uppercase font-extrabold block mb-1 dark:text-slate-350">MIS Classes</label>
-                                <div className="text-2xl font-black text-rose-800 dark:text-rose-450">{schoolProfile.misCount}</div>
-                                <span className="text-[10px] text-gray-600 block mt-0.5 font-semibold">Data Entry / Other</span>
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center col-span-2 md:col-span-1 flex flex-col justify-between min-h-[100px]">
+                                <div className="flex items-center justify-center gap-1.5 text-gray-700 dark:text-slate-350 border-b border-gray-150 dark:border-slate-850 pb-1">
+                                    <DatabaseIcon className="w-3.5 h-3.5 text-rose-600" />
+                                    <span className="text-[11px] uppercase font-extrabold">MIS</span>
+                                </div>
+                                <div className="text-2xl font-black text-rose-800 dark:text-rose-450 my-1">{schoolProfile.misCount}</div>
+                                <span className="text-[9px] text-gray-500 font-semibold block">Data Entry / Other</span>
                             </div>
                         </div>
 

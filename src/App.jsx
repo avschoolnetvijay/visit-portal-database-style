@@ -1719,10 +1719,27 @@ const App = () => {
                             const uKey = cleanKeys.find(k => k.clean.includes('udise'))?.orig;
                             const statKey = cleanKeys.find(k => k.clean === 'status')?.orig;
                             const nameKey = cleanKeys.find(k => k.clean.includes('instructorname') || (k.clean.includes('instructor') && k.clean.includes('name')))?.orig;
+                            const joinDateKey = cleanKeys.find(k => k.clean.includes('joiningdate') || k.clean.includes('dateofjoining') || k.clean === 'doj' || k.clean.includes('join'))?.orig;
+                            
+                            const rawJoinDate = joinDateKey ? r[joinDateKey] : '';
+                            let parsedJoinDate = '';
+                            if (rawJoinDate) {
+                                const dObj = parseDateRobust(rawJoinDate);
+                                if (dObj && !isNaN(dObj.getTime())) {
+                                    const year = dObj.getFullYear();
+                                    const month = String(dObj.getMonth() + 1).padStart(2, '0');
+                                    const day = String(dObj.getDate()).padStart(2, '0');
+                                    parsedJoinDate = `${year}-${month}-${day}`;
+                                } else {
+                                    parsedJoinDate = String(rawJoinDate).trim();
+                                }
+                            }
+                            
                             return { 
-                                udise: uKey ? r[uKey] : '', 
-                                status: statKey ? r[statKey] : '',
-                                instructorName: nameKey ? String(r[nameKey]).trim() : ''
+                                udise: uKey ? String(r[uKey]).trim() : '', 
+                                status: statKey ? String(r[statKey]).trim() : '',
+                                instructorName: nameKey ? String(r[nameKey]).trim() : '',
+                                joiningDate: parsedJoinDate
                             };
                         });
                     } else {
