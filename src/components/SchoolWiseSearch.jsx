@@ -17,6 +17,15 @@ const parseDateRobust = (dateInput) => {
     return isNaN(d.getTime()) ? null : d;
 };
 
+// Dynamic Performance Color Indicator
+const getBenchmarkColor = (val, avg) => {
+    if (avg <= 0) return 'bg-green-600';
+    const pct = (val / avg) * 100;
+    if (pct >= 100) return 'bg-green-600';
+    if (pct >= 50) return 'bg-orange-500';
+    return 'bg-rose-600';
+};
+
 const SchoolWiseSearch = ({
     schools = [],
     jhpmsLab = [],
@@ -636,40 +645,40 @@ const SchoolWiseSearch = ({
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             
                             {/* Card 1: School Rank */}
-                            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3">
-                                <div className="p-2.5 bg-yellow-50 dark:bg-yellow-950/20 text-yellow-600 dark:text-yellow-400 rounded-xl">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4 shadow-md flex items-center gap-3">
+                                <div className="p-2.5 bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-400 rounded-xl">
                                     <Icons.Trophy className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] text-gray-400 uppercase font-bold">Overall Rank</label>
-                                    <div className="text-lg font-black text-gray-800 dark:text-white mt-0.5">
-                                        #{schoolProfile.schoolRank} <span className="text-[10px] text-gray-400 font-normal">/ {schoolProfile.totalRanked}</span>
+                                    <label className="text-[11px] text-gray-650 uppercase font-extrabold tracking-wide dark:text-slate-400">Overall Rank</label>
+                                    <div className="text-xl font-extrabold text-gray-900 dark:text-white mt-0.5">
+                                        #{schoolProfile.schoolRank} <span className="text-xs text-gray-500 font-bold dark:text-slate-400">/ {schoolProfile.totalRanked}</span>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Card 2: Logged Days */}
-                            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3">
-                                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4 shadow-md flex items-center gap-3">
+                                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-xl">
                                     <Icons.Plan className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] text-gray-400 uppercase font-bold">JHPMS Logged Days</label>
-                                    <div className="text-lg font-black text-gray-800 dark:text-white mt-0.5">
-                                        {schoolProfile.jhpmsLoggedDays} <span className="text-[10px] text-gray-400 font-normal">days</span>
+                                    <label className="text-[11px] text-gray-650 uppercase font-extrabold tracking-wide dark:text-slate-400">JHPMS Logged Days</label>
+                                    <div className="text-xl font-extrabold text-gray-900 dark:text-white mt-0.5">
+                                        {schoolProfile.jhpmsLoggedDays} <span className="text-xs text-gray-500 font-bold dark:text-slate-400">days</span>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Card 3: EduStat Hours */}
-                            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3">
-                                <div className="p-2.5 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 rounded-xl">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4 shadow-md flex items-center gap-3">
+                                <div className="p-2.5 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 rounded-xl">
                                     <Icons.Analytics className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] text-gray-400 uppercase font-bold">EduStat device hours</label>
-                                    <div className="text-lg font-black text-gray-800 dark:text-white mt-0.5">
-                                        {schoolProfile.totalEduHours.toFixed(1)} <span className="text-[10px] text-gray-400 font-normal">hrs</span>
+                                    <label className="text-[11px] text-gray-650 uppercase font-extrabold tracking-wide dark:text-slate-400">EduStat Device Hours</label>
+                                    <div className="text-xl font-extrabold text-gray-900 dark:text-white mt-0.5">
+                                        {schoolProfile.totalEduHours.toFixed(1)} <span className="text-xs text-gray-500 font-bold dark:text-slate-400">hrs</span>
                                     </div>
                                 </div>
                             </div>
@@ -677,26 +686,26 @@ const SchoolWiseSearch = ({
                             {/* Card 4: Unsynced devices (Clickable Drill Down) */}
                             <div 
                                 onClick={handleUnsyncedClick}
-                                className={`border rounded-2xl p-4 shadow-sm flex items-center gap-3 transition-all ${
+                                className={`border rounded-2xl p-4 shadow-md flex items-center gap-3 transition-all ${
                                     schoolProfile.unsyncedCount > 0 
-                                        ? 'bg-rose-50/50 hover:bg-rose-50 border-rose-200 cursor-pointer dark:bg-rose-950/10 dark:border-rose-900/30' 
-                                        : 'bg-white border-slate-100 dark:bg-slate-900 dark:border-slate-800'
+                                        ? 'bg-rose-50/70 hover:bg-rose-100/70 border-rose-300 cursor-pointer dark:bg-rose-950/20 dark:border-rose-900/40' 
+                                        : 'bg-white border-slate-150 dark:bg-slate-900 dark:border-slate-800'
                                 }`}
                             >
                                 <div className={`p-2.5 rounded-xl ${
                                     schoolProfile.unsyncedCount > 0 
-                                        ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400' 
-                                        : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400'
+                                        ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-450' 
+                                        : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-405'
                                 }`}>
                                     <Icons.Alert className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] text-gray-400 uppercase font-bold">Unsynced Devices</label>
-                                    <div className={`text-lg font-black mt-0.5 flex items-center gap-1 ${
-                                        schoolProfile.unsyncedCount > 0 ? 'text-rose-700 dark:text-rose-400' : 'text-gray-850 dark:text-white'
+                                    <label className="text-[11px] text-gray-650 uppercase font-extrabold tracking-wide dark:text-slate-400">Unsynced Devices</label>
+                                    <div className={`text-xl font-extrabold mt-0.5 flex items-center gap-1 ${
+                                        schoolProfile.unsyncedCount > 0 ? 'text-rose-700 dark:text-rose-400' : 'text-gray-900 dark:text-white'
                                     }`}>
                                         {schoolProfile.unsyncedCount}
-                                        {schoolProfile.unsyncedCount > 0 && <span className="text-[9px] font-bold text-rose-500 underline uppercase ml-1 animate-pulse">View</span>}
+                                        {schoolProfile.unsyncedCount > 0 && <span className="text-[10px] font-bold text-rose-600 underline uppercase ml-1 animate-pulse">View</span>}
                                     </div>
                                 </div>
                             </div>
@@ -705,100 +714,100 @@ const SchoolWiseSearch = ({
 
                         {/* Usage & Class Performance breakdown Grid (5 Cards) */}
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm text-center">
-                                <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Total Classes</label>
-                                <div className="text-xl font-extrabold text-teal-800 dark:text-teal-400">{schoolProfile.totalJhpmsClasses}</div>
-                                <span className="text-[9px] text-gray-400 block mt-0.5">JHPMS log total</span>
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3.5 shadow-md text-center">
+                                <label className="text-[11px] text-gray-700 uppercase font-extrabold block mb-1 dark:text-slate-350">Total Classes</label>
+                                <div className="text-2xl font-black text-teal-850 dark:text-teal-400">{schoolProfile.totalJhpmsClasses}</div>
+                                <span className="text-[10px] text-gray-600 block mt-0.5 font-semibold">JHPMS log total</span>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm text-center">
-                                <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Theory Classes</label>
-                                <div className="text-xl font-extrabold text-indigo-700 dark:text-indigo-400">{schoolProfile.theoryCount}</div>
-                                <span className="text-[9px] text-indigo-500 font-bold bg-indigo-50 dark:bg-indigo-950/20 px-1.5 py-0.5 rounded-full inline-block mt-0.5">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3.5 shadow-md text-center">
+                                <label className="text-[11px] text-gray-700 uppercase font-extrabold block mb-1 dark:text-slate-350">Theory Classes</label>
+                                <div className="text-2xl font-black text-indigo-800 dark:text-indigo-400">{schoolProfile.theoryCount}</div>
+                                <span className="text-[10px] text-indigo-750 font-black bg-indigo-100/80 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full inline-block mt-0.5">
                                     {schoolProfile.totalJhpmsClasses > 0 ? Math.round((schoolProfile.theoryCount / schoolProfile.totalJhpmsClasses) * 100) : 0}%
                                 </span>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm text-center">
-                                <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Practical Classes</label>
-                                <div className="text-xl font-extrabold text-amber-700 dark:text-amber-400">{schoolProfile.practicalCount}</div>
-                                <span className="text-[9px] text-amber-500 font-bold bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded-full inline-block mt-0.5">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3.5 shadow-md text-center">
+                                <label className="text-[11px] text-gray-700 uppercase font-extrabold block mb-1 dark:text-slate-350">Practical Classes</label>
+                                <div className="text-2xl font-black text-amber-800 dark:text-amber-400">{schoolProfile.practicalCount}</div>
+                                <span className="text-[10px] text-amber-750 font-black bg-amber-100/80 dark:bg-amber-950/40 px-2 py-0.5 rounded-full inline-block mt-0.5">
                                     {schoolProfile.totalJhpmsClasses > 0 ? Math.round((schoolProfile.practicalCount / schoolProfile.totalJhpmsClasses) * 100) : 0}%
                                 </span>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm text-center">
-                                <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Smart Classes</label>
-                                <div className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400">{schoolProfile.smartCount}</div>
-                                <span className="text-[9px] text-gray-400 block mt-0.5">Interactive board</span>
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3.5 shadow-md text-center">
+                                <label className="text-[11px] text-gray-700 uppercase font-extrabold block mb-1 dark:text-slate-350">Smart Classes</label>
+                                <div className="text-2xl font-black text-emerald-850 dark:text-emerald-400">{schoolProfile.smartCount}</div>
+                                <span className="text-[10px] text-gray-600 block mt-0.5 font-semibold">Interactive board</span>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm text-center col-span-2 md:col-span-1">
-                                <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">MIS Classes</label>
-                                <div className="text-xl font-extrabold text-rose-700 dark:text-rose-400">{schoolProfile.misCount}</div>
-                                <span className="text-[9px] text-gray-400 block mt-0.5">Data Entry / Other</span>
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3.5 shadow-md text-center col-span-2 md:col-span-1">
+                                <label className="text-[11px] text-gray-700 uppercase font-extrabold block mb-1 dark:text-slate-350">MIS Classes</label>
+                                <div className="text-2xl font-black text-rose-800 dark:text-rose-450">{schoolProfile.misCount}</div>
+                                <span className="text-[10px] text-gray-600 block mt-0.5 font-semibold">Data Entry / Other</span>
                             </div>
                         </div>
 
                         {/* Benchmark Comparisons Panel */}
-                        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-400 mb-4 flex items-center gap-1.5 border-b border-gray-100 dark:border-slate-800 pb-2">
-                                📊 Comparison with Regional Performance
+                        <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-5 shadow-md">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-teal-855 dark:text-teal-400 mb-4 flex items-center gap-1.5 border-b border-gray-150 dark:border-slate-800 pb-2">
+                                📊 Comparison with Regional Performance (Benchmark)
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 
                                 {/* JHPMS Benchmarks */}
                                 <div className="space-y-4">
-                                    <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Average classes vs Regional Averages</h4>
+                                    <h4 className="text-xs font-black text-gray-800 dark:text-gray-200">Average Classes vs Regional Averages</h4>
                                     
                                     {/* District JHPMS */}
                                     <div className="space-y-1.5">
-                                        <div className="flex justify-between text-xs font-medium">
+                                        <div className="flex justify-between text-xs font-extrabold text-gray-700 dark:text-gray-300">
                                             <span>District Average ({selectedSchool.district})</span>
-                                            <span className="font-bold">{schoolProfile.distAvgs.avgClasses.toFixed(1)} classes</span>
+                                            <span>{schoolProfile.distAvgs.avgClasses.toFixed(1)} classes</span>
                                         </div>
                                         <div className="relative h-2.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div className="absolute top-0 left-0 h-full bg-teal-600 rounded-full" style={{ width: `${Math.min(100, (schoolProfile.totalJhpmsClasses / Math.max(1, schoolProfile.distAvgs.avgClasses)) * 50)}%` }} />
-                                            <div className="absolute top-0 h-full bg-teal-400 w-1" style={{ left: '50%' }} title="District Average Marker" />
+                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalJhpmsClasses, schoolProfile.distAvgs.avgClasses)}`} style={{ width: `${Math.min(100, (schoolProfile.totalJhpmsClasses / Math.max(1, schoolProfile.distAvgs.avgClasses)) * 50)}%` }} />
+                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="District Average Marker" />
                                         </div>
-                                        <span className="text-[10px] text-gray-400">School total classes: {schoolProfile.totalJhpmsClasses}</span>
+                                        <span className="text-[11px] text-gray-700 dark:text-gray-400 font-extrabold">School Total Classes: {schoolProfile.totalJhpmsClasses}</span>
                                     </div>
 
                                     {/* Block JHPMS */}
                                     <div className="space-y-1.5">
-                                        <div className="flex justify-between text-xs font-medium">
+                                        <div className="flex justify-between text-xs font-extrabold text-gray-700 dark:text-gray-300">
                                             <span>Block Average ({selectedSchool.block})</span>
-                                            <span className="font-bold">{schoolProfile.blkAvgs.avgClasses.toFixed(1)} classes</span>
+                                            <span>{schoolProfile.blkAvgs.avgClasses.toFixed(1)} classes</span>
                                         </div>
                                         <div className="relative h-2.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div className="absolute top-0 left-0 h-full bg-teal-600 rounded-full" style={{ width: `${Math.min(100, (schoolProfile.totalJhpmsClasses / Math.max(1, schoolProfile.blkAvgs.avgClasses)) * 50)}%` }} />
-                                            <div className="absolute top-0 h-full bg-teal-400 w-1" style={{ left: '50%' }} title="Block Average Marker" />
+                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalJhpmsClasses, schoolProfile.blkAvgs.avgClasses)}`} style={{ width: `${Math.min(100, (schoolProfile.totalJhpmsClasses / Math.max(1, schoolProfile.blkAvgs.avgClasses)) * 50)}%` }} />
+                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="Block Average Marker" />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* EduStat Benchmarks */}
                                 <div className="space-y-4">
-                                    <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Average device hours vs Regional Averages</h4>
+                                    <h4 className="text-xs font-black text-gray-800 dark:text-gray-200">Average Device Hours vs Regional Averages</h4>
                                     
                                     {/* District EduStat */}
                                     <div className="space-y-1.5">
-                                        <div className="flex justify-between text-xs font-medium">
+                                        <div className="flex justify-between text-xs font-extrabold text-gray-700 dark:text-gray-300">
                                             <span>District Average ({selectedSchool.district})</span>
-                                            <span className="font-bold">{schoolProfile.distAvgs.avgHours.toFixed(1)} hrs</span>
+                                            <span>{schoolProfile.distAvgs.avgHours.toFixed(1)} hrs</span>
                                         </div>
                                         <div className="relative h-2.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div className="absolute top-0 left-0 h-full bg-blue-600 rounded-full" style={{ width: `${Math.min(100, (schoolProfile.totalEduHours / Math.max(1, schoolProfile.distAvgs.avgHours)) * 50)}%` }} />
-                                            <div className="absolute top-0 h-full bg-blue-400 w-1" style={{ left: '50%' }} title="District Average Marker" />
+                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalEduHours, schoolProfile.distAvgs.avgHours)}`} style={{ width: `${Math.min(100, (schoolProfile.totalEduHours / Math.max(1, schoolProfile.distAvgs.avgHours)) * 50)}%` }} />
+                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="District Average Marker" />
                                         </div>
-                                        <span className="text-[10px] text-gray-400">School total hours: {schoolProfile.totalEduHours.toFixed(1)}</span>
+                                        <span className="text-[11px] text-gray-700 dark:text-gray-400 font-extrabold">School Total Hours: {schoolProfile.totalEduHours.toFixed(1)}</span>
                                     </div>
 
                                     {/* Block EduStat */}
                                     <div className="space-y-1.5">
-                                        <div className="flex justify-between text-xs font-medium">
+                                        <div className="flex justify-between text-xs font-extrabold text-gray-700 dark:text-gray-300">
                                             <span>Block Average ({selectedSchool.block})</span>
-                                            <span className="font-bold">{schoolProfile.blkAvgs.avgHours.toFixed(1)} hrs</span>
+                                            <span>{schoolProfile.blkAvgs.avgHours.toFixed(1)} hrs</span>
                                         </div>
                                         <div className="relative h-2.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div className="absolute top-0 left-0 h-full bg-blue-600 rounded-full" style={{ width: `${Math.min(100, (schoolProfile.totalEduHours / Math.max(1, schoolProfile.blkAvgs.avgHours)) * 50)}%` }} />
-                                            <div className="absolute top-0 h-full bg-blue-400 w-1" style={{ left: '50%' }} title="Block Average Marker" />
+                                            <div className={`absolute top-0 left-0 h-full rounded-full ${getBenchmarkColor(schoolProfile.totalEduHours, schoolProfile.blkAvgs.avgHours)}`} style={{ width: `${Math.min(100, (schoolProfile.totalEduHours / Math.max(1, schoolProfile.blkAvgs.avgHours)) * 50)}%` }} />
+                                            <div className="absolute top-0 h-full bg-gray-450 w-0.5" style={{ left: '50%' }} title="Block Average Marker" />
                                         </div>
                                     </div>
                                 </div>
