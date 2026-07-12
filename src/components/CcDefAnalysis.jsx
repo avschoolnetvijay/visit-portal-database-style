@@ -501,6 +501,9 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                 "Sl No": idx + 1,
                 "School Name": school?.school_name || "Unknown School",
                 "UDISE": udise,
+                "District": school?.district_name || "N/A",
+                "Project Name": school?.project_name || "N/A",
+                "Assigned CC/DEF": school?.visitor_name || "N/A",
                 "Date": formatDate(v.visit_date),
                 "Visit Type": v.visit_type || "N/A",
                 "Assignment": isAssigned ? "Assigned School" : "Other School",
@@ -525,6 +528,9 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                 "Sl No": idx + 1,
                 "School Name": school?.school_name || "Unknown School",
                 "UDISE": udise,
+                "District": school?.district_name || "N/A",
+                "Project Name": school?.project_name || "N/A",
+                "Assigned CC/DEF": school?.visitor_name || "N/A",
                 "Date": formatDate(v.visit_date),
                 "Visit Type": v.visit_type || "N/A",
                 "Remarks": v.remarks || "—"
@@ -563,6 +569,9 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                 "Sl No": idx + 1,
                 "School Name": school?.school_name || "Unknown School",
                 "UDISE": ud,
+                "District": school?.district_name || "N/A",
+                "Project Name": school?.project_name || "N/A",
+                "Assigned CC/DEF": school?.visitor_name || "N/A",
                 "Device": d.device || "EduStat Device",
                 "Serial Number": serial || "N/A",
                 "Installation Status": inst ? "Installed" : "Not Installed",
@@ -570,6 +579,85 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             };
         });
         onDrillDown(`EduStat Devices Audit - ${selectedCC}`, drillData);
+    };
+
+    const handleSyncedDevicesDrillDown = () => {
+        if (!profile || !profile.ccSchoolDevices || !onDrillDown) return;
+        
+        const serialHoursMap = {};
+        profile.ccEdustat.forEach(e => {
+            const serial = String(e.serial || '').trim();
+            const hours = parseFloat(e.hours) || 0;
+            if (serial) {
+                serialHoursMap[serial] = (serialHoursMap[serial] || 0) + hours;
+            }
+        });
+
+        const syncedDevices = profile.ccSchoolDevices.filter(d => {
+            const inst = String(d.installed || '').toUpperCase().trim() === 'YES';
+            const serial = String(d.serial || '').trim();
+            const hours = serialHoursMap[serial] || 0;
+            return inst && hours > 0;
+        });
+
+        const drillData = syncedDevices.map((d, idx) => {
+            const ud = String(d.udise || d.udise_code || '').trim();
+            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === ud);
+            const serial = String(d.serial || '').trim();
+            const hours = serialHoursMap[serial] || 0;
+
+            return {
+                "Sl No": idx + 1,
+                "School Name": school?.school_name || "Unknown School",
+                "UDISE": ud,
+                "District": school?.district_name || "N/A",
+                "Project Name": school?.project_name || "N/A",
+                "Assigned CC/DEF": school?.visitor_name || "N/A",
+                "Device": d.device || "EduStat Device",
+                "Serial Number": serial || "N/A",
+                "Sync Hours": `${hours.toFixed(1)} Hours`
+            };
+        });
+        onDrillDown(`Synced Devices - ${selectedCC}`, drillData);
+    };
+
+    const handleNotSyncedDevicesDrillDown = () => {
+        if (!profile || !profile.ccSchoolDevices || !onDrillDown) return;
+        
+        const serialHoursMap = {};
+        profile.ccEdustat.forEach(e => {
+            const serial = String(e.serial || '').trim();
+            const hours = parseFloat(e.hours) || 0;
+            if (serial) {
+                serialHoursMap[serial] = (serialHoursMap[serial] || 0) + hours;
+            }
+        });
+
+        const unsyncedDevices = profile.ccSchoolDevices.filter(d => {
+            const inst = String(d.installed || '').toUpperCase().trim() === 'YES';
+            const serial = String(d.serial || '').trim();
+            const hours = serialHoursMap[serial] || 0;
+            return inst && hours === 0;
+        });
+
+        const drillData = unsyncedDevices.map((d, idx) => {
+            const ud = String(d.udise || d.udise_code || '').trim();
+            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === ud);
+            const serial = String(d.serial || '').trim();
+
+            return {
+                "Sl No": idx + 1,
+                "School Name": school?.school_name || "Unknown School",
+                "UDISE": ud,
+                "District": school?.district_name || "N/A",
+                "Project Name": school?.project_name || "N/A",
+                "Assigned CC/DEF": school?.visitor_name || "N/A",
+                "Device": d.device || "EduStat Device",
+                "Serial Number": serial || "N/A",
+                "Sync Status": "Not Synced (0 Hours)"
+            };
+        });
+        onDrillDown(`Not Synced Devices - ${selectedCC}`, drillData);
     };
 
     // ─── Render ───────────────────────────────────────────────────────────────
@@ -666,33 +754,90 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                     {/* ── Visits & Coverage KPI Grid ─────────────────── */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                         <KpiCard icon={CalendarIcon} iconColor="bg-teal-50 dark:bg-teal-900/20 text-teal-600"
-                            value={profile.totalVisits} label="Total Visits" sub={`Assigned: ${profile.assignedVisitsCount} · Other: ${profile.otherVisitsCount}`} onClick={handleTotalVisitsDrillDown} />
+                            value={profile.totalVisits} label="Total Visits" 
+                            sub={
+                                <div className="flex gap-1 flex-wrap text-[11px] font-bold mt-1">
+                                    <span className="text-teal-600 dark:text-teal-400">Assigned: {profile.assignedVisitsCount}</span>
+                                    <span className="text-slate-300 dark:text-slate-700 font-normal">·</span>
+                                    <span className="text-rose-600 dark:text-rose-400">Other: {profile.otherVisitsCount}</span>
+                                </div>
+                            } 
+                            onClick={handleTotalVisitsDrillDown} 
+                        />
                         <KpiCard icon={SchoolIcon} iconColor="bg-rose-50 dark:bg-rose-900/20 text-rose-600"
-                            value={profile.otherVisitsCount} label="Other School Visits" sub="Outside assigned list" onClick={handleOtherVisitsDrillDown} />
+                            value={profile.otherVisitsCount} label="Other School Visits" 
+                            sub={<span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 mt-1 block">Outside assigned list</span>} 
+                            onClick={handleOtherVisitsDrillDown} 
+                        />
                         <KpiCard icon={SchoolIcon} iconColor="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600"
-                            value={`${profile.visitedAssigned.length}/${profile.assignedSchools.length}`} label="Coverage" sub={`${profile.coveragePct}% Assigned Schools`} />
+                            value={`${profile.visitedAssigned.length}/${profile.assignedSchools.length}`} label="Coverage" 
+                            sub={<span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-1 block">{profile.coveragePct}% Assigned Schools</span>} 
+                        />
                         <KpiCard icon={TrendUpIcon} iconColor="bg-blue-50 dark:bg-blue-900/20 text-blue-600"
-                            value={profile.avgVisitsPerWeek} label="Avg Visits/Week" sub="across period" />
+                            value={profile.avgVisitsPerWeek} label="Avg Visits/Week" 
+                            sub={<span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 mt-1 block">Across period</span>} 
+                        />
                         <KpiCard icon={TargetIcon} iconColor="bg-amber-50 dark:bg-amber-900/20 text-amber-600"
-                            value={profile.avgVisitsPerSchool} label="Avg Visits/School" sub="assigned schools" />
+                            value={profile.avgVisitsPerSchool} label="Avg Visits/School" 
+                            sub={<span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-1 block">Assigned schools</span>} 
+                        />
                     </div>
 
                     {/* ── Manpower, JHPMS & EduStat Device Audit Grid ───────── */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mt-3">
                         <KpiCard icon={UserGroupIcon} iconColor="bg-teal-50 dark:bg-teal-900/20 text-teal-600"
                             value={`${profile.manpowerWorking}/${profile.manpowerRequired}`} label="ICT Manpower" 
-                            sub={`Req: ${profile.manpowerRequired} · Work: ${profile.manpowerWorking} · Vacant: ${profile.manpowerVacant}`} />
+                            sub={
+                                <div className="flex gap-1 flex-wrap text-[11.5px] font-extrabold mt-1">
+                                    <span className="text-teal-600 dark:text-teal-400">Req: {profile.manpowerRequired}</span>
+                                    <span className="text-slate-300 dark:text-slate-700 font-normal">·</span>
+                                    <span className="text-emerald-600 dark:text-emerald-400">Work: {profile.manpowerWorking}</span>
+                                    <span className="text-slate-300 dark:text-slate-700 font-normal">·</span>
+                                    <span className="text-rose-600 dark:text-rose-400">Vac: {profile.manpowerVacant}</span>
+                                </div>
+                            } 
+                        />
                         <KpiCard icon={BarChartIcon} iconColor="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
                             value={profile.totalJhpmsClasses} label="JHPMS Classes" 
-                            sub={`Th: ${profile.theoryCount} · Pr: ${profile.practicalCount} · Sm: ${profile.smartCount} · MIS: ${profile.misCount}`} />
+                            sub={
+                                <div className="flex gap-1 flex-wrap text-[11.5px] font-extrabold mt-1">
+                                    <span className="text-blue-600 dark:text-blue-400">Th: {profile.theoryCount}</span>
+                                    <span className="text-slate-300 dark:text-slate-700 font-normal">·</span>
+                                    <span className="text-indigo-600 dark:text-indigo-400">Pr: {profile.practicalCount}</span>
+                                    <span className="text-slate-300 dark:text-slate-700 font-normal">·</span>
+                                    <span className="text-emerald-600 dark:text-emerald-400">Sm: {profile.smartCount}</span>
+                                    <span className="text-slate-300 dark:text-slate-700 font-normal">·</span>
+                                    <span className="text-amber-600 dark:text-amber-400">MIS: {profile.misCount}</span>
+                                </div>
+                            } 
+                        />
                         <KpiCard icon={ClockIcon} iconColor="bg-rose-50 dark:bg-rose-900/20 text-rose-600"
-                            value={profile.totalEduHours > 0 ? profile.totalEduHours.toFixed(1) : '0'} label="EduStat Hours" sub="in assigned schools" />
+                            value={profile.totalEduHours > 0 ? profile.totalEduHours.toFixed(1) : '0'} label="EduStat Hours" 
+                            sub={<span className="text-[11.5px] font-bold text-rose-600 dark:text-rose-400 mt-1 block">In assigned schools</span>} 
+                        />
                         <KpiCard icon={DeviceIcon} iconColor="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600"
                             value={`${profile.devicesInstalled}/${profile.devicesTotal}`} label="Installed Devices" 
-                            sub={`Tot: ${profile.devicesTotal} · Inst: ${profile.devicesInstalled} · Not Inst: ${profile.devicesNotInstalled}`} onClick={handleDevicesDrillDown} />
+                            sub={
+                                <div className="flex gap-1 flex-wrap text-[11.5px] font-extrabold mt-1">
+                                    <span className="text-slate-600 dark:text-slate-300">Tot: {profile.devicesTotal}</span>
+                                    <span className="text-slate-300 dark:text-slate-700 font-normal">·</span>
+                                    <span className="text-indigo-600 dark:text-indigo-400">Inst: {profile.devicesInstalled}</span>
+                                    <span className="text-slate-300 dark:text-slate-700 font-normal">·</span>
+                                    <span className="text-rose-600 dark:text-rose-400">Not: {profile.devicesNotInstalled}</span>
+                                </div>
+                            } 
+                            onClick={handleDevicesDrillDown} 
+                        />
                         <KpiCard icon={SyncIcon} iconColor="bg-rose-50 dark:bg-rose-900/20 text-rose-600"
                             value={`${profile.devicesSynced}/${profile.devicesInstalled}`} label="Synced Devices" 
-                            sub={`Sync: ${profile.devicesSynced} · Not Sync: ${profile.devicesNotSynced}`} onClick={handleDevicesDrillDown} />
+                            sub={
+                                <div className="flex gap-1 flex-wrap text-[11.5px] font-extrabold mt-1">
+                                    <span onClick={(e) => { e.stopPropagation(); handleSyncedDevicesDrillDown(); }} className="text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer bg-emerald-50 dark:bg-emerald-950/20 px-1 py-0.5 rounded flex items-center gap-0.5">Sync: {profile.devicesSynced} 🔍</span>
+                                    <span className="text-slate-300 dark:text-slate-700 font-normal self-center">·</span>
+                                    <span onClick={(e) => { e.stopPropagation(); handleNotSyncedDevicesDrillDown(); }} className="text-rose-600 dark:text-rose-400 hover:underline cursor-pointer bg-rose-50 dark:bg-rose-950/20 px-1 py-0.5 rounded flex items-center gap-0.5">Not: {profile.devicesNotSynced} 🔍</span>
+                                </div>
+                            } 
+                        />
                     </div>
 
                     {/* ── Row 2: Coverage + Trend Chart ─────────────── */}
