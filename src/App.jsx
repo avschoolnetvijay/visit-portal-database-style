@@ -1228,6 +1228,104 @@ const App = () => {
         }
     };
 
+    // Delete data range-wise from IndexedDB and temp session memory
+    const handleDeleteRange = async (target, delStart, delEnd) => {
+        if (!delStart || !delEnd) {
+            alert("Please select both Start Date and End Date.");
+            return;
+        }
+        if (delStart > delEnd) {
+            alert("Start Date cannot be greater than End Date.");
+            return;
+        }
+
+        const confirmMsg = `⚠️ WARNING: This will permanently delete records from ${delStart} to ${delEnd} for ${
+            target === 'all' ? 'All Datasets (JHPMS Lab, EduStat PC Logs, and Visit Reports)' : target
+        }.\n\nAre you sure you want to proceed?`;
+
+        if (!window.confirm(confirmMsg)) return;
+
+        let totalDeleted = 0;
+
+        const getValLocal = (row, keyMatch) => {
+            if (!row) return null;
+            const key = Object.keys(row).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(keyMatch.toLowerCase().replace(/[^a-z0-9]/g, '')));
+            return key ? row[key] : null;
+        };
+
+        const filterRows = (rows, dateKey) => {
+            const before = rows.length;
+            const kept = (rows || []).filter(r => {
+                const dateVal = r[dateKey] || getValLocal(r, 'date') || getValLocal(r, 'visit_date') || getValLocal(r, 'visitdate');
+                const d = parseDateRobust(dateVal);
+                if (!d) return true; // Keep invalid dates to prevent silent loss
+                const dateStr = d.toISOString().split('T')[0];
+                return dateStr < delStart || dateStr > delEnd;
+            });
+            totalDeleted += (before - kept.length);
+            return kept;
+        };
+
+        // 1. Delete JHPMS Lab Logs
+        if (target === 'all' || target === 'jhpms_lab') {
+            // Temp session
+            const newTempJhpms = filterRows(tempJhpmsLab, 'date');
+            setTempJhpmsLab(newTempJhpms);
+            sessionStorage.setItem('snet_temp_jhpms_lab', JSON.stringify(newTempJhpms));
+
+            // Persistent Cloud/Overlay
+            const existing = await get('jhpms_lab') || [];
+            const newPersistent = filterRows(existing, 'date');
+            await set('jhpms_lab', newPersistent);
+            if (userRole === 'admin') {
+                setJhpmsLab(newPersistent);
+            } else {
+                setUserJhpmsLab(gateJhpmsLab(newPersistent));
+                setJhpmsLab(gateJhpmsLab(mergeJhpms(baselineJhpmsLab, newPersistent)));
+            }
+        }
+
+        // 2. Delete EduStat PC Logs
+        if (target === 'all' || target === 'edustat') {
+            // Temp session
+            const newTempEdu = filterRows(tempEdustat, 'date');
+            setTempEdustat(newTempEdu);
+            sessionStorage.setItem('snet_temp_edustat', JSON.stringify(newTempEdu));
+
+            // Persistent Cloud/Overlay
+            const existing = await get('edustat') || [];
+            const newPersistent = filterRows(existing, 'date');
+            await set('edustat', newPersistent);
+            if (userRole === 'admin') {
+                setEdustat(newPersistent);
+            } else {
+                setUserEdustat(gateEdustat(newPersistent));
+                setEdustat(gateEdustat(mergeEdustat(baselineEdustat, newPersistent)));
+            }
+        }
+
+        // 3. Delete Visit Reports
+        if (target === 'all' || target === 'visits') {
+            // Temp session
+            const newTempVisits = filterRows(tempVisits, 'visit_date');
+            setTempVisits(newTempVisits);
+            sessionStorage.setItem('snet_temp_visits', JSON.stringify(newTempVisits));
+
+            // Persistent Cloud/Overlay
+            const existing = await get('visits') || [];
+            const newPersistent = filterRows(existing, 'visit_date');
+            await set('visits', newPersistent);
+            if (userRole === 'admin') {
+                setVisits(newPersistent);
+            } else {
+                setUserVisits(gateVisits(newPersistent));
+                setVisits(gateVisits(mergeVisits(baselineVisits, newPersistent)));
+            }
+        }
+
+        alert(`Successfully deleted ${totalDeleted} records across the specified date range.`);
+    };
+
     // Synchronize Visit Data directly from JHPMS via local python proxy server
     const fetchJhpmsData = async () => {
         setJhpmsLoading(true);
@@ -1897,6 +1995,7 @@ const App = () => {
                     activeVisits={combinedVisits}
                     activeJhpmsLab={combinedJhpmsLab}
                     activeEdustat={combinedEdustat}
+                    onDeleteRange={handleDeleteRange}
                 />
             );
         }

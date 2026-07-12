@@ -25,8 +25,20 @@ const Setup = ({
     edustatMeta,
     activeVisits = null,
     activeJhpmsLab = null,
-    activeEdustat = null
+    activeEdustat = null,
+    onDeleteRange
 }) => {
+    const [deleteTarget, setDeleteTarget] = React.useState('all');
+    const [deleteStartDate, setDeleteStartDate] = React.useState('');
+    const [deleteEndDate, setDeleteEndDate] = React.useState('');
+
+    const handleDeleteRangePress = () => {
+        if (!deleteStartDate || !deleteEndDate) {
+            alert("Please select both Start Date and End Date.");
+            return;
+        }
+        onDeleteRange(deleteTarget, deleteStartDate, deleteEndDate);
+    };
     const timelineVisits = activeVisits || visits;
     const timelineJhpms = activeJhpmsLab || jhpmsLab;
     const timelineEdustat = activeEdustat || edustat;
@@ -248,6 +260,66 @@ const Setup = ({
                     )}
                 </div>
             </div>
+
+            {/* Range Wise Data Deletion Console */}
+            {userRole === 'admin' && (
+                <div className="portal-card bg-white/80 backdrop-blur-md border border-white/60 shadow-xl rounded-2xl overflow-hidden mt-6">
+                    <div className="portal-card-header text-sm py-3 px-6 bg-gradient-to-r from-red-800 to-rose-950 text-white font-semibold flex items-center gap-2">
+                        <Icons.Alert className="w-4 h-4 text-rose-300" />
+                        <span>Range-Wise Data Deletion Console</span>
+                    </div>
+                    <div className="p-6 bg-white space-y-4">
+                        <p className="text-xs text-gray-500">
+                            Select a target dataset and date range to permanently delete records from the browser database (IndexedDB) and active memory.
+                        </p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1.5">Target Dataset</label>
+                                <select 
+                                    value={deleteTarget} 
+                                    onChange={(e) => setDeleteTarget(e.target.value)}
+                                    className="w-full p-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-700"
+                                >
+                                    <option value="all">All Chronological Data</option>
+                                    <option value="jhpms_lab">3. JHPMS Lab Usage Logs</option>
+                                    <option value="edustat">4b. EduStat Daily PC Logs</option>
+                                    <option value="visits">2. Coordinator Visit Reports</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1.5">Start Date</label>
+                                <input 
+                                    type="date" 
+                                    value={deleteStartDate}
+                                    onChange={(e) => setDeleteStartDate(e.target.value)}
+                                    className="w-full p-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-700"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1.5">End Date</label>
+                                <input 
+                                    type="date" 
+                                    value={deleteEndDate}
+                                    onChange={(e) => setDeleteEndDate(e.target.value)}
+                                    className="w-full p-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-700"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                            <button
+                                onClick={handleDeleteRangePress}
+                                className="bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold py-2.5 px-5 rounded-xl border border-red-200 transition-all flex items-center gap-2"
+                            >
+                                <Icons.Alert className="w-4 h-4" /> Delete Selected Date Range
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Database Status & Timeline Analyzer Panel */}
             <div className="portal-card bg-white/80 backdrop-blur-md border border-white/60 shadow-xl rounded-2xl overflow-hidden mt-6">
