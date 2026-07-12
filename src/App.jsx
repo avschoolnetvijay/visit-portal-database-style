@@ -1522,7 +1522,8 @@ const App = () => {
                                 inTime: inTimeVal,
                                 outTime: outTimeVal,
                                 totalHour: totalHourVal,
-                                theoryPractical: theoryPracticalKey ? String(r[theoryPracticalKey]).trim() : ''
+                                theoryPractical: theoryPracticalKey ? String(r[theoryPracticalKey]).trim() : '',
+                                raw: r
                             };
                         });
                         
