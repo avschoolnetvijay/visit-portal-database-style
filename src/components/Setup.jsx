@@ -31,13 +31,22 @@ const Setup = ({
     const [deleteTarget, setDeleteTarget] = React.useState('all');
     const [deleteStartDate, setDeleteStartDate] = React.useState('');
     const [deleteEndDate, setDeleteEndDate] = React.useState('');
+    const [deleteLoading, setDeleteLoading] = React.useState(false);
 
-    const handleDeleteRangePress = () => {
+    const handleDeleteRangePress = async () => {
         if (!deleteStartDate || !deleteEndDate) {
             alert("Please select both Start Date and End Date.");
             return;
         }
-        onDeleteRange(deleteTarget, deleteStartDate, deleteEndDate);
+        setDeleteLoading(true);
+        try {
+            await onDeleteRange(deleteTarget, deleteStartDate, deleteEndDate);
+        } catch (error) {
+            console.error(error);
+            alert("Error deleting range: " + error.message);
+        } finally {
+            setDeleteLoading(false);
+        }
     };
     const timelineVisits = activeVisits || visits;
     const timelineJhpms = activeJhpmsLab || jhpmsLab;
@@ -312,9 +321,19 @@ const Setup = ({
                         <div className="flex justify-end pt-2">
                             <button
                                 onClick={handleDeleteRangePress}
-                                className="bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold py-2.5 px-5 rounded-xl border border-red-200 transition-all flex items-center gap-2"
+                                disabled={deleteLoading}
+                                className="bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold py-2.5 px-5 rounded-xl border border-red-200 transition-all flex items-center gap-2 disabled:opacity-50"
                             >
-                                <Icons.Alert className="w-4 h-4" /> Delete Selected Date Range
+                                {deleteLoading ? (
+                                    <>
+                                        <span className="w-3.5 h-3.5 border-2 border-red-700 border-t-transparent rounded-full animate-spin"></span>
+                                        Deleting Records...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Icons.Alert className="w-4 h-4" /> Delete Selected Date Range
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
