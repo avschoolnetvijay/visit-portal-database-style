@@ -1254,8 +1254,10 @@ const App = () => {
         };
 
         const filterRows = (rows, dateKey) => {
-            const before = rows.length;
-            const kept = (rows || []).filter(r => {
+            const arr = Array.isArray(rows) ? rows : [];
+            const before = arr.length;
+            const kept = arr.filter(r => {
+                if (!r) return false;
                 const dateVal = r[dateKey] || getValLocal(r, 'date') || getValLocal(r, 'visit_date') || getValLocal(r, 'visitdate');
                 const d = parseDateRobust(dateVal);
                 if (!d) return true; // Keep invalid dates to prevent silent loss
