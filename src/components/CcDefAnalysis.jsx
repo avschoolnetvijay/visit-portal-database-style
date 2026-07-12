@@ -711,14 +711,14 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         onDrillDown(`Not Synced Devices - ${selectedCC}`, drillData);
     };
 
-    const handleManpowerDrillDown = () => {
+    const handleManpowerReqDrillDown = () => {
         if (!profile || !profile.assignedSchools || !onDrillDown) return;
         const drillData = profile.assignedSchools.map((s, idx) => {
             const ud = String(s.udise_code || s.udise || '').trim();
             const schoolManpower = manpower.filter(m => String(m.udise).trim() === ud);
             const workingStaff = schoolManpower.find(m => String(m.status).toUpperCase().trim() === 'WORKING');
             const statusStr = workingStaff ? "Working" : "Vacant";
-            const nameStr = workingStaff?.instructor_name || "—";
+            const nameStr = workingStaff?.instructorName || workingStaff?.instructor_name || "—";
             
             return {
                 "Sl No": idx + 1,
@@ -731,7 +731,80 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                 "Instructor Name": nameStr
             };
         });
-        onDrillDown(`ICT Manpower Status - ${selectedCC}`, drillData);
+        onDrillDown(`ICT Manpower Required - ${selectedCC}`, drillData);
+    };
+
+    const handleManpowerWorkDrillDown = () => {
+        if (!profile || !profile.assignedSchools || !onDrillDown) return;
+        
+        const workingSchools = [];
+        profile.assignedSchools.forEach(s => {
+            const ud = String(s.udise_code || s.udise || '').trim();
+            const schoolManpower = manpower.filter(m => String(m.udise).trim() === ud);
+            const workingStaff = schoolManpower.find(m => String(m.status).toUpperCase().trim() === 'WORKING');
+            if (workingStaff) {
+                workingSchools.push({ school: s, workingStaff });
+            }
+        });
+
+        const drillData = workingSchools.map((item, idx) => {
+            const s = item.school;
+            const ud = String(s.udise_code || s.udise || '').trim();
+            return {
+                "Sl No": idx + 1,
+                "School Name": s.school_name || "Unknown School",
+                "UDISE": ud,
+                "District": s.district_name || "N/A",
+                "Project Name": s.project_name || "N/A",
+                "Assigned CC/DEF": s.visitor_name || "N/A",
+                "Manpower Status": "Working",
+                "Instructor Name": item.workingStaff?.instructorName || item.workingStaff?.instructor_name || "—"
+            };
+        });
+        onDrillDown(`ICT Manpower Working - ${selectedCC}`, drillData);
+    };
+
+    const handleManpowerVacDrillDown = () => {
+        if (!profile || !profile.assignedSchools || !onDrillDown) return;
+        
+        const vacantSchools = [];
+        profile.assignedSchools.forEach(s => {
+            const ud = String(s.udise_code || s.udise || '').trim();
+            const schoolManpower = manpower.filter(m => String(m.udise).trim() === ud);
+            const workingStaff = schoolManpower.find(m => String(m.status).toUpperCase().trim() === 'WORKING');
+            if (!workingStaff) {
+                const sortedRecords = [...schoolManpower].sort((a, b) => {
+                    const da = a.statusDate ? new Date(a.statusDate) : (a.joiningDate ? new Date(a.joiningDate) : null);
+                    const db = b.statusDate ? new Date(b.statusDate) : (b.joiningDate ? new Date(b.joiningDate) : null);
+                    return (db?.getTime() || 0) - (da?.getTime() || 0);
+                });
+                const prevRecord = sortedRecords.find(r => (r.instructorName || r.instructor_name) && String(r.instructorName || r.instructor_name).trim() !== '' && String(r.instructorName || r.instructor_name).trim() !== '—');
+                
+                vacantSchools.push({
+                    school: s,
+                    lastInstructor: prevRecord?.instructorName || prevRecord?.instructor_name || "—",
+                    lastWorkingDate: prevRecord?.statusDate || prevRecord?.joiningDate || "—"
+                });
+            }
+        });
+
+        const drillData = vacantSchools.map((item, idx) => {
+            const s = item.school;
+            const ud = String(s.udise_code || s.udise || '').trim();
+            const formattedDate = item.lastWorkingDate !== "—" ? formatDate(item.lastWorkingDate) : "—";
+            return {
+                "Sl No": idx + 1,
+                "School Name": s.school_name || "Unknown School",
+                "UDISE": ud,
+                "District": s.district_name || "N/A",
+                "Project Name": s.project_name || "N/A",
+                "Assigned CC/DEF": s.visitor_name || "N/A",
+                "Manpower Status": "Vacant",
+                "Last Working Instructor": item.lastInstructor,
+                "Last Working Date": formattedDate
+            };
+        });
+        onDrillDown(`ICT Manpower Vacant - ${selectedCC}`, drillData);
     };
 
     const handleUnvisitedDrillDown = () => {
@@ -896,15 +969,14 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                         <KpiCard icon={UserGroupIcon} iconColor="bg-teal-50 dark:bg-teal-900/20 text-teal-600"
                             value={`${profile.manpowerWorking}/${profile.manpowerRequired}`} label="ICT Manpower" 
                             sub={
-                                <div className="flex gap-1 flex-wrap text-[11.5px] font-extrabold mt-1">
-                                    <span className="text-teal-600 dark:text-teal-400">Req: {profile.manpowerRequired}</span>
-                                    <span className="text-slate-300 dark:text-slate-700 font-normal">·</span>
-                                    <span className="text-emerald-600 dark:text-emerald-400">Work: {profile.manpowerWorking}</span>
-                                    <span className="text-slate-300 dark:text-slate-700 font-normal">·</span>
-                                    <span className="text-rose-600 dark:text-rose-400">Vac: {profile.manpowerVacant}</span>
+                                <div className="flex gap-1 flex-wrap text-[11px] font-extrabold mt-1">
+                                    <span onClick={(e) => { e.stopPropagation(); handleManpowerReqDrillDown(); }} className="text-teal-600 dark:text-teal-400 hover:underline cursor-pointer bg-teal-50 dark:bg-teal-950/20 px-1 py-0.5 rounded flex items-center gap-0.5">Req: {profile.manpowerRequired} 🔍</span>
+                                    <span className="text-slate-300 dark:text-slate-700 font-normal self-center">·</span>
+                                    <span onClick={(e) => { e.stopPropagation(); handleManpowerWorkDrillDown(); }} className="text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer bg-emerald-50 dark:bg-emerald-950/20 px-1 py-0.5 rounded flex items-center gap-0.5">Work: {profile.manpowerWorking} 🔍</span>
+                                    <span className="text-slate-300 dark:text-slate-700 font-normal self-center">·</span>
+                                    <span onClick={(e) => { e.stopPropagation(); handleManpowerVacDrillDown(); }} className="text-rose-600 dark:text-rose-400 hover:underline cursor-pointer bg-rose-50 dark:bg-rose-950/20 px-1 py-0.5 rounded flex items-center gap-0.5">Vac: {profile.manpowerVacant} 🔍</span>
                                 </div>
                             } 
-                            onClick={handleManpowerDrillDown}
                         />
                         <KpiCard icon={BarChartIcon} iconColor="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
                             value={profile.totalJhpmsClasses} label="JHPMS Classes" 
