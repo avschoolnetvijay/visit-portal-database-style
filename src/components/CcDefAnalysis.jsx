@@ -486,28 +486,59 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
     }), [profile, darkMode, selectedCC]);
 
     // ─── Drill down handlers ──────────────────────────────────────────────────
+    const getCombinedVisitType = (logs) => {
+        const types = logs.map(l => String(l.visit_type || '').toUpperCase());
+        const hasIct = types.some(t => t.includes('ICT'));
+        const hasSmart = types.some(t => t.includes('SMART'));
+        if (hasIct && hasSmart) return "ICT+Smart";
+        if (hasIct) return "ICT";
+        if (hasSmart) return "Smart";
+        const uniqueTypes = Array.from(new Set(logs.map(l => String(l.visit_type || '').trim()).filter(Boolean)));
+        return uniqueTypes.join(' + ') || 'N/A';
+    };
+
     const handleTotalVisitsDrillDown = () => {
         if (!profile || !profile.ccVisits || !onDrillDown) return;
-        const sortedVisits = [...profile.ccVisits].sort((a, b) => {
-            const da = parseDateLocal(a.visit_date);
-            const db = parseDateLocal(b.visit_date);
-            return (db?.getTime() || 0) - (da?.getTime() || 0);
-        });
-        const drillData = sortedVisits.map((v, idx) => {
+        
+        // Group by (udise, date)
+        const grouped = {};
+        profile.ccVisits.forEach(v => {
             const udise = String(v.udise_code || v.udise || '').trim();
-            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === udise);
-            const isAssigned = profile.assignedSchoolUdises.has(udise);
+            const d = parseDateLocal(v.visit_date);
+            if (!udise || !d) return;
+            const dateStr = d.toISOString().split('T')[0];
+            const key = `${udise}_${dateStr}`;
+            if (!grouped[key]) {
+                grouped[key] = {
+                    udise,
+                    date: v.visit_date,
+                    dateObj: d,
+                    logs: []
+                };
+            }
+            grouped[key].logs.push(v);
+        });
+
+        const sortedGroups = Object.values(grouped).sort((a, b) => b.dateObj - a.dateObj);
+
+        const drillData = sortedGroups.map((g, idx) => {
+            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === g.udise);
+            const isAssigned = profile.assignedSchoolUdises.has(g.udise);
+            const combinedType = getCombinedVisitType(g.logs);
+            const remarksList = g.logs.map(l => String(l.remarks || '').trim()).filter(Boolean);
+            const combinedRemarks = remarksList.join(' | ') || '—';
+            
             return {
                 "Sl No": idx + 1,
                 "School Name": school?.school_name || "Unknown School",
-                "UDISE": udise,
+                "UDISE": g.udise,
                 "District": school?.district_name || "N/A",
                 "Project Name": school?.project_name || "N/A",
                 "Assigned CC/DEF": school?.visitor_name || "N/A",
-                "Date": formatDate(v.visit_date),
-                "Visit Type": v.visit_type || "N/A",
+                "Date": formatDate(g.date),
+                "Visit Type": combinedType,
                 "Assignment": isAssigned ? "Assigned School" : "Other School",
-                "Remarks": v.remarks || "—"
+                "Remarks": combinedRemarks
             };
         });
         onDrillDown(`All CC Visits - ${selectedCC}`, drillData);
@@ -516,24 +547,44 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
     const handleOtherVisitsDrillDown = () => {
         if (!profile || !profile.ccVisits || !onDrillDown) return;
         const otherVisits = profile.ccVisits.filter(v => !profile.assignedSchoolUdises.has(String(v.udise_code || v.udise || '').trim()));
-        const sortedVisits = [...otherVisits].sort((a, b) => {
-            const da = parseDateLocal(a.visit_date);
-            const db = parseDateLocal(b.visit_date);
-            return (db?.getTime() || 0) - (da?.getTime() || 0);
-        });
-        const drillData = sortedVisits.map((v, idx) => {
+        
+        // Group by (udise, date)
+        const grouped = {};
+        otherVisits.forEach(v => {
             const udise = String(v.udise_code || v.udise || '').trim();
-            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === udise);
+            const d = parseDateLocal(v.visit_date);
+            if (!udise || !d) return;
+            const dateStr = d.toISOString().split('T')[0];
+            const key = `${udise}_${dateStr}`;
+            if (!grouped[key]) {
+                grouped[key] = {
+                    udise,
+                    date: v.visit_date,
+                    dateObj: d,
+                    logs: []
+                };
+            }
+            grouped[key].logs.push(v);
+        });
+
+        const sortedGroups = Object.values(grouped).sort((a, b) => b.dateObj - a.dateObj);
+
+        const drillData = sortedGroups.map((g, idx) => {
+            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === g.udise);
+            const combinedType = getCombinedVisitType(g.logs);
+            const remarksList = g.logs.map(l => String(l.remarks || '').trim()).filter(Boolean);
+            const combinedRemarks = remarksList.join(' | ') || '—';
+            
             return {
                 "Sl No": idx + 1,
                 "School Name": school?.school_name || "Unknown School",
-                "UDISE": udise,
+                "UDISE": g.udise,
                 "District": school?.district_name || "N/A",
                 "Project Name": school?.project_name || "N/A",
                 "Assigned CC/DEF": school?.visitor_name || "N/A",
-                "Date": formatDate(v.visit_date),
-                "Visit Type": v.visit_type || "N/A",
-                "Remarks": v.remarks || "—"
+                "Date": formatDate(g.date),
+                "Visit Type": combinedType,
+                "Remarks": combinedRemarks
             };
         });
         onDrillDown(`Other School Visits - ${selectedCC}`, drillData);
@@ -658,6 +709,63 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             };
         });
         onDrillDown(`Not Synced Devices - ${selectedCC}`, drillData);
+    };
+
+    const handleManpowerDrillDown = () => {
+        if (!profile || !profile.assignedSchools || !onDrillDown) return;
+        const drillData = profile.assignedSchools.map((s, idx) => {
+            const ud = String(s.udise_code || s.udise || '').trim();
+            const schoolManpower = manpower.filter(m => String(m.udise).trim() === ud);
+            const workingStaff = schoolManpower.find(m => String(m.status).toUpperCase().trim() === 'WORKING');
+            const statusStr = workingStaff ? "Working" : "Vacant";
+            const nameStr = workingStaff?.instructor_name || "—";
+            
+            return {
+                "Sl No": idx + 1,
+                "School Name": s.school_name || "Unknown School",
+                "UDISE": ud,
+                "District": s.district_name || "N/A",
+                "Project Name": s.project_name || "N/A",
+                "Assigned CC/DEF": s.visitor_name || "N/A",
+                "Manpower Status": statusStr,
+                "Instructor Name": nameStr
+            };
+        });
+        onDrillDown(`ICT Manpower Status - ${selectedCC}`, drillData);
+    };
+
+    const handleUnvisitedDrillDown = () => {
+        if (!profile || !profile.unvisited || !onDrillDown) return;
+        const drillData = profile.unvisited.map((s, idx) => {
+            return {
+                "Sl No": idx + 1,
+                "School Name": s.school_name || "Unknown School",
+                "UDISE": String(s.udise_code || s.udise || '').trim(),
+                "District": s.district_name || "N/A",
+                "Project Name": s.project_name || "N/A",
+                "Assigned CC/DEF": s.visitor_name || "N/A",
+                "Status": "Unvisited in this period"
+            };
+        });
+        onDrillDown(`Unvisited Schools - ${selectedCC}`, drillData);
+    };
+
+    const handleRepeatVisitsDrillDown = () => {
+        if (!profile || !profile.repeatVisits || !onDrillDown) return;
+        const drillData = profile.repeatVisits.map((s, idx) => {
+            const ud = String(s.udise_code || s.udise || '').trim();
+            const visitCount = profile.visitsBySchool[ud]?.uniqueDates?.size || 0;
+            return {
+                "Sl No": idx + 1,
+                "School Name": s.school_name || "Unknown School",
+                "UDISE": ud,
+                "District": s.district_name || "N/A",
+                "Project Name": s.project_name || "N/A",
+                "Assigned CC/DEF": s.visitor_name || "N/A",
+                "Unique Visit Dates Count": visitCount
+            };
+        });
+        onDrillDown(`Repeat Visits Alert - ${selectedCC}`, drillData);
     };
 
     // ─── Render ───────────────────────────────────────────────────────────────
@@ -796,6 +904,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                     <span className="text-rose-600 dark:text-rose-400">Vac: {profile.manpowerVacant}</span>
                                 </div>
                             } 
+                            onClick={handleManpowerDrillDown}
                         />
                         <KpiCard icon={BarChartIcon} iconColor="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
                             value={profile.totalJhpmsClasses} label="JHPMS Classes" 
@@ -1107,20 +1216,24 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                 )}
 
                                 {profile.unvisited.length > 0 && (
-                                    <div className="flex items-start gap-2 p-2.5 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20">
+                                    <div 
+                                        onClick={handleUnvisitedDrillDown}
+                                        className="flex items-start gap-2 p-2.5 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 cursor-pointer hover:border-red-300 dark:hover:border-red-800 transition active:scale-[0.99] select-none">
                                         <AlertIcon className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                                         <div>
-                                            <p className="text-[11px] font-bold text-red-700 dark:text-red-400">{profile.unvisited.length} schools not visited in this period.</p>
+                                            <p className="text-[11px] font-bold text-red-700 dark:text-red-400">{profile.unvisited.length} schools not visited in this period. 🔍</p>
                                             <p className="text-[10px] text-red-500 dark:text-red-500 mt-0.5">{profile.unvisited.slice(0, 3).map(s => s.school_name).join(', ')}{profile.unvisited.length > 3 ? ` +${profile.unvisited.length - 3} more` : ''}</p>
                                         </div>
                                     </div>
                                 )}
 
                                 {profile.repeatVisits.length > 0 && (
-                                    <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20">
+                                    <div 
+                                        onClick={handleRepeatVisitsDrillDown}
+                                        className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 cursor-pointer hover:border-amber-300 dark:hover:border-amber-800 transition active:scale-[0.99] select-none">
                                         <AlertIcon className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
                                         <div>
-                                            <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">Repeat Visit Alert: {profile.repeatVisits.length} school(s) visited 3+ times</p>
+                                            <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">Repeat Visit Alert: {profile.repeatVisits.length} school(s) visited 3+ times 🔍</p>
                                             <p className="text-[10px] text-amber-500 mt-0.5">Consider re-allocating time to unvisited schools.</p>
                                         </div>
                                     </div>
