@@ -254,6 +254,10 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         const rank = rankIndex + 1;
         const totalCCs = ccRankData.length;
 
+        // Project avg visits
+        const projectAvgVisits = ccRankData.length > 0 ? (ccRankData.reduce((s, r) => s + r.visits, 0) / ccRankData.length).toFixed(1) : 0;
+        const projectAvgCoverage = ccRankData.length > 0 ? (ccRankData.reduce((s, r) => s + r.pct, 0) / ccRankData.length).toFixed(1) : 0;
+
         // Weekly trend - unique school-dates per week
         const weekMap = {};
         const seenSchoolDates = new Set();
