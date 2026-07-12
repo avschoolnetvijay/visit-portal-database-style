@@ -176,30 +176,32 @@ const SchoolWiseSearch = ({
         // Categorize JHPMS classes
         let theoryCount = 0;
         let practicalCount = 0;
+        let smartCount = 0;
         let misCount = 0;
 
         schoolJhpms.forEach(l => {
             const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
             const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
+            const theoryPractical = String(l.theoryPractical || getVal(l, 'theoryPractical') || getVal(l, 'theory/practical') || getVal(l, 'theorypractical') || '').toUpperCase();
 
-            // Extract explicit columns if present
-            const explicitTheory = parseFloat(getVal(l, 'theory'));
-            const explicitPractical = parseFloat(getVal(l, 'practical'));
-
-            if (!isNaN(explicitTheory) || !isNaN(explicitPractical)) {
-                theoryCount += isNaN(explicitTheory) ? 0 : explicitTheory;
-                practicalCount += isNaN(explicitPractical) ? 0 : explicitPractical;
-                if (subject.includes('MIS')) {
-                    misCount++;
-                }
+            if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                misCount++;
             } else {
-                // Fallback classification
-                if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
-                    misCount++;
-                } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                if (labType.includes('SMART')) {
+                    smartCount++;
+                }
+
+                if (theoryPractical.includes('THEORY')) {
                     theoryCount++;
-                } else if (labType.includes('SMART')) {
+                } else if (theoryPractical.includes('PRACTICAL')) {
                     practicalCount++;
+                } else {
+                    // Fallback classification if theoryPractical is empty/missing
+                    if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                        theoryCount++;
+                    } else if (labType.includes('SMART')) {
+                        practicalCount++;
+                    }
                 }
             }
         });
@@ -382,6 +384,7 @@ const SchoolWiseSearch = ({
             jhpmsLoggedDays,
             theoryCount,
             practicalCount,
+            smartCount,
             misCount,
             totalJhpmsClasses,
             totalEduHours,
@@ -723,7 +726,7 @@ const SchoolWiseSearch = ({
                             </div>
                             <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm text-center">
                                 <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Smart Classes</label>
-                                <div className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400">{schoolProfile.practicalCount}</div>
+                                <div className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400">{schoolProfile.smartCount}</div>
                                 <span className="text-[9px] text-gray-400 block mt-0.5">Interactive board</span>
                             </div>
                             <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm text-center col-span-2 md:col-span-1">

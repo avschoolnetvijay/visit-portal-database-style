@@ -1493,6 +1493,7 @@ const App = () => {
                             const subKey = cleanKeys.find(k => k.orig !== teacherKey && k.clean.includes('sub'))?.orig;
                             const inTimeKey = cleanKeys.find(k => k.clean.includes('intime') || k.clean.includes('login'))?.orig;
                             const outTimeKey = cleanKeys.find(k => k.clean.includes('outtime') || k.clean.includes('logout'))?.orig;
+                            const theoryPracticalKey = cleanKeys.find(k => k.clean.includes('theory') || k.clean.includes('practical') || k.clean.includes('sessiontype'))?.orig;
                             
                             if (!labKey || !subKey) missingKeysAlert = true;
                             
@@ -1520,7 +1521,8 @@ const App = () => {
                                 subjectTeacher: teacherKey ? String(r[teacherKey]).trim() : '',
                                 inTime: inTimeVal,
                                 outTime: outTimeVal,
-                                totalHour: totalHourVal
+                                totalHour: totalHourVal,
+                                theoryPractical: theoryPracticalKey ? String(r[theoryPracticalKey]).trim() : ''
                             };
                         });
                         
