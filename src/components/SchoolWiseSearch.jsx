@@ -677,14 +677,20 @@ const SchoolWiseSearch = ({
                                         <span className="font-extrabold text-gray-500 dark:text-slate-400 block uppercase text-[9px] tracking-wider mb-1.5 border-b border-gray-200/50 dark:border-slate-800 pb-1">
                                             Last Working Instructor Details
                                         </span>
-                                        <div className="space-y-1 text-[11px] text-gray-700 dark:text-gray-300 font-bold">
+                                        <div className="space-y-1.5 text-[11px] text-gray-700 dark:text-gray-300 font-bold">
                                             <div className="flex justify-between">
                                                 <span className="text-gray-500 font-medium">Name:</span>
                                                 <span className="text-gray-900 dark:text-white font-black">{schoolProfile.lastWorkingInstructor.instructorName || 'N/A'}</span>
                                             </div>
-                                            <div className="flex justify-between mt-1">
-                                                <span className="text-gray-500 font-medium">Last Status Date:</span>
-                                                <span className="text-teal-900 dark:text-teal-400 font-black">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-500 font-medium">Date of Joining:</span>
+                                                <span className="text-gray-900 dark:text-white font-black">
+                                                    {schoolProfile.lastWorkingInstructor.joiningDate ? formatDate(schoolProfile.lastWorkingInstructor.joiningDate) : 'N/A'}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-500 font-medium">Last Working Date:</span>
+                                                <span className="text-teal-950 dark:text-teal-400 font-black">
                                                     {schoolProfile.lastWorkingInstructor.statusDate ? formatDate(schoolProfile.lastWorkingInstructor.statusDate) : 'N/A'}
                                                 </span>
                                             </div>
