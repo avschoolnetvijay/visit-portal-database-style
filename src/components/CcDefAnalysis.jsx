@@ -475,7 +475,10 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         chart: { type: 'bar', toolbar: { show: false }, background: 'transparent' },
         plotOptions: { bar: { horizontal: true, barHeight: '65%', borderRadius: 4 } },
         colors: profile?.ccRankData?.map(r => r.cc === selectedCC ? '#0d9488' : (darkMode ? '#334155' : '#e2e8f0')) || ['#0d9488'],
-        xaxis: { labels: { style: { colors: darkMode ? '#94a3b8' : '#6b7280', fontSize: '10px' } } },
+        xaxis: { 
+            categories: profile?.ccRankData?.map(r => r.cc) || [],
+            labels: { style: { colors: darkMode ? '#94a3b8' : '#6b7280', fontSize: '10px' } } 
+        },
         yaxis: { labels: { style: { colors: darkMode ? '#94a3b8' : '#6b7280', fontSize: '10px', fontWeight: 600 }, maxWidth: 140 } },
         grid: { borderColor: darkMode ? '#1e293b' : '#f1f5f9', xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
         dataLabels: { enabled: true, style: { fontSize: '10px', fontWeight: 700, colors: [darkMode ? '#f1f5f9' : '#1e293b'] }, formatter: v => `${v}` },
