@@ -282,8 +282,13 @@ const App = () => {
     const [baselineEdustat, setBaselineEdustat] = useState([]);
 
     const [drillDownData, setDrillDownData] = useState(null);
+    const [drillToUdise, setDrillToUdise] = useState(null);
     const handleDrillDown = useCallback((title, data) => {
         setDrillDownData({ title, data });
+    }, []);
+    const handleNavigateToSchool = useCallback((udise) => {
+        setDrillToUdise(udise);
+        setActiveTab('school-search');
     }, []);
 
     const [isAuthenticated, setIsAuthenticated] = useState(
@@ -2140,8 +2145,8 @@ const App = () => {
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
         if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
         if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
-        if (activeTab === 'school-search') return <SchoolWiseSearch schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} visits={combinedVisits} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} darkMode={darkMode} onDrillDown={handleDrillDown} />;
-        if (activeTab === 'cc-analysis') return <CcDefAnalysis schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} startDate={startDate} endDate={endDate} ccNameMapping={ccNameMapping} darkMode={darkMode} onDrillDown={handleDrillDown} />;
+        if (activeTab === 'school-search') return <SchoolWiseSearch schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} visits={combinedVisits} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} darkMode={darkMode} onDrillDown={handleDrillDown} initialUdise={drillToUdise} />;
+        if (activeTab === 'cc-analysis') return <CcDefAnalysis schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} startDate={startDate} endDate={endDate} ccNameMapping={ccNameMapping} darkMode={darkMode} onNavigateToSchool={handleNavigateToSchool} />;
         if (activeTab === 'plan') return <PlanView data={processedData} allVisits={combinedVisits} manpower={manpower} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} schools={schools} startDate={startDate} endDate={endDate} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
         if (activeTab === 'reports') return <ReportsView data={processedData} />;

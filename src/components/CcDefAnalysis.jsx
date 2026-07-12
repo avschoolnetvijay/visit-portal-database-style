@@ -104,7 +104,7 @@ const KpiCard = ({ icon: Icon, iconColor, value, label, sub, highlight }) => (
 );
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = [], edustat = [], startDate, endDate, ccNameMapping = {}, darkMode = false, onDrillDown }) {
+export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = [], edustat = [], startDate, endDate, ccNameMapping = {}, darkMode = false, onNavigateToSchool }) {
     const [selectedCC, setSelectedCC] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -494,7 +494,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                     const cnt = vData?.visits?.length || 0;
                                     return (
                                         <div key={i}
-                                            onClick={() => onDrillDown && onDrillDown({ type: 'school', udise })}
+                                            onClick={() => onNavigateToSchool && onNavigateToSchool(udise)}
                                             className={`flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800 border-l-4 ${visited ? 'border-l-green-500' : 'border-l-red-400'} bg-gray-50/40 dark:bg-slate-800/30`}>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-[11px] font-black text-gray-800 dark:text-gray-200 truncate">{s.school_name}</p>
@@ -715,7 +715,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                     <div className="space-y-2">
                                         {profile.prioritySchools.slice(0, 5).map((s, i) => (
                                             <div key={i}
-                                                onClick={() => onDrillDown && onDrillDown({ type: 'school', udise: String(s.udise_code || s.udise || '').trim() })}
+                                                onClick={() => onNavigateToSchool && onNavigateToSchool(String(s.udise_code || s.udise || '').trim())}
                                                 className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 cursor-pointer hover:border-teal-300 dark:hover:border-teal-700 transition group">
                                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 ${i === 0 ? 'bg-red-500 text-white' : i === 1 ? 'bg-orange-500 text-white' : 'bg-amber-400 text-white'}`}>
                                                     {i + 1}

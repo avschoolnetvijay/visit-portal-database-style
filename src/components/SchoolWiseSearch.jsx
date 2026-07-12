@@ -77,12 +77,24 @@ const SchoolWiseSearch = ({
     endDate,
     workingDays = 1,
     darkMode = false,
-    onDrillDown
+    onDrillDown,
+    initialUdise = null
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [selectedSchool, setSelectedSchool] = useState(null);
     const [suggestions, setSuggestions] = useState([]);
+
+    // Auto-select school when initialUdise is provided (e.g. from CC/DEF drill-down)
+    useEffect(() => {
+        if (initialUdise && schools.length > 0 && !selectedSchool) {
+            const match = schools.find(s => String(s.udise_code || s.udise || '').trim() === String(initialUdise).trim());
+            if (match) {
+                setSelectedSchool(match);
+                setSearchTerm(match.school_name || '');
+            }
+        }
+    }, [initialUdise, schools]);
 
     // Debounce search input
     useEffect(() => {
