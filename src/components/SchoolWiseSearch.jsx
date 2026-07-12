@@ -448,10 +448,10 @@ const SchoolWiseSearch = ({
                 text: `${unsyncedCount} device(s) did not sync any hours. Click the Unsynced card to review serial numbers.`
             });
         }
-        if (totalJhpmsClasses > 0 && totalJhpmsClasses < blkAvgs.avgClasses) {
+        if (totalJhpmsClasses > 0 && totalJhpmsClasses < blkProjectAvgs.avgClasses) {
             insightsList.push({
                 type: 'info',
-                text: `Class usage is below block average (${totalJhpmsClasses} vs block avg: ${blkAvgs.avgClasses.toFixed(1)}).`
+                text: `Class usage is below block-project average (${totalJhpmsClasses} vs block avg: ${blkProjectAvgs.avgClasses.toFixed(1)}).`
             });
         }
 
