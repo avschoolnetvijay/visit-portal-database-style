@@ -475,6 +475,65 @@ const SchoolWiseSearch = ({
             });
         }
 
+        // 1. Lab Activity Consistency
+        const activeWorkingDays = Number(workingDays) > 0 ? Number(workingDays) : 1;
+        const labUtilRatio = jhpmsLoggedDays / activeWorkingDays;
+        if (!isVacant && labUtilRatio < 0.3 && totalJhpmsClasses > 0) {
+            insightsList.push({
+                type: 'warning',
+                text: `Low Lab Utilization: Computer lab was only active for ${jhpmsLoggedDays} days of the period (Utilization: ${Math.round(labUtilRatio * 100)}% of ${activeWorkingDays} working days). Consistent weekly class delivery is recommended.`
+            });
+        }
+
+        // 2. Practical vs. Theory Skew
+        if (totalJhpmsClasses >= 5) {
+            const practicalPct = Math.round((practicalCount / totalJhpmsClasses) * 100);
+            if (practicalPct < 30) {
+                insightsList.push({
+                    type: 'warning',
+                    text: `Theory-to-Practical Skew: Practical lab sessions make up only ${practicalPct}% of logged JHPMS classes. Hands-on computer lab sessions should be prioritized.`
+                });
+            }
+        }
+
+        // 3. MIS / Administrative Burden
+        const totalLogs = totalJhpmsClasses + misCount;
+        if (totalLogs >= 5) {
+            const misPct = Math.round((misCount / totalLogs) * 100);
+            if (misPct > 20) {
+                insightsList.push({
+                    type: 'info',
+                    text: `Administrative Overhead: MIS tasks comprise ${misPct}% of logged school activity (${misCount} entries), which may reduce available instruction time for students.`
+                });
+            }
+        }
+
+        // 4. EduStat Underutilization Check
+        if (schoolDevices.length > 0 && totalEduHours > 0) {
+            const avgHoursPerDevice = totalEduHours / schoolDevices.length;
+            if (avgHoursPerDevice < 10) {
+                insightsList.push({
+                    type: 'warning',
+                    text: `Low Device Utilization: Average active sync time per installed device is only ${avgHoursPerDevice.toFixed(1)} hours. Encourage instructors to integrate device use in daily lessons.`
+                });
+            }
+        }
+
+        // 5. New Instructor Transition
+        if (activeInstructor && activeInstructor.joiningDate) {
+            const jDate = parseDateRobust(activeInstructor.joiningDate);
+            if (jDate) {
+                const timeDiff = new Date() - jDate;
+                const daysSinceJoining = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+                if (daysSinceJoining <= 90) {
+                    insightsList.push({
+                        type: 'info',
+                        text: `New Instructor Transition: The instructor (${activeInstructor.instructorName}) joined recently on ${formatDate(activeInstructor.joiningDate)} (${daysSinceJoining} days ago). Coordinate supporting visits to ensure proper lab alignment and training.`
+                    });
+                }
+            }
+        }
+
         // Unique dates count in QPR
         const qprDates = new Set();
         qprVisits.forEach(v => {
