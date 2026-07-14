@@ -694,21 +694,31 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         }
 
         // 5. Cross-Project Scope Involvement
+        const otherProjectUniqueVisits = new Set();
         const otherProjectVisits = ccVisits.filter(v => {
             const ud = String(v.udise_code || v.udise || '').trim();
             const matchedSchool = schools.find(s => String(s.udise_code || s.udise || '').trim() === ud);
             if (!matchedSchool) return false;
             const primaryProj = assignedSchools[0]?.project_name;
-            return primaryProj && matchedSchool.project_name && matchedSchool.project_name.toLowerCase() !== primaryProj.toLowerCase();
+            const isOtherProj = primaryProj && matchedSchool.project_name && matchedSchool.project_name.toLowerCase() !== primaryProj.toLowerCase();
+            if (isOtherProj) {
+                const d = parseDateLocal(v.visit_date);
+                if (d) {
+                    const dateStr = d.toISOString().split('T')[0];
+                    otherProjectUniqueVisits.add(`${ud}_${dateStr}`);
+                }
+            }
+            return isOtherProj;
         });
+        const otherProjectVisitsCount = otherProjectUniqueVisits.size;
         let insight5Text = '';
         let insight5Type = 'info';
-        if (otherProjectVisits.length > 0) {
+        if (otherProjectVisitsCount > 0) {
             const projects = Array.from(new Set(otherProjectVisits.map(v => {
                 const ud = String(v.udise_code || v.udise || '').trim();
                 return schools.find(s => String(s.udise_code || s.udise || '').trim() === ud)?.project_name || 'Other';
             })));
-            insight5Text = `Cross-project collaboration: CC performed ${otherProjectVisits.length} visits to schools in external projects (${projects.join(', ')}), demonstrating support beyond primary assigned zone.`;
+            insight5Text = `Cross-project collaboration: CC performed ${otherProjectVisitsCount} visits to schools in external projects (${projects.join(', ')}), demonstrating support beyond primary assigned zone.`;
             insight5Type = 'info';
         } else {
             insight5Text = `Focused project alignment: 100% of CC visits were confined within their assigned primary project boundaries.`;
@@ -776,19 +786,25 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
 
         // 8. Field Activity Inactivity Gap
         let maxGapDays = 0;
+        let maxGapStart = null;
+        let maxGapEnd = null;
         if (sortedVisits.length > 1) {
             const chronVisits = [...sortedVisits].sort((a, b) => new Date(a.visit_date) - new Date(b.visit_date));
             for (let i = 0; i < chronVisits.length - 1; i++) {
                 const d1 = new Date(chronVisits[i].visit_date);
                 const d2 = new Date(chronVisits[i+1].visit_date);
                 const gap = Math.floor((d2 - d1) / (86400000)) - 1;
-                if (gap > maxGapDays) maxGapDays = gap;
+                if (gap > maxGapDays) {
+                    maxGapDays = gap;
+                    maxGapStart = chronVisits[i].visit_date;
+                    maxGapEnd = chronVisits[i+1].visit_date;
+                }
             }
         }
         let insight8Text = '';
         let insight8Type = 'info';
         if (maxGapDays >= 7) {
-            insight8Text = `Field inactivity gap: CC had a consecutive block of ${maxGapDays} days without logging any school visits. Ensure visit schedules are consistent.`;
+            insight8Text = `Field inactivity gap: CC had a consecutive block of ${maxGapDays} days without logging any school visits (from ${formatDate(maxGapStart)} to ${formatDate(maxGapEnd)}). Ensure visit schedules are consistent.`;
             insight8Type = 'warning';
         } else {
             insight8Text = `Consistent field coverage: Maximum consecutive gap between school visits was only ${maxGapDays} days, showing high frequency.`;
@@ -815,7 +831,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             insight10Text = `Admin Overhead Alert: MIS entries make up ${misPct}% of CC's classroom records, indicating a heavy administrative workload at the cost of computer lab delivery.`;
             insight10Type = 'warning';
         } else {
-            insight10Text = `Balanced admin ratio: MIS entries make up only ${misPct}% of school logs. CC resources are primarily used for classroom teaching.`;
+            insight10Text = `Balanced admin ratio: MIS entries make up only ${misPct}% of school logs. ICT Instructor is primarily used for classroom teaching.`;
             insight10Type = 'success';
         }
 
