@@ -83,6 +83,13 @@ const SyncIcon = ({ className }) => (
     </svg>
 );
 
+const SparklesIcon = ({ className }) => (
+    <svg className={className || 'w-4 h-4'} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707-.707" />
+        <circle cx="12" cy="12" r="4" />
+    </svg>
+);
+
 // ─── Utility ───────────────────────────────────────────────────────────────────
 const parseDateLocal = (d) => {
     if (!d) return null;
@@ -1916,6 +1923,70 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                     💡 <b>Suggestion:</b> Aim for at least {Math.max(1, Math.ceil(profile.assignedSchools.length / 4))} visits/week to achieve 100% coverage within the quarter.
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* ── Row 6: 10 Dynamic AI Insights Engine ───────────── */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-5 shadow-md mt-6">
+                        <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-slate-800 pb-2">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-400 flex items-center gap-1.5">
+                                <SparklesIcon className="w-3.5 h-3.5" /> Automated AI Insights & Heuristics (10 Metrics)
+                            </h3>
+                            <span className="text-[10px] bg-teal-500/10 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 font-bold px-2 py-0.5 rounded-full">
+                                Real-Time Audit
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {profile.aiInsights && profile.aiInsights.map((insight) => {
+                                // determine color/styling classes based on type
+                                let bgClass = "bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800";
+                                let textClass = "text-slate-800 dark:text-slate-200";
+                                let titleClass = "text-slate-900 dark:text-slate-100";
+                                let iconColor = "text-slate-500";
+                                let Icon = AlertIcon;
+                                
+                                if (insight.type === 'success') {
+                                    bgClass = "bg-emerald-50/40 dark:bg-emerald-950/10 border-emerald-100/60 dark:border-emerald-900/20";
+                                    textClass = "text-emerald-800 dark:text-emerald-300";
+                                    titleClass = "text-emerald-900 dark:text-emerald-200";
+                                    iconColor = "text-emerald-600 dark:text-emerald-400";
+                                    Icon = CheckIcon;
+                                } else if (insight.type === 'error') {
+                                    bgClass = "bg-rose-50/40 dark:bg-rose-950/10 border-rose-100/60 dark:border-rose-900/20";
+                                    textClass = "text-rose-800 dark:text-rose-300";
+                                    titleClass = "text-rose-900 dark:text-rose-200";
+                                    iconColor = "text-rose-600 dark:text-rose-400";
+                                    Icon = AlertIcon;
+                                } else if (insight.type === 'warning') {
+                                    bgClass = "bg-amber-50/40 dark:bg-amber-950/10 border-amber-100/60 dark:border-amber-900/20";
+                                    textClass = "text-amber-800 dark:text-amber-300";
+                                    titleClass = "text-amber-900 dark:text-amber-200";
+                                    iconColor = "text-amber-600 dark:text-amber-400";
+                                    Icon = AlertIcon;
+                                } else if (insight.type === 'info') {
+                                    bgClass = "bg-sky-50/40 dark:bg-sky-950/10 border-sky-100/60 dark:border-sky-900/20";
+                                    textClass = "text-sky-800 dark:text-sky-300";
+                                    titleClass = "text-sky-900 dark:text-sky-200";
+                                    iconColor = "text-sky-600 dark:text-sky-400";
+                                    Icon = AlertIcon;
+                                }
+                                
+                                return (
+                                    <div key={insight.id} className={`flex items-start gap-3 p-3.5 rounded-xl border ${bgClass} transition hover:scale-[1.01] duration-150`}>
+                                        <div className={`p-1.5 rounded-lg bg-white dark:bg-slate-900 shadow-sm ${iconColor} flex-shrink-0`}>
+                                            <Icon className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h4 className={`text-xs font-black ${titleClass} flex items-center gap-1.5`}>
+                                                {insight.title}
+                                            </h4>
+                                            <p className={`text-[11px] font-medium leading-relaxed mt-1 ${textClass}`}>
+                                                {insight.text}
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </>
