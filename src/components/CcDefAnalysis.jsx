@@ -132,6 +132,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
     const [selectedCC, setSelectedCC] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isMatrixExpanded, setIsMatrixExpanded] = useState(false);
 
     // ── Build unique CC list ──────────────────────────────────────────────────
     const ccList = useMemo(() => {
@@ -169,10 +170,39 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         const assignedSchools = schools.filter(s => (s.visitor_name || '').trim() === selectedCC.trim());
         const assignedSchoolUdises = new Set(assignedSchools.map(s => String(s.udise_code || s.udise || '').trim()));
 
+        // Date range days
+        const rangeDays = startD && endD ? Math.max(1, Math.ceil((endD - startD) / 86400000) + 1) : 30;
+
+        // Shift range back by rangeDays to find previous period range
+        let prevStartD = null;
+        let prevEndD = null;
+        if (startD && endD) {
+            prevEndD = new Date(startD);
+            prevEndD.setDate(prevEndD.getDate() - 1);
+            prevEndD.setHours(23, 59, 59, 999);
+
+            prevStartD = new Date(prevEndD);
+            prevStartD.setDate(prevStartD.getDate() - rangeDays + 1);
+            prevStartD.setHours(0, 0, 0, 0);
+        }
+
+        const inPrevRange = (dateStr) => {
+            const d = parseDateLocal(dateStr);
+            if (!d || !prevStartD || !prevEndD) return false;
+            if (d < prevStartD || d > prevEndD) return false;
+            return true;
+        };
+
         // All visits by this CC in date range
         const ccVisits = visits.filter(v => {
             const vName = (v.visitor_name || v.cc_name || v.def_name || '').trim();
             return vName === selectedCC.trim() && inRange(v.visit_date);
+        });
+
+        // Previous visits by this CC
+        const prevCcVisits = visits.filter(v => {
+            const vName = (v.visitor_name || v.cc_name || v.def_name || '').trim();
+            return vName === selectedCC.trim() && inPrevRange(v.visit_date);
         });
 
         // Sort visits by date desc
@@ -224,6 +254,27 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         const assignedVisitsCount = assignedUniqueVisitSet.size;
         const otherVisitsCount = otherUniqueVisitSet.size;
         const totalVisits = assignedVisitsCount + otherVisitsCount;
+
+        // Split unique day visit counts for previous period
+        const prevAssignedUniqueVisitSet = new Set();
+        const prevOtherUniqueVisitSet = new Set();
+
+        prevCcVisits.forEach(v => {
+            const ud = String(v.udise_code || v.udise || '').trim();
+            const d = parseDateLocal(v.visit_date);
+            if (ud && d) {
+                const dateStr = d.toISOString().split('T')[0];
+                if (assignedSchoolUdises.has(ud)) {
+                    prevAssignedUniqueVisitSet.add(`${ud}_${dateStr}`);
+                } else {
+                    prevOtherUniqueVisitSet.add(`${ud}_${dateStr}`);
+                }
+            }
+        });
+
+        const prevAssignedVisitsCount = prevAssignedUniqueVisitSet.size;
+        const prevOtherVisitsCount = prevOtherUniqueVisitSet.size;
+        const prevTotalVisits = prevAssignedVisitsCount + prevOtherVisitsCount;
 
         // Assigned school coverage
         const visitedAssigned = assignedSchools.filter(s => visitsBySchool[String(s.udise_code || s.udise || '').trim()]);
@@ -282,6 +333,101 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         });
         const totalJhpmsClasses = theoryCount + practicalCount;
         const totalEduHours = ccEdustat.reduce((s, e) => s + (parseFloat(e.hours) || 0), 0);
+
+        // Previous Period Calculations
+        const prevVisitsBySchool = {};
+        prevCcVisits.forEach(v => {
+            const ud = String(v.udise_code || v.udise || '').trim();
+            if (!ud) return;
+            if (!prevVisitsBySchool[ud]) {
+                prevVisitsBySchool[ud] = { 
+                    visits: [], 
+                    lastDate: null,
+                    uniqueDates: new Set()
+                };
+            }
+            prevVisitsBySchool[ud].visits.push(v);
+            const d = parseDateLocal(v.visit_date);
+            if (d) {
+                prevVisitsBySchool[ud].uniqueDates.add(d.toISOString().split('T')[0]);
+            }
+            if (d && (!prevVisitsBySchool[ud].lastDate || d > parseDateLocal(prevVisitsBySchool[ud].lastDate))) {
+                prevVisitsBySchool[ud].lastDate = v.visit_date;
+            }
+        });
+        const prevVisitedAssignedCount = assignedSchools.filter(s => prevVisitsBySchool[String(s.udise_code || s.udise || '').trim()]).length;
+        const prevCoveragePct = assignedSchools.length > 0 ? Math.round((prevVisitedAssignedCount / assignedSchools.length) * 100) : 0;
+
+        const prevCcJhpms = jhpmsLab.filter(j => {
+            const ud = String(j.udise || '').trim();
+            return ccUdises.has(ud) && inPrevRange(j.date);
+        });
+        const prevCcEdustat = edustat.filter(e => {
+            const ud = String(e.udise || '').trim();
+            return ccUdises.has(ud) && inPrevRange(e.date);
+        });
+
+        let prevTheoryCount = 0;
+        let prevPracticalCount = 0;
+        let prevSmartCount = 0;
+        let prevMisCount = 0;
+
+        prevCcJhpms.forEach(l => {
+            const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+            const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
+            const theoryPractical = String(l.theoryPractical || getVal(l, 'theoryPractical') || getVal(l, 'theory/practical') || getVal(l, 'theorypractical') || '').toUpperCase();
+
+            if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                prevMisCount++;
+            } else {
+                if (labType.includes('SMART')) {
+                    prevSmartCount++;
+                }
+
+                if (theoryPractical.includes('THEORY')) {
+                    prevTheoryCount++;
+                } else if (theoryPractical.includes('PRACTICAL')) {
+                    prevPracticalCount++;
+                } else {
+                    if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                        prevTheoryCount++;
+                    } else if (labType.includes('SMART')) {
+                        prevPracticalCount++;
+                    }
+                }
+            }
+        });
+        const prevTotalJhpmsClasses = prevTheoryCount + prevPracticalCount;
+        const prevTotalEduHours = prevCcEdustat.reduce((s, e) => s + (parseFloat(e.hours) || 0), 0);
+
+        // School-by-school JHPMS and EduStat counts (both periods)
+        const jhpmsBySchool = {};
+        ccJhpms.forEach(j => {
+            const ud = String(j.udise || '').trim();
+            if (!ud) return;
+            jhpmsBySchool[ud] = (jhpmsBySchool[ud] || 0) + 1;
+        });
+
+        const prevJhpmsBySchool = {};
+        prevCcJhpms.forEach(j => {
+            const ud = String(j.udise || '').trim();
+            if (!ud) return;
+            prevJhpmsBySchool[ud] = (prevJhpmsBySchool[ud] || 0) + 1;
+        });
+
+        const edustatBySchool = {};
+        ccEdustat.forEach(e => {
+            const ud = String(e.udise || '').trim();
+            if (!ud) return;
+            edustatBySchool[ud] = (edustatBySchool[ud] || 0) + (parseFloat(e.hours) || 0);
+        });
+
+        const prevEdustatBySchool = {};
+        prevCcEdustat.forEach(e => {
+            const ud = String(e.udise || '').trim();
+            if (!ud) return;
+            prevEdustatBySchool[ud] = (prevEdustatBySchool[ud] || 0) + (parseFloat(e.hours) || 0);
+        });
 
         // Visit frequency metrics
         const uniqueSchoolsVisited = Object.keys(visitsBySchool).length;
@@ -347,7 +493,6 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         });
 
         // Date range days
-        const rangeDays = startD && endD ? Math.max(1, Math.ceil((endD - startD) / 86400000) + 1) : 30;
         const avgVisitsPerWeek = ((totalVisits / rangeDays) * 7).toFixed(1);
 
         // Ranking among all CCs in same project - based on unique days visit count
@@ -385,29 +530,54 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         const projectAvgVisits = ccRankData.length > 0 ? (ccRankData.reduce((s, r) => s + r.visits, 0) / ccRankData.length).toFixed(1) : 0;
         const projectAvgCoverage = ccRankData.length > 0 ? (ccRankData.reduce((s, r) => s + r.pct, 0) / ccRankData.length).toFixed(1) : 0;
 
-        // Weekly trend - unique school-dates per week
-        const weekMap = {};
-        const seenSchoolDates = new Set();
+        // Weekly trend - unique school-dates per week comparison (Current vs Previous period aligned)
+        const getWeekIndex = (date, baseDate) => {
+            if (!date || !baseDate) return 0;
+            const diffTime = Math.abs(date.getTime() - baseDate.getTime());
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            return Math.floor(diffDays / 7);
+        };
+
+        const currWeekVisits = {};
+        const seenCurrSchoolDates = new Set();
         ccVisits.forEach(v => {
             const ud = String(v.udise_code || v.udise || '').trim();
             const d = parseDateLocal(v.visit_date);
             if (!d || !ud) return;
             const dateStr = d.toISOString().split('T')[0];
             const signature = `${ud}_${dateStr}`;
-            if (seenSchoolDates.has(signature)) return;
-            seenSchoolDates.add(signature);
+            if (seenCurrSchoolDates.has(signature)) return;
+            seenCurrSchoolDates.add(signature);
 
-            const sunday = new Date(d);
-            sunday.setDate(d.getDate() - d.getDay());
-            const key = sunday.toISOString().split('T')[0];
-            weekMap[key] = (weekMap[key] || 0) + 1;
+            const wIdx = getWeekIndex(d, startD);
+            currWeekVisits[wIdx] = (currWeekVisits[wIdx] || 0) + 1;
         });
-        const weekKeys = Object.keys(weekMap).sort();
-        const trendSeries = weekKeys.map(k => weekMap[k]);
-        const trendLabels = weekKeys.map(k => {
-            const d = new Date(k);
-            return `${d.getDate()}/${d.getMonth() + 1}`;
+
+        const prevWeekVisits = {};
+        const seenPrevSchoolDates = new Set();
+        prevCcVisits.forEach(v => {
+            const ud = String(v.udise_code || v.udise || '').trim();
+            const d = parseDateLocal(v.visit_date);
+            if (!d || !ud) return;
+            const dateStr = d.toISOString().split('T')[0];
+            const signature = `${ud}_${dateStr}`;
+            if (seenPrevSchoolDates.has(signature)) return;
+            seenPrevSchoolDates.add(signature);
+
+            const wIdx = getWeekIndex(d, prevStartD);
+            prevWeekVisits[wIdx] = (prevWeekVisits[wIdx] || 0) + 1;
         });
+
+        // Determine max weeks to render
+        const maxWeeks = Math.max(
+            Object.keys(currWeekVisits).length > 0 ? Math.max(...Object.keys(currWeekVisits).map(Number)) + 1 : 0,
+            Object.keys(prevWeekVisits).length > 0 ? Math.max(...Object.keys(prevWeekVisits).map(Number)) + 1 : 0,
+            4 // Minimum 4 weeks for nice chart rendering
+        );
+
+        const trendLabels = Array.from({ length: maxWeeks }, (_, i) => `Wk ${i + 1}`);
+        const currTrendSeries = Array.from({ length: maxWeeks }, (_, i) => currWeekVisits[i] || 0);
+        const prevTrendSeries = Array.from({ length: maxWeeks }, (_, i) => prevWeekVisits[i] || 0);
 
         // Top 3 priority schools (unvisited + overdue by most days based on last visit elsewhere)
         const prioritySchools = unvisited.slice(0, 5);
@@ -426,15 +596,257 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             (scoreNorm(totalEduHours, Math.max(...(ccRankData.map(r => r.assigned * 30)), 1)) * 0.1)
         );
 
+        // Previous Period Performance score
+        const maxVisitsPrev = Math.max(...ccRankData.map(r => r.visits), 1);
+        const prevCompositeScore = Math.round(
+            (prevCoveragePct * 0.4) +
+            (scoreNorm(prevTotalVisits, maxVisitsPrev) * 0.35) +
+            (scoreNorm(prevTotalJhpmsClasses, Math.max(...(ccRankData.map(r => r.assigned * 15)), 1)) * 0.15) +
+            (scoreNorm(prevTotalEduHours, Math.max(...(ccRankData.map(r => r.assigned * 30)), 1)) * 0.1)
+        );
+
+        // ── Heuristics Engine / AI Insights (At least 10 custom metrics) ───────
+        
+        // 1. Visit Coverage Velocity
+        const visitDelta = totalVisits - prevTotalVisits;
+        let insight1Text = '';
+        let insight1Type = 'info';
+        if (visitDelta > 0) {
+            const pct = prevTotalVisits > 0 ? ((visitDelta / prevTotalVisits) * 100).toFixed(1) : '100';
+            insight1Text = `Field activity accelerated: CC conducted ${totalVisits} visits this period vs ${prevTotalVisits} last period (an increase of ${visitDelta} visits, +${pct}%).`;
+            insight1Type = 'success';
+        } else if (visitDelta < 0) {
+            const pct = prevTotalVisits > 0 ? ((Math.abs(visitDelta) / prevTotalVisits) * 100).toFixed(1) : '100';
+            insight1Text = `Field activity decelerated: CC conducted ${totalVisits} visits this period vs ${prevTotalVisits} last period (a drop of ${Math.abs(visitDelta)} visits, -${pct}%).`;
+            insight1Type = 'warning';
+        } else {
+            insight1Text = `Field activity stayed completely stable at ${totalVisits} visits compared to the previous period.`;
+            insight1Type = 'info';
+        }
+
+        // 2. Resource Allocation Skew (neglected vs over-visited)
+        const overVisitedSchools = assignedSchools.filter(s => {
+            const ud = String(s.udise_code || s.udise || '').trim();
+            return visitsBySchool[ud] && visitsBySchool[ud].uniqueDates.size >= 3;
+        });
+        let insight2Text = '';
+        let insight2Type = 'info';
+        if (overVisitedSchools.length > 0 && unvisited.length > 0) {
+            const schoolNamesWithVisits = overVisitedSchools.map(s => {
+                const ud = String(s.udise_code || s.udise || '').trim();
+                const visitCount = visitsBySchool[ud]?.uniqueDates.size || 0;
+                return `${s.school_name} (${visitCount} visits)`;
+            }).join(', ');
+            insight2Text = `Resource skew detected: CC conducted multiple visits to ${schoolNamesWithVisits} while ${unvisited.length} assigned schools remain completely unvisited. Consider rebalancing weekly plans.`;
+            insight2Type = 'warning';
+        } else {
+            insight2Text = `Visit distribution is balanced: No significant over-visiting of schools while leaving others neglected.`;
+            insight2Type = 'success';
+        }
+
+        // 3. Drastic Decline in Class Delivery (JHPMS)
+        const classDrops = [];
+        assignedSchools.forEach(s => {
+            const ud = String(s.udise_code || s.udise || '').trim();
+            const currClasses = ccJhpms.filter(j => String(j.udise).trim() === ud).length;
+            const prevClasses = jhpmsLab.filter(j => String(j.udise).trim() === ud && inPrevRange(j.date)).length;
+            if (prevClasses >= 5 && currClasses < prevClasses && (currClasses / prevClasses) <= 0.6) {
+                classDrops.push({ name: s.school_name, curr: currClasses, prev: prevClasses });
+            }
+        });
+        let insight3Text = '';
+        let insight3Type = 'info';
+        if (classDrops.length > 0) {
+            const listStr = classDrops.map(d => `${d.name} (fell to ${d.curr} from ${d.prev})`).join(', ');
+            insight3Text = `Drastic class delivery drop: JHPMS classes at ${listStr} declined by over 40% compared to the previous period.`;
+            insight3Type = 'error';
+        } else {
+            insight3Text = `Classroom instruction stability: No assigned schools registered a drastic drop (>40%) in JHPMS classes.`;
+            insight3Type = 'success';
+        }
+
+        // 4. Outstanding Progress in Class Delivery
+        const classRises = [];
+        assignedSchools.forEach(s => {
+            const ud = String(s.udise_code || s.udise || '').trim();
+            const currClasses = ccJhpms.filter(j => String(j.udise).trim() === ud).length;
+            const prevClasses = jhpmsLab.filter(j => String(j.udise).trim() === ud && inPrevRange(j.date)).length;
+            if (currClasses >= 5 && currClasses > prevClasses && (prevClasses === 0 || (currClasses / prevClasses) >= 1.4)) {
+                classRises.push({ name: s.school_name, curr: currClasses, prev: prevClasses });
+            }
+        });
+        let insight4Text = '';
+        let insight4Type = 'info';
+        if (classRises.length > 0) {
+            const listStr = classRises.map(r => `${r.name} (rose to ${r.curr} from ${r.prev})`).join(', ');
+            insight4Text = `Outstanding class delivery growth: JHPMS classes at ${listStr} surged by over 40% compared to the previous period.`;
+            insight4Type = 'success';
+        } else {
+            insight4Text = `Steady instruction delivery: Class counts are stable without any rapid increases or spikes.`;
+            insight4Type = 'info';
+        }
+
+        // 5. Cross-Project Scope Involvement
+        const otherProjectVisits = ccVisits.filter(v => {
+            const ud = String(v.udise_code || v.udise || '').trim();
+            const matchedSchool = schools.find(s => String(s.udise_code || s.udise || '').trim() === ud);
+            if (!matchedSchool) return false;
+            const primaryProj = assignedSchools[0]?.project_name;
+            return primaryProj && matchedSchool.project_name && matchedSchool.project_name.toLowerCase() !== primaryProj.toLowerCase();
+        });
+        let insight5Text = '';
+        let insight5Type = 'info';
+        if (otherProjectVisits.length > 0) {
+            const projects = Array.from(new Set(otherProjectVisits.map(v => {
+                const ud = String(v.udise_code || v.udise || '').trim();
+                return schools.find(s => String(s.udise_code || s.udise || '').trim() === ud)?.project_name || 'Other';
+            })));
+            insight5Text = `Cross-project collaboration: CC performed ${otherProjectVisits.length} visits to schools in external projects (${projects.join(', ')}), demonstrating support beyond primary assigned zone.`;
+            insight5Type = 'info';
+        } else {
+            insight5Text = `Focused project alignment: 100% of CC visits were confined within their assigned primary project boundaries.`;
+            insight5Type = 'success';
+        }
+
+        // 6. Digital Device Sync Slump
+        const deviceSlumps = [];
+        installedDevicesList.forEach(d => {
+            const serial = String(d.serial || '').trim();
+            const currHours = serialHoursMap[serial] || 0;
+            const prevHours = prevCcEdustat.filter(e => String(e.serial).trim() === serial).reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
+            if (prevHours > 10 && currHours === 0) {
+                const sch = schools.find(s => String(s.udise_code || s.udise || '').trim() === String(d.udise).trim());
+                deviceSlumps.push(sch ? sch.school_name : d.udise);
+            }
+        });
+        let insight6Text = '';
+        let insight6Type = 'info';
+        if (deviceSlumps.length > 0) {
+            insight6Text = `Device sync alerts: EduStat devices at ${deviceSlumps.join(', ')} went completely offline (0 hours logged) after active syncing in the previous period.`;
+            insight6Type = 'error';
+        } else {
+            insight6Text = `Stable device syncing: No previously active digital devices dropped to zero activity in this period.`;
+            insight6Type = 'success';
+        }
+
+        // 7. Manpower Vacancy Correlation
+        let vacantClassCount = 0;
+        let workingClassCount = 0;
+        let vacantSyncHours = 0;
+        let workingSyncHours = 0;
+        let vacantCount = 0;
+        let workingCount = 0;
+
+        assignedSchools.forEach(s => {
+            const ud = String(s.udise_code || s.udise || '').trim();
+            const schoolManpower = manpower.filter(m => String(m.udise).trim() === ud);
+            const working = schoolManpower.some(m => String(m.status).toUpperCase().trim() === 'WORKING');
+            const classes = ccJhpms.filter(j => String(j.udise).trim() === ud).length;
+            const sync = ccEdustat.filter(e => String(e.udise).trim() === ud).reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
+            if (working) {
+                workingClassCount += classes;
+                workingSyncHours += sync;
+                workingCount++;
+            } else {
+                vacantClassCount += classes;
+                vacantSyncHours += sync;
+                vacantCount++;
+            }
+        });
+
+        const avgWorkingClass = workingCount > 0 ? (workingClassCount / workingCount) : 0;
+        const avgVacantClass = vacantCount > 0 ? (vacantClassCount / vacantCount) : 0;
+
+        let insight7Text = '';
+        let insight7Type = 'info';
+        if (vacantCount > 0 && avgWorkingClass > avgVacantClass * 1.5) {
+            insight7Text = `Manpower vacancy impact: Schools with working instructors averaged ${avgWorkingClass.toFixed(1)} classes, compared to only ${avgVacantClass.toFixed(1)} classes in vacant schools (an impact gap of ${Math.round((avgWorkingClass - avgVacantClass) / (avgWorkingClass || 1) * 100)}%).`;
+            insight7Type = 'warning';
+        } else {
+            insight7Text = `Manpower status is not limiting performance: Vacant schools are maintaining classroom instruction levels close to working ones.`;
+            insight7Type = 'success';
+        }
+
+        // 8. Field Activity Inactivity Gap
+        let maxGapDays = 0;
+        if (sortedVisits.length > 1) {
+            const chronVisits = [...sortedVisits].sort((a, b) => new Date(a.visit_date) - new Date(b.visit_date));
+            for (let i = 0; i < chronVisits.length - 1; i++) {
+                const d1 = new Date(chronVisits[i].visit_date);
+                const d2 = new Date(chronVisits[i+1].visit_date);
+                const gap = Math.floor((d2 - d1) / (86400000)) - 1;
+                if (gap > maxGapDays) maxGapDays = gap;
+            }
+        }
+        let insight8Text = '';
+        let insight8Type = 'info';
+        if (maxGapDays >= 7) {
+            insight8Text = `Field inactivity gap: CC had a consecutive block of ${maxGapDays} days without logging any school visits. Ensure visit schedules are consistent.`;
+            insight8Type = 'warning';
+        } else {
+            insight8Text = `Consistent field coverage: Maximum consecutive gap between school visits was only ${maxGapDays} days, showing high frequency.`;
+            insight8Type = 'success';
+        }
+
+        // 9. External vs. Internal Effort Bias
+        const otherVisitsPct = totalVisits > 0 ? Math.round((otherVisitsCount / totalVisits) * 100) : 0;
+        let insight9Text = '';
+        let insight9Type = 'info';
+        if (otherVisitsPct >= 30) {
+            insight9Text = `High external effort bias: ${otherVisitsPct}% of CC visits (${otherVisitsCount} visits) were to unassigned schools. Focus on completing assigned coverage first.`;
+            insight9Type = 'warning';
+        } else {
+            insight9Text = `Targeted focus: CC dedicated ${100 - otherVisitsPct}% of their visits to assigned schools.`;
+            insight9Type = 'success';
+        }
+
+        // 10. Administrative/MIS Duty Overhead Warning
+        const misPct = totalJhpmsClasses > 0 ? Math.round((misCount / (totalJhpmsClasses + misCount)) * 100) : 0;
+        let insight10Text = '';
+        let insight10Type = 'info';
+        if (misPct >= 30) {
+            insight10Text = `Admin Overhead Alert: MIS entries make up ${misPct}% of CC's classroom records, indicating a heavy administrative workload at the cost of computer lab delivery.`;
+            insight10Type = 'warning';
+        } else {
+            insight10Text = `Balanced admin ratio: MIS entries make up only ${misPct}% of school logs. CC resources are primarily used for classroom teaching.`;
+            insight10Type = 'success';
+        }
+
+        const aiInsights = [
+            { id: 1, title: 'Visit Coverage Velocity', text: insight1Text, type: insight1Type },
+            { id: 2, title: 'Resource Allocation Skew', text: insight2Text, type: insight2Type },
+            { id: 3, title: 'JHPMS Classroom Delivery Drop', text: insight3Text, type: insight3Type },
+            { id: 4, title: 'JHPMS Classroom Delivery Growth', text: insight4Text, type: insight4Type },
+            { id: 5, title: 'Cross-Project Activity', text: insight5Text, type: insight5Type },
+            { id: 6, title: 'Device Sync Status', text: insight6Text, type: insight6Type },
+            { id: 7, title: 'Manpower Vacancy Correlation', text: insight7Text, type: insight7Type },
+            { id: 8, title: 'Field Activity Inactivity Gap', text: insight8Text, type: insight8Type },
+            { id: 9, title: 'External vs. Internal Effort', text: insight9Text, type: insight9Type },
+            { id: 10, title: 'Admin / MIS Duty Ratio', text: insight10Text, type: insight10Type }
+        ];
+
         return {
             assignedSchools, ccVisits: sortedVisits, visitsBySchool,
+            prevVisitsBySchool, jhpmsBySchool, prevJhpmsBySchool,
+            edustatBySchool, prevEdustatBySchool,
             visitedAssigned, unvisited, repeatVisits,
             coveragePct, totalVisits, uniqueSchoolsVisited, avgVisitsPerSchool,
             avgVisitsPerWeek, totalJhpmsClasses, totalEduHours,
             rank, totalCCs, projectAvgVisits, projectAvgCoverage,
-            trendSeries, trendLabels, prioritySchools, lastVisit,
+            trendSeries: currTrendSeries,
+            currTrendSeries,
+            prevTrendSeries,
+            trendLabels, prioritySchools, lastVisit,
             lastVisitDays, compositeScore, ccRankData: ccRankData.slice(0, 10),
             totalIctVisits, totalSmartVisits,
+            
+            // Previous Period variables
+            prevTotalVisits,
+            prevCoveragePct,
+            prevTotalJhpmsClasses,
+            prevTotalEduHours,
+            prevCompositeScore,
+            aiInsights,
             
             // New KPI values
             assignedSchoolUdises,
@@ -462,12 +874,13 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         chart: { type: 'area', toolbar: { show: false }, background: 'transparent', sparkline: { enabled: false } },
         stroke: { curve: 'smooth', width: 2.5 },
         fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.02, stops: [0, 90, 100] } },
-        colors: ['#0d9488'],
+        colors: ['#0d9488', '#64748b'],
         xaxis: { categories: profile?.trendLabels || [], labels: { style: { colors: darkMode ? '#94a3b8' : '#6b7280', fontSize: '10px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
         yaxis: { labels: { style: { colors: darkMode ? '#94a3b8' : '#6b7280', fontSize: '10px' } }, tickAmount: 4 },
         grid: { borderColor: darkMode ? '#1e293b' : '#f1f5f9', strokeDashArray: 3 },
         tooltip: { theme: darkMode ? 'dark' : 'light', y: { formatter: v => `${v} visits` } },
         dataLabels: { enabled: false },
+        legend: { show: true, position: 'top', horizontalAlign: 'right', labels: { colors: darkMode ? '#94a3b8' : '#64748b' } }
     }), [profile, darkMode]);
 
     // ── Rank bar chart ────────────────────────────────────────────────────────
@@ -841,6 +1254,37 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         onDrillDown(`Repeat Visits Alert - ${selectedCC}`, drillData);
     };
 
+    const renderGrowthPill = (curr, prev, isPercentage = false) => {
+        if (prev === undefined || prev === null) return null;
+        
+        let delta = curr - prev;
+        if (delta === 0) {
+            return (
+                <span className="inline-flex items-center text-[10px] font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-full ml-2 border border-slate-200 dark:border-slate-700">
+                    0%
+                </span>
+            );
+        }
+        
+        let pct = 0;
+        if (prev > 0) {
+            pct = Math.round((delta / prev) * 100);
+        } else {
+            pct = 100;
+        }
+
+        const isPositive = delta > 0;
+        const colorClass = isPositive 
+            ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/30" 
+            : "bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800/30";
+        
+        return (
+            <span className={`inline-flex items-center text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ml-2 border ${colorClass}`}>
+                {isPositive ? '↑' : '↓'} {isPercentage ? `${delta > 0 ? '+' : ''}${delta.toFixed(0)}%` : `${isPositive ? '+' : ''}${pct}%`}
+            </span>
+        );
+    };
+
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
         <div className="space-y-5 p-1">
@@ -935,7 +1379,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                     {/* ── Visits & Coverage KPI Grid ─────────────────── */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                         <KpiCard icon={CalendarIcon} iconColor="bg-teal-50 dark:bg-teal-900/20 text-teal-600"
-                            value={profile.totalVisits} label="Total Visits" 
+                            value={<span className="flex items-center">{profile.totalVisits} {renderGrowthPill(profile.totalVisits, profile.prevTotalVisits)}</span>} label="Total Visits" 
                             sub={
                                 <div className="flex gap-1 flex-wrap text-[11px] font-bold mt-1">
                                     <span className="text-teal-600 dark:text-teal-400">Assigned: {profile.assignedVisitsCount}</span>
@@ -951,7 +1395,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                             onClick={handleOtherVisitsDrillDown} 
                         />
                         <KpiCard icon={SchoolIcon} iconColor="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600"
-                            value={`${profile.visitedAssigned.length}/${profile.assignedSchools.length}`} label="Coverage" 
+                            value={<span className="flex items-center">{profile.visitedAssigned.length}/${profile.assignedSchools.length} {renderGrowthPill(profile.coveragePct, profile.prevCoveragePct, true)}</span>} label="Coverage" 
                             sub={<span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-1 block">{profile.coveragePct}% Assigned Schools</span>} 
                         />
                         <KpiCard icon={TrendUpIcon} iconColor="bg-blue-50 dark:bg-blue-900/20 text-blue-600"
@@ -979,7 +1423,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                             } 
                         />
                         <KpiCard icon={BarChartIcon} iconColor="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
-                            value={profile.totalJhpmsClasses} label="JHPMS Classes" 
+                            value={<span className="flex items-center">{profile.totalJhpmsClasses} {renderGrowthPill(profile.totalJhpmsClasses, profile.prevTotalJhpmsClasses)}</span>} label="JHPMS Classes" 
                             sub={
                                 <div className="flex gap-1 flex-wrap text-[11.5px] font-extrabold mt-1">
                                     <span className="text-blue-600 dark:text-blue-400">Th: {profile.theoryCount}</span>
@@ -993,7 +1437,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                             } 
                         />
                         <KpiCard icon={ClockIcon} iconColor="bg-rose-50 dark:bg-rose-900/20 text-rose-600"
-                            value={profile.totalEduHours > 0 ? profile.totalEduHours.toFixed(1) : '0'} label="EduStat Hours" 
+                            value={<span className="flex items-center">{profile.totalEduHours > 0 ? profile.totalEduHours.toFixed(1) : '0'} {renderGrowthPill(profile.totalEduHours, profile.prevTotalEduHours)}</span>} label="EduStat Hours" 
                             sub={<span className="text-[11.5px] font-bold text-rose-600 dark:text-rose-400 mt-1 block">In assigned schools</span>} 
                         />
                         <KpiCard icon={DeviceIcon} iconColor="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600"
@@ -1085,10 +1529,13 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                             <h3 className="text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-400 mb-3 border-b border-gray-100 dark:border-slate-800 pb-2 flex items-center gap-1.5">
                                 <TrendUpIcon className="w-3.5 h-3.5" /> Weekly Visit Trend
                             </h3>
-                            {profile.trendSeries.length > 0 ? (
+                            {profile.currTrendSeries && profile.currTrendSeries.length > 0 ? (
                                 <ReactApexChart
                                     options={trendChartOptions}
-                                    series={[{ name: 'Visits', data: profile.trendSeries }]}
+                                    series={[
+                                        { name: 'Current Period', data: profile.currTrendSeries },
+                                        { name: 'Previous Period', data: profile.prevTrendSeries }
+                                    ]}
                                     type="area"
                                     height={200}
                                 />
@@ -1177,6 +1624,110 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Collapsible Matrix: School-Level Performance & Growth Audit */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl shadow-md overflow-hidden">
+                        <button
+                            onClick={() => setIsMatrixExpanded(!isMatrixExpanded)}
+                            className="w-full flex items-center justify-between p-5 text-left focus:outline-none transition hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                        >
+                            <div className="flex items-center gap-2">
+                                <SchoolIcon className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">
+                                        School-Level Performance & Growth Audit
+                                    </h3>
+                                    <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
+                                        Comparative matrix showing visits, class logs, and learning hours growth vs. previous period
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
+                                    {profile.assignedSchools.length} Mapped Schools
+                                </span>
+                                <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isMatrixExpanded ? 'rotate-90' : ''}`} />
+                            </div>
+                        </button>
+
+                        {isMatrixExpanded && (
+                            <div className="border-t border-slate-100 dark:border-slate-800 p-5 overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-slate-200 dark:border-slate-700 text-[10px] font-black text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                            <th className="py-2.5 px-3">School Name (UDISE)</th>
+                                            <th className="py-2.5 px-3 text-center">Visits (Curr / Prev)</th>
+                                            <th className="py-2.5 px-3 text-center">Visit Growth</th>
+                                            <th className="py-2.5 px-3 text-center">JHPMS Classes (Curr / Prev)</th>
+                                            <th className="py-2.5 px-3 text-center">JHPMS Growth</th>
+                                            <th className="py-2.5 px-3 text-center">EduStat Hours (Curr / Prev)</th>
+                                            <th className="py-2.5 px-3 text-center">EduStat Growth</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                                        {profile.assignedSchools.map((s, idx) => {
+                                            const udise = String(s.udise_code || s.udise || '').trim();
+                                            
+                                            // Visits
+                                            const currVisits = profile.visitsBySchool[udise]?.uniqueDates?.size || 0;
+                                            const prevVisits = profile.prevVisitsBySchool[udise]?.uniqueDates?.size || 0;
+                                            const visitsDiff = currVisits - prevVisits;
+                                            
+                                            // JHPMS
+                                            const currJhpms = profile.jhpmsBySchool[udise] || 0;
+                                            const prevJhpms = profile.prevJhpmsBySchool[udise] || 0;
+                                            const jhpmsDiff = currJhpms - prevJhpms;
+                                            
+                                            // EduStat
+                                            const currEdu = parseFloat((profile.edustatBySchool[udise] || 0).toFixed(1));
+                                            const prevEdu = parseFloat((profile.prevEdustatBySchool[udise] || 0).toFixed(1));
+                                            const eduDiff = parseFloat((currEdu - prevEdu).toFixed(1));
+
+                                            const renderGrowth = (diff) => {
+                                                if (diff > 0) {
+                                                    return <span className="text-[10px] font-extrabold text-green-600 dark:text-green-400 flex items-center justify-center gap-0.5">▲ +{diff}</span>;
+                                                } else if (diff < 0) {
+                                                    return <span className="text-[10px] font-extrabold text-red-500 dark:text-red-400 flex items-center justify-center gap-0.5">▼ {diff}</span>;
+                                                }
+                                                return <span className="text-[10px] font-bold text-gray-400">—</span>;
+                                            };
+
+                                            return (
+                                                <tr 
+                                                    key={idx}
+                                                    onClick={() => onNavigateToSchool && onNavigateToSchool(udise)}
+                                                    className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition cursor-pointer text-xs animate-fadeIn"
+                                                >
+                                                    <td className="py-3 px-3 min-w-[200px]">
+                                                        <p className="font-extrabold text-gray-800 dark:text-gray-200">{s.school_name}</p>
+                                                        <p className="text-[10px] text-gray-400 dark:text-slate-500 font-medium">{udise}</p>
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center font-bold text-gray-700 dark:text-slate-300">
+                                                        {currVisits} <span className="text-gray-300 dark:text-slate-700 font-normal mx-1">/</span> {prevVisits}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center">
+                                                        {renderGrowth(visitsDiff)}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center font-bold text-gray-700 dark:text-slate-300">
+                                                        {currJhpms} <span className="text-gray-300 dark:text-slate-700 font-normal mx-1">/</span> {prevJhpms}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center">
+                                                        {renderGrowth(jhpmsDiff)}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center font-bold text-gray-700 dark:text-slate-300">
+                                                        {currEdu}h <span className="text-gray-300 dark:text-slate-700 font-normal mx-1">/</span> {prevEdu}h
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center">
+                                                        {renderGrowth(eduDiff)}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
 
                     {/* ── Row 4: Benchmarks vs Project CCs ─────────── */}
