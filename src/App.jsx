@@ -19,6 +19,7 @@ const OverallAnalysis = React.lazy(() => import('./components/OverallAnalysis'))
 const Helpdesk = React.lazy(() => import('./components/Helpdesk'));
 const Chatbot = React.lazy(() => import('./components/Chatbot'));
 const CcDefAnalysis = React.lazy(() => import('./components/CcDefAnalysis'));
+const ZonePerformance = React.lazy(() => import('./components/ZonePerformance'));
 
 const prefetchTab = (tabId) => {
     switch (tabId) {
@@ -29,6 +30,7 @@ const prefetchTab = (tabId) => {
         case 'reports': import('./components/ReportsView'); break;
         case 'setup': import('./components/Setup'); break;
         case 'team-performance': import('./components/FieldTeamPerformance'); break;
+        case 'zone-performance': import('./components/ZonePerformance'); break;
         case 'school-performance': import('./components/SchoolPerformance'); break;
         case 'school-search': import('./components/SchoolWiseSearch'); break;
         case 'user-creation':
@@ -446,6 +448,7 @@ const App = () => {
                 icon: Icons.Performance,
                 items: [
                     { id: 'team-performance', label: 'Field Team Performance', icon: Icons.Performance },
+                    { id: 'zone-performance', label: 'Zone Performance', icon: Icons.Performance },
                     { id: 'school-performance', label: 'School Performance', icon: Icons.Trophy },
                     { id: 'school-search', label: 'School Wise Search', icon: Icons.GlobalSearch },
                     { id: 'cc-analysis', label: 'CC/DEF Analysis', icon: Icons.Users }
@@ -2154,6 +2157,7 @@ const App = () => {
 
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
         if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selZones={selZones} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
+        if (activeTab === 'zone-performance') return <ZonePerformance schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selZones={selZones} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} workingDays={workingDays} ccNameMapping={ccNameMapping} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
         if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selZones={selZones} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
         if (activeTab === 'school-search') return <SchoolWiseSearch schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} visits={combinedVisits} startDate={startDate} endDate={endDate} selZones={selZones} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} darkMode={darkMode} onDrillDown={handleDrillDown} initialUdise={drillToUdise} />;
         if (activeTab === 'cc-analysis') return <CcDefAnalysis schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} startDate={startDate} endDate={endDate} ccNameMapping={ccNameMapping} darkMode={darkMode} onNavigateToSchool={handleNavigateToSchool} manpower={manpower} edustatMaster={edustatMaster} onDrillDown={handleDrillDown} />;
@@ -2781,7 +2785,7 @@ const App = () => {
                                     {(!userPermissions || userPermissions.menu?.[activeTab === 'overall-analysis' ? 'excel-export-analysis' : `excel-export-${activeTab}`]?.show !== false) && (
                                         <button
                                             onClick={() => {
-                                                if ((activeTab === 'team-performance' || activeTab === 'school-performance') && customExportHandler) {
+                                                if ((activeTab === 'team-performance' || activeTab === 'school-performance' || activeTab === 'zone-performance') && customExportHandler) {
                                                     customExportHandler();
                                                 } else {
                                                     exportToExcel(processedData.schools, `Visit_Portal_Export_${activeTab}`);
@@ -2791,7 +2795,7 @@ const App = () => {
                                             className="bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 flex items-center gap-2 shadow-md shadow-teal-200 transition-all hover:-translate-y-0.5 text-xs font-bold flex-1 sm:flex-none justify-center"
                                         >
                                             <Icons.Export className="w-3.5 h-3.5 text-teal-100" />
-                                            {activeTab === 'team-performance' ? 'Export Excel' : 'Export View'}
+                                            {(activeTab === 'team-performance' || activeTab === 'zone-performance') ? 'Export Excel' : 'Export View'}
                                         </button>
                                     )}
                                 </div>
@@ -2920,7 +2924,7 @@ const App = () => {
                                         />
                                     </div>
                                 </div>
-                                {(activeTab === 'team-performance' || activeTab === 'school-performance' || activeTab === 'overall-analysis') && (
+                                {(activeTab === 'team-performance' || activeTab === 'school-performance' || activeTab === 'overall-analysis' || activeTab === 'zone-performance') && (
                                     <div className="w-full sm:w-auto flex flex-col text-left bg-transparent p-0 rounded-lg border border-transparent">
                                         <span className="portal-label text-[10px] mb-0.5 ml-1 flex items-center gap-1 text-teal-800 font-bold whitespace-nowrap">
                                             Working Days

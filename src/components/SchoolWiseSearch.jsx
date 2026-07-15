@@ -78,12 +78,35 @@ const SchoolWiseSearch = ({
     workingDays = 1,
     darkMode = false,
     onDrillDown,
-    initialUdise = null
+    initialUdise = null,
+    selZones = [],
+    selProjects = [],
+    selDistricts = [],
+    selBlocks = [],
+    selCCs = [],
+    ccNameMapping = {}
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [selectedSchool, setSelectedSchool] = useState(null);
     const [suggestions, setSuggestions] = useState([]);
+
+    // Filtered schools based on active filter bar selections
+    const filteredSchoolsList = useMemo(() => {
+        let list = schools;
+        if (selZones && selZones.length) list = list.filter(s => selZones.includes(s.zone));
+        if (selProjects && selProjects.length) list = list.filter(s => selProjects.includes(s.project_name));
+        if (selDistricts && selDistricts.length) list = list.filter(s => selDistricts.includes(s.district));
+        if (selBlocks && selBlocks.length) list = list.filter(s => selBlocks.includes(s.block));
+        if (selCCs && selCCs.length) {
+            list = list.filter(s => {
+                const name = s.visitor_name || '';
+                const resolved = ccNameMapping[name] || name;
+                return selCCs.includes(resolved) || selCCs.includes(name);
+            });
+        }
+        return list;
+    }, [schools, selZones, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping]);
 
     // Auto-select school when initialUdise is provided (e.g. from CC/DEF drill-down)
     useEffect(() => {
@@ -108,7 +131,7 @@ const SchoolWiseSearch = ({
     useEffect(() => {
         if (debouncedSearchTerm && debouncedSearchTerm.length > 1 && !selectedSchool) {
             const lowerTerm = debouncedSearchTerm.toLowerCase();
-            const matches = schools.filter(s =>
+            const matches = filteredSchoolsList.filter(s =>
                 (s.school_name && s.school_name.toLowerCase().includes(lowerTerm)) ||
                 (s.udise_code && String(s.udise_code).includes(lowerTerm))
             ).slice(0, 10);
@@ -116,7 +139,7 @@ const SchoolWiseSearch = ({
         } else {
             setSuggestions([]);
         }
-    }, [debouncedSearchTerm, schools, selectedSchool]);
+    }, [debouncedSearchTerm, filteredSchoolsList, selectedSchool]);
 
     const handleSelect = (school) => {
         setSelectedSchool(school);
@@ -206,14 +229,14 @@ const SchoolWiseSearch = ({
     // 4. Compute overall rank once
     const allSchoolsRanked = useMemo(() => {
         const validWdays = Number(workingDays) > 0 ? Number(workingDays) : 1;
-        const list = schools.map(s => {
+        const list = filteredSchoolsList.map(s => {
             const udise = String(s.udise_code || '').trim();
             const stats = schoolSummaryMap[udise] || { classes: 0, hours: 0 };
             const combinedScore = (stats.classes / validWdays) * 0.6 + (stats.hours / validWdays) * 0.4;
             return { udise, score: combinedScore };
         }).sort((a, b) => b.score - a.score);
         return list;
-    }, [schools, schoolSummaryMap, workingDays]);
+    }, [filteredSchoolsList, schoolSummaryMap, workingDays]);
 
     // Calculate details for selected school
     const schoolProfile = useMemo(() => {
