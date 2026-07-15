@@ -1,4 +1,4 @@
-const https = require('https');
+import https from 'https';
 
 // Helper to make HTTPS GET requests and return a promise
 function httpGet(url) {
@@ -21,7 +21,7 @@ function httpGet(url) {
     });
 }
 
-exports.handler = async (event, context) => {
+export async function handler(event, context) {
     // CORS headers for local/cross-origin access
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -87,4 +87,4 @@ exports.handler = async (event, context) => {
             body: JSON.stringify({ error: error.message })
         };
     }
-};
+}
