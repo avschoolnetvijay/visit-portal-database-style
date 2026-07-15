@@ -58,6 +58,7 @@ const normalizeRowHeaders = (row, isSheetValueArray = false, headersList = null)
     const processKey = (k, val) => {
         let nk = k.trim().toLowerCase().replace(/ /g, '_').replace(/[\r\n]+/g, '');
         if (nk.includes('udise')) nk = 'udise_code';
+        else if (nk.includes('zone')) nk = 'zone';
         else if (nk.includes('school') && nk.includes('name')) nk = 'school_name';
         else if (nk.includes('school') && !nk.includes('name')) nk = 'school_name';
         else if (nk.includes('district')) nk = 'district';
@@ -341,6 +342,7 @@ const App = () => {
     const [isWorkingDaysManual, setIsWorkingDaysManual] = useState(false);
     const [customExportHandler, setCustomExportHandler] = useState(null);
 
+    const [selZones, setSelZones] = useState([]);
     const [selProjects, setSelProjects] = useState([]);
     const [selDistricts, setSelDistricts] = useState([]);
     const [selBlocks, setSelBlocks] = useState([]);
@@ -397,6 +399,7 @@ const App = () => {
     // Local filter state inputs (for non-laggy, staged selections)
     const [localStartDate, setLocalStartDate] = useState(startDate);
     const [localEndDate, setLocalEndDate] = useState(endDate);
+    const [localSelZones, setLocalSelZones] = useState(selZones);
     const [localSelProjects, setLocalSelProjects] = useState(selProjects);
     const [localSelDistricts, setLocalSelDistricts] = useState(selDistricts);
     const [localSelBlocks, setLocalSelBlocks] = useState(selBlocks);
@@ -501,6 +504,7 @@ const App = () => {
     useEffect(() => {
         setLocalStartDate(startDate);
         setLocalEndDate(endDate);
+        setLocalSelZones(selZones);
         setLocalSelProjects(selProjects);
         setLocalSelDistricts(selDistricts);
         setLocalSelBlocks(selBlocks);
@@ -512,7 +516,7 @@ const App = () => {
         setLocalPerfBands(perfBands);
         setLocalShowExceptions(showExceptions);
         setLocalCompareMode(compareMode);
-    }, [startDate, endDate, selProjects, selDistricts, selBlocks, selCCs, selSchools, workingDays, isWorkingDaysManual, activeSources, perfBands, showExceptions, compareMode]);
+    }, [startDate, endDate, selZones, selProjects, selDistricts, selBlocks, selCCs, selSchools, workingDays, isWorkingDaysManual, activeSources, perfBands, showExceptions, compareMode]);
 
     // Dynamic mount-time user profile sync (auto-populates/updates Name and Designation badges)
     useEffect(() => {
@@ -580,6 +584,7 @@ const App = () => {
         setTimeout(() => {
             setStartDate(localStartDate);
             setEndDate(localEndDate);
+            setSelZones(localSelZones);
             setSelProjects(localSelProjects);
             setSelDistricts(localSelDistricts);
             setSelBlocks(localSelBlocks);
@@ -624,6 +629,7 @@ const App = () => {
         if (!localStartDate || !localEndDate || localStartDate.length !== 10 || localEndDate.length !== 10) return 0;
 
         let fSchools = schools || [];
+        if (localSelZones && localSelZones.length) fSchools = fSchools.filter(s => localSelZones.includes(s.zone));
         if (localSelProjects && localSelProjects.length) fSchools = fSchools.filter(s => localSelProjects.includes(s.project_name));
         if (localSelDistricts && localSelDistricts.length) fSchools = fSchools.filter(s => localSelDistricts.includes(s.district));
         if (localSelBlocks && localSelBlocks.length) fSchools = fSchools.filter(s => localSelBlocks.includes(s.block));
@@ -647,7 +653,7 @@ const App = () => {
         });
 
         return uniqueDates.size;
-    }, [parsedJhpmsDates, localStartDate, localEndDate, schools, localSelProjects, localSelDistricts, localSelBlocks, localSelCCs, ccNameMapping, localSelSchools]);
+    }, [parsedJhpmsDates, localStartDate, localEndDate, schools, localSelZones, localSelProjects, localSelDistricts, localSelBlocks, localSelCCs, ccNameMapping, localSelSchools]);
 
     // Keep localWorkingDays state in sync with localAutoWorkingDays if not overridden
     useEffect(() => {
@@ -687,6 +693,7 @@ const App = () => {
 
         // 1. Gather UDISE codes for schools matching the currently selected active filters
         let fSchools = schools;
+        if (selZones && selZones.length) fSchools = fSchools.filter(s => selZones.includes(s.zone));
         if (selProjects && selProjects.length) fSchools = fSchools.filter(s => selProjects.includes(s.project_name));
         if (selDistricts && selDistricts.length) fSchools = fSchools.filter(s => selDistricts.includes(s.district));
         if (selBlocks && selBlocks.length) fSchools = fSchools.filter(s => selBlocks.includes(s.block));
@@ -723,7 +730,7 @@ const App = () => {
         });
 
         return uniqueDates.size;
-    }, [jhpmsLab, startDate, endDate, schools, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, selSchools]);
+    }, [jhpmsLab, startDate, endDate, schools, selZones, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, selSchools]);
 
     // Synchronize workingDays state with auto-calculated value if not overridden
     useEffect(() => {
@@ -1084,6 +1091,7 @@ const App = () => {
         const months = getMonthsInRange(start, end);
 
         let fSchools = schools;
+        if (selZones.length) fSchools = fSchools.filter(s => selZones.includes(s.zone));
         if (selProjects.length) fSchools = fSchools.filter(s => selProjects.includes(s.project_name));
         if (selDistricts.length) fSchools = fSchools.filter(s => selDistricts.includes(s.district));
         if (selBlocks.length) fSchools = fSchools.filter(s => selBlocks.includes(s.block));
@@ -1189,7 +1197,7 @@ const App = () => {
             totalUnique: finalSchools.reduce((a, b) => a + b.uniqueVisits, 0),
             totalRecords: fVisits.length
         };
-    }, [schools, combinedVisits, startDate, endDate, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, selSchools]);
+    }, [schools, combinedVisits, startDate, endDate, selZones, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, selSchools]);
 
     // Secure Auto-Fetch from Google Sheets (via Netlify proxy)
     const fetchFromGoogleSheet = async () => {
@@ -2012,8 +2020,10 @@ const App = () => {
 
     // Calculate Cascading Options
     const opts = useMemo(() => {
-        const proj = [...new Set(schools.map(s => s.project_name))].filter(x => x).sort();
-        const filteredByProj = schools.filter(s => localSelProjects.length === 0 || localSelProjects.includes(s.project_name));
+        const zones = [...new Set(schools.map(s => s.zone))].filter(x => x).sort();
+        const filteredByZone = schools.filter(s => localSelZones.length === 0 || localSelZones.includes(s.zone));
+        const proj = [...new Set(filteredByZone.map(s => s.project_name))].filter(x => x).sort();
+        const filteredByProj = filteredByZone.filter(s => localSelProjects.length === 0 || localSelProjects.includes(s.project_name));
         const dist = [...new Set(filteredByProj.map(s => s.district))].filter(x => x).sort();
         const filteredByDist = filteredByProj.filter(s => localSelDistricts.length === 0 || localSelDistricts.includes(s.district));
         const blocks = [...new Set(filteredByDist.map(s => s.block))].filter(x => x).sort();
@@ -2021,8 +2031,8 @@ const App = () => {
         const ccs = [...new Set(filteredByBlocks.map(s => s.visitor_name))].filter(x => x).sort();
         const filteredByCCs = filteredByBlocks.filter(s => localSelCCs.length === 0 || localSelCCs.includes(s.visitor_name));
         const schoolNames = [...new Set(filteredByCCs.map(s => s.school_name))].filter(x => x).sort();
-        return { proj, dist, blocks, ccs, schoolNames };
-    }, [schools, localSelProjects, localSelDistricts, localSelBlocks, localSelCCs]);
+        return { zones, proj, dist, blocks, ccs, schoolNames };
+    }, [schools, localSelZones, localSelProjects, localSelDistricts, localSelBlocks, localSelCCs]);
 
     const renderContent = () => {
         if (activeTab === 'setup') {
@@ -2143,9 +2153,9 @@ const App = () => {
         }
 
         if (activeTab === 'performance') return <PerformanceView data={processedData} />;
-        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
-        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
-        if (activeTab === 'school-search') return <SchoolWiseSearch schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} visits={combinedVisits} startDate={startDate} endDate={endDate} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} darkMode={darkMode} onDrillDown={handleDrillDown} initialUdise={drillToUdise} />;
+        if (activeTab === 'team-performance') return <FieldTeamPerformance schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selZones={selZones} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
+        if (activeTab === 'school-performance') return <SchoolPerformance schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} startDate={startDate} endDate={endDate} selZones={selZones} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} onRegisterExport={setCustomExportHandler} userPermissions={userPermissions} />;
+        if (activeTab === 'school-search') return <SchoolWiseSearch schools={schools} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} manpower={manpower} visits={combinedVisits} startDate={startDate} endDate={endDate} selZones={selZones} selProjects={selProjects} selDistricts={selDistricts} selBlocks={selBlocks} selCCs={selCCs} ccNameMapping={ccNameMapping} workingDays={workingDays} darkMode={darkMode} onDrillDown={handleDrillDown} initialUdise={drillToUdise} />;
         if (activeTab === 'cc-analysis') return <CcDefAnalysis schools={schools} visits={combinedVisits} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} startDate={startDate} endDate={endDate} ccNameMapping={ccNameMapping} darkMode={darkMode} onNavigateToSchool={handleNavigateToSchool} manpower={manpower} edustatMaster={edustatMaster} onDrillDown={handleDrillDown} />;
         if (activeTab === 'plan') return <PlanView data={processedData} allVisits={combinedVisits} manpower={manpower} jhpmsLab={combinedJhpmsLab} edustat={combinedEdustat} edustatMaster={edustatMaster} schools={schools} startDate={startDate} endDate={endDate} />;
         if (activeTab === 'compliance') return <ComplianceView data={processedData} />;
@@ -2160,6 +2170,7 @@ const App = () => {
                 manpower={manpower} 
                 startDate={startDate} 
                 endDate={endDate} 
+                selZones={selZones}
                 selProjects={selProjects} 
                 selDistricts={selDistricts} 
                 selBlocks={selBlocks} 
@@ -2188,6 +2199,7 @@ const App = () => {
                     manpower={manpower}
                     startDate={startDate}
                     endDate={endDate}
+                    selZones={selZones}
                     selProjects={selProjects}
                     selDistricts={selDistricts}
                     selBlocks={selBlocks}
@@ -2786,6 +2798,15 @@ const App = () => {
                             </div>
                             <div className="h-px bg-gray-200/80 w-full my-1"></div>
                             <div className="flex flex-wrap gap-3 items-end">
+                                <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
+                                    <MultiSelect
+                                        label="Zone"
+                                        options={opts.zones}
+                                        value={localSelZones}
+                                        onChange={setLocalSelZones}
+                                        placeholder="All Zones"
+                                    />
+                                </div>
                                 <div className="w-full sm:w-[calc(50%-6px)] md:w-36 text-left">
                                     <MultiSelect
                                         label="Projects"

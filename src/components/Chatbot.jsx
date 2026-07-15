@@ -10,6 +10,7 @@ function Chatbot({
   manpower = [],
   startDate,
   endDate,
+  selZones = [],
   selProjects = [],
   selDistricts = [],
   selBlocks = [],
@@ -70,6 +71,7 @@ function Chatbot({
   // Active filters applied dataset (Filtered Data)
   const filteredSchools = useMemo(() => {
     let list = schools || [];
+    if (selZones?.length) list = list.filter((s) => selZones.includes(s.zone));
     if (selProjects?.length) list = list.filter((s) => selProjects.includes(s.project_name));
     if (selDistricts?.length) list = list.filter((s) => selDistricts.includes(s.district));
     if (selBlocks?.length) list = list.filter((s) => selBlocks.includes(s.block));
@@ -81,7 +83,7 @@ function Chatbot({
       });
     }
     return list;
-  }, [schools, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping]);
+  }, [schools, selZones, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping]);
 
   const activeUdises = useMemo(() => new Set(filteredSchools.map(s => cleanUdise(s.udise_code)).filter(Boolean)), [filteredSchools]);
 

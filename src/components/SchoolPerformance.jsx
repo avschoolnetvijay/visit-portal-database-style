@@ -119,6 +119,7 @@ const SchoolPerformance = ({
     manpower = [],
     startDate,
     endDate,
+    selZones = [],
     selProjects = [],
     selDistricts = [],
     selBlocks = [],
@@ -149,6 +150,7 @@ const SchoolPerformance = ({
     // 3. Performance Calculation Logic
     const fSchools = useMemo(() => {
         let list = schools || [];
+        if (selZones?.length) list = list.filter(s => selZones.includes(s.zone));
         if (selProjects?.length) list = list.filter(s => selProjects.includes(s.project_name));
         if (selDistricts?.length) list = list.filter(s => selDistricts.includes(s.district));
         if (selBlocks?.length) list = list.filter(s => selBlocks.includes(s.block));
@@ -160,7 +162,7 @@ const SchoolPerformance = ({
             });
         }
         return list;
-    }, [schools, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping]);
+    }, [schools, selZones, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping]);
 
     const schoolLookup = useMemo(() => {
         const map = {};

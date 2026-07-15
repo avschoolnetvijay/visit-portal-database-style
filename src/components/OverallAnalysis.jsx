@@ -329,6 +329,7 @@ const OverallAnalysis = ({
   manpower = [],
   startDate,
   endDate,
+  selZones = [],
   selProjects = [],
   selDistricts = [],
   selBlocks = [],
@@ -512,11 +513,13 @@ const OverallAnalysis = ({
       const loggedInUser = localStorage.getItem('snet_full_name') || localStorage.getItem('snet_username') || 'Portal Member';
       const compilerDesignation = localStorage.getItem('snet_designation') || 'Report Compiler';
 
-      const scopeFocus = selDistricts?.length 
-        ? `Districts: ${selDistricts.join(', ')}` 
-        : selProjects?.length 
-          ? `Projects: ${selProjects.join(', ')}` 
-          : 'Statewide (All Allocated Regions)';
+      const scopeFocus = selZones?.length
+        ? `Zones: ${selZones.join(', ')}`
+        : selDistricts?.length 
+          ? `Districts: ${selDistricts.join(', ')}` 
+          : selProjects?.length 
+            ? `Projects: ${selProjects.join(', ')}` 
+            : 'Statewide (All Allocated Regions)';
       const evalWindow = startDate && endDate 
         ? `${formatDate(startDate)} to ${formatDate(endDate)}` 
         : 'All Available Historical Data';
@@ -1310,6 +1313,7 @@ const OverallAnalysis = ({
   // 2. Global Filter Applied to Schools Master
   const fSchools = useMemo(() => {
     let list = schools || [];
+    if (selZones?.length) list = list.filter((s) => selZones.includes(s.zone));
     if (selProjects?.length) list = list.filter((s) => selProjects.includes(s.project_name));
     if (selDistricts?.length) list = list.filter((s) => selDistricts.includes(s.district));
     if (selBlocks?.length) list = list.filter((s) => selBlocks.includes(s.block));
@@ -1321,7 +1325,7 @@ const OverallAnalysis = ({
       });
     }
     return list;
-  }, [schools, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping]);
+  }, [schools, selZones, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping]);
 
   const validUdises = useMemo(
     () => new Set(fSchools.map((s) => cleanUdise(s.udise_code)).filter(Boolean)),
@@ -3764,7 +3768,9 @@ const OverallAnalysis = ({
     const edustatGlobal = Math.round(healthData.edustatGlobal);
     const manpowerGlobal = Math.round(healthData.manpowerGlobal);
     
-    const scope = selDistricts?.length
+    const scope = selZones?.length
+      ? selZones.join(', ')
+      : selDistricts?.length
       ? selDistricts.join(', ')
       : selProjects?.length
       ? selProjects.join(', ')
@@ -3780,7 +3786,7 @@ const OverallAnalysis = ({
         ? `A total of ${critCount} school(s) fall into the high-risk "Schools Needing Urgent Help" category (score < 30%), requiring immediate supervisory intervention.`
         : 'Superb data execution! No schools are flagged as critical during this evaluation window.'
     ];
-  }, [finalEnriched, healthData, currentKPIs, selDistricts, selProjects, startDate, endDate]);
+  }, [finalEnriched, healthData, currentKPIs, selZones, selDistricts, selProjects, startDate, endDate]);
 
   // 14. Sorted & paginated PM Grid
   const sortedRows = useMemo(() => {
@@ -3934,7 +3940,7 @@ const OverallAnalysis = ({
               <div className="space-y-2 border-r border-teal-800/60 pr-6">
                 <span className="text-[10px] text-teal-400 font-bold uppercase tracking-wider block">Scope Focus</span>
                 <span className="font-bold text-slate-100 text-sm leading-snug block truncate">
-                  {selDistricts?.length ? `Districts: ${selDistricts.join(', ')}` : selProjects?.length ? `Projects: ${selProjects.join(', ')}` : 'Statewide (All Allocated Regions)'}
+                  {selZones?.length ? `Zones: ${selZones.join(', ')}` : selDistricts?.length ? `Districts: ${selDistricts.join(', ')}` : selProjects?.length ? `Projects: ${selProjects.join(', ')}` : 'Statewide (All Allocated Regions)'}
                 </span>
               </div>
               <div className="space-y-2 pl-2">
@@ -3970,6 +3976,9 @@ const OverallAnalysis = ({
         <div className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-gradient-to-r from-teal-50/50 to-white dark:from-slate-900 dark:to-slate-800 border-b border-slate-100 dark:border-slate-800">
           <div className="flex flex-wrap items-center gap-2 text-xs font-sans">
             <span className="font-extrabold text-teal-800 dark:text-teal-400">ACTIVE SCOPE:</span>
+            <span className="bg-teal-100/80 dark:bg-slate-800 text-teal-800 dark:text-teal-300 px-2 py-0.5 rounded font-bold">
+              Zones: {selZones?.length ? selZones.length : 'All'}
+            </span>
             <span className="bg-teal-100/80 dark:bg-slate-800 text-teal-800 dark:text-teal-300 px-2 py-0.5 rounded font-bold">
               Projects: {selProjects?.length ? selProjects.length : 'All'}
             </span>

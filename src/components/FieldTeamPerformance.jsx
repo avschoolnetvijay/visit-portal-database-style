@@ -20,6 +20,7 @@ const FieldTeamPerformance = ({
     manpower,
     startDate,
     endDate,
+    selZones = [],
     selProjects,
     selDistricts,
     selBlocks,
@@ -37,6 +38,7 @@ const FieldTeamPerformance = ({
     const performanceData = useMemo(() => {
         // 1. Filter schools based on global filters (optional, but requested by standard usage)
         let fSchools = schools;
+        if (selZones && selZones.length) fSchools = fSchools.filter(s => selZones.includes(s.zone));
         if (selProjects && selProjects.length) fSchools = fSchools.filter(s => selProjects.includes(s.project_name));
         if (selDistricts && selDistricts.length) fSchools = fSchools.filter(s => selDistricts.includes(s.district));
         if (selBlocks && selBlocks.length) fSchools = fSchools.filter(s => selBlocks.includes(s.block));
@@ -393,7 +395,7 @@ const FieldTeamPerformance = ({
 
         return finalData;
 
-    }, [schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, workingDays]);
+    }, [schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate, selZones, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, workingDays]);
 
     const activeCCDetailSchools = useMemo(() => {
         if (!activeCCDetail) return [];
