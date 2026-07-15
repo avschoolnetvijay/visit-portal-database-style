@@ -1,3 +1,26 @@
+const https = require('https');
+
+// Helper to make HTTPS GET requests and return a promise
+function httpGet(url) {
+    return new Promise((resolve, reject) => {
+        https.get(url, (res) => {
+            let data = '';
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+            res.on('end', () => {
+                resolve({
+                    ok: res.statusCode >= 200 && res.statusCode < 300,
+                    status: res.statusCode,
+                    data: data
+                });
+            });
+        }).on('error', (err) => {
+            reject(err);
+        });
+    });
+}
+
 exports.handler = async (event, context) => {
     // CORS headers for local/cross-origin access
     const headers = {
@@ -26,11 +49,15 @@ exports.handler = async (event, context) => {
     try {
         // 1. Fetch metadata to resolve target sheet title from GID
         const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${apiKey}`;
-        const metaRes = await fetch(metaUrl);
+        const metaRes = await httpGet(metaUrl);
         if (!metaRes.ok) {
-            throw new Error(`Google API Sheet metadata request failed with status: ${metaRes.status}`);
+            throw new Error(`Google API Sheet metadata request failed with status: ${metaRes.status}. Response: ${metaRes.data}`);
         }
-        const metaData = await metaRes.json();
+        
+        const metaData = JSON.parse(metaRes.data);
+        if (!metaData.sheets) {
+            throw new Error("Invalid response from Google Sheets API: 'sheets' property is missing.");
+        }
 
         const targetSheet = metaData.sheets.find(s => String(s.properties.sheetId) === String(targetGid));
         if (!targetSheet) {
@@ -40,11 +67,12 @@ exports.handler = async (event, context) => {
 
         // 2. Fetch sheet content using the sheet title
         const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetTitle)}!A:Z?key=${apiKey}`;
-        const dataRes = await fetch(dataUrl);
+        const dataRes = await httpGet(dataUrl);
         if (!dataRes.ok) {
-            throw new Error(`Google API Sheet data request failed with status: ${dataRes.status}`);
+            throw new Error(`Google API Sheet data request failed with status: ${dataRes.status}. Response: ${dataRes.data}`);
         }
-        const sheetData = await dataRes.json();
+        
+        const sheetData = JSON.parse(dataRes.data);
 
         return {
             statusCode: 200,
