@@ -658,7 +658,78 @@ const ZonePerformance = ({
             viewType = 'visits';
         } else if (drilldownFilter === 'coordinators') {
             viewType = 'coordinators';
+        } else if (drilldownFilter === 'projects') {
+            viewType = 'projects';
         }
+
+        // ----------------------------------------------------
+        // PRE-INDEXED DICTIONARIES FOR O(1) LOOKUPS (LAG REDUCTION)
+        // ----------------------------------------------------
+        const manpowerMap = {};
+        manpower.forEach(m => {
+            const udise = cleanUdise(m.udise || getVal(m, 'udise'));
+            if (!manpowerMap[udise]) manpowerMap[udise] = [];
+            manpowerMap[udise].push(m);
+        });
+
+        const edustatMasterMap = {};
+        (edustatMaster || []).forEach(m => {
+            const udise = cleanUdise(m.udise);
+            if (!edustatMasterMap[udise]) edustatMasterMap[udise] = [];
+            edustatMasterMap[udise].push(m);
+        });
+
+        const rangeJhpms = jhpmsLab.filter(l => {
+            const dateStr = formatDateStr(l.date || getVal(l, 'date'));
+            return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(l.udise || getVal(l, 'udise')));
+        });
+
+        const jhpmsMap = {};
+        rangeJhpms.forEach(l => {
+            const udise = cleanUdise(l.udise || getVal(l, 'udise') || '');
+            if (!jhpmsMap[udise]) jhpmsMap[udise] = [];
+            jhpmsMap[udise].push(l);
+        });
+
+        const rangeEdustat = edustat.filter(e => {
+            const dateStr = formatDateStr(e.date || getVal(e, 'date'));
+            return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(e.udise || getVal(e, 'udise') || ''));
+        });
+
+        const edustatMap = {};
+        rangeEdustat.forEach(e => {
+            const udise = cleanUdise(e.udise || getVal(e, 'udise') || '');
+            if (!edustatMap[udise]) edustatMap[udise] = [];
+            edustatMap[udise].push(e);
+        });
+
+        const rangeVisits = visits.filter(v => {
+            const dateStr = formatDateStr(v.visit_date);
+            return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(v.udise_code));
+        });
+
+        const rangeVisitsMap = {};
+        rangeVisits.forEach(v => {
+            const udise = cleanUdise(v.udise_code);
+            if (!rangeVisitsMap[udise]) rangeVisitsMap[udise] = [];
+            rangeVisitsMap[udise].push(v);
+        });
+
+        const allVisitsMap = {};
+        visits.forEach(v => {
+            const udise = cleanUdise(v.udise_code);
+            if (!allVisitsMap[udise]) allVisitsMap[udise] = [];
+            allVisitsMap[udise].push(v);
+        });
+
+        const serialMap = {};
+        (edustatMaster || []).forEach(m => {
+            if (m.serial) {
+                serialMap[String(m.serial).trim()] = String(m.device || '').toUpperCase();
+            }
+        });
+
+        const zoneSchoolsList = schools.filter(s => zoneUdises.has(cleanUdise(s.udise_code)));
 
         if (viewType === 'coordinators') {
             const ccList = Array.from(zoneCCs);
@@ -684,26 +755,33 @@ const ZonePerformance = ({
                 let totalIctVisits = 0;
                 let totalSmartVisits = 0;
 
-                manpower.forEach(m => {
-                    const udise = cleanUdise(m.udise || getVal(m, 'udise'));
-                    if (ccUdises.has(udise)) {
-                        const schoolManpower = manpower.filter(mp => cleanUdise(mp.udise || getVal(mp, 'udise') || '') === udise);
-                        let instructorRec = schoolManpower.find(mp => {
-                            const status = String(getVal(mp, 'status') || '').trim().toUpperCase();
-                            return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
-                        });
-                        if (!instructorRec && schoolManpower.length > 0) {
-                            instructorRec = schoolManpower[0];
+                const activeSerials = new Set();
+                ccSchools.forEach(s => {
+                    const udise = cleanUdise(s.udise_code);
+                    const schoolEdustat = edustatMap[udise] || [];
+                    schoolEdustat.forEach(e => {
+                        if (e.hours > 0 && e.serial) {
+                            activeSerials.add(String(e.serial).trim());
                         }
-                        const rawStatus = instructorRec ? (instructorRec.status || getVal(instructorRec, 'status') || 'Active') : 'N/A';
-                        const isWorking = rawStatus.toUpperCase().includes('WORKING') || rawStatus.toUpperCase().includes('ACTIVE') || rawStatus === '';
-                        if (isWorking) instructorWorking++;
-                    }
+                    });
                 });
 
-                (edustatMaster || []).forEach(m => {
-                    const udise = String(m.udise).trim();
-                    if (ccUdises.has(udise)) {
+                ccSchools.forEach(s => {
+                    const udise = cleanUdise(s.udise_code);
+                    const schoolManpower = manpowerMap[udise] || [];
+                    let instructorRec = schoolManpower.find(mp => {
+                        const status = String(getVal(mp, 'status') || '').trim().toUpperCase();
+                        return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
+                    });
+                    if (!instructorRec && schoolManpower.length > 0) {
+                        instructorRec = schoolManpower[0];
+                    }
+                    const rawStatus = instructorRec ? (instructorRec.status || getVal(instructorRec, 'status') || 'Active') : 'N/A';
+                    const isWorking = rawStatus.toUpperCase().includes('WORKING') || rawStatus.toUpperCase().includes('ACTIVE') || rawStatus === '';
+                    if (isWorking) instructorWorking++;
+
+                    const schoolDevices = edustatMasterMap[udise] || [];
+                    schoolDevices.forEach(m => {
                         const device = String(m.device || '').toUpperCase();
                         const installed = String(m.installed || '').toUpperCase();
                         if (installed === 'YES') {
@@ -713,37 +791,38 @@ const ZonePerformance = ({
                         } else if (installed === 'NO') {
                             edustatNotInstalled++;
                         }
-                    }
-                });
+                    });
 
-                const filteredEdustat = edustat.filter(row => {
-                    const dateStr = formatDateStr(row.date || getVal(row, 'date'));
-                    const udise = cleanUdise(row.udise || getVal(row, 'udise'));
-                    return dateStr && dateStr >= startDate && dateStr <= endDate && ccUdises.has(udise);
-                });
+                    const schoolEdustat = edustatMap[udise] || [];
+                    schoolEdustat.forEach(e => {
+                        const serial = String(e.serial).trim();
+                        const hours = Number(e.hours) || 0;
+                        const deviceType = serialMap[serial] || 'CPU';
 
-                const activeSerials = new Set();
-                filteredEdustat.forEach(e => {
-                    if (e.hours > 0 && e.serial) {
-                        activeSerials.add(String(e.serial).trim());
-                    }
-                });
+                        if (deviceType === 'CPU') totalCpuHours += hours;
+                        else if (deviceType === 'MINI PC' || deviceType === 'THIN CLIENT') totalMiniPcHours += hours;
+                        else if (deviceType === 'INTERACTIVE FLAT PANEL') totalPanelHours += hours;
+                    });
 
-                const serialMap = {};
-                (edustatMaster || []).forEach(m => {
-                    if (m.serial) {
-                        serialMap[String(m.serial).trim()] = String(m.device || '').toUpperCase();
-                    }
-                });
+                    const schoolClasses = jhpmsMap[udise] || [];
+                    schoolClasses.forEach(l => {
+                        const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+                        const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
+                        if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                            // Ignore
+                        } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                            ictClasses++;
+                        } else if (labType.includes('SMART')) {
+                            smartClasses++;
+                        }
+                    });
 
-                filteredEdustat.forEach(e => {
-                    const serial = String(e.serial).trim();
-                    const hours = Number(e.hours) || 0;
-                    const deviceType = serialMap[serial] || 'CPU';
-
-                    if (deviceType === 'CPU') totalCpuHours += hours;
-                    else if (deviceType === 'MINI PC' || deviceType === 'THIN CLIENT') totalMiniPcHours += hours;
-                    else if (deviceType === 'INTERACTIVE FLAT PANEL') totalPanelHours += hours;
+                    const schoolVisits = rangeVisitsMap[udise] || [];
+                    schoolVisits.forEach(v => {
+                        const type = (v.visit_type || '').toLowerCase();
+                        if (type.includes('ict')) totalIctVisits++;
+                        if (type.includes('smart')) totalSmartVisits++;
+                    });
                 });
 
                 (edustatMaster || []).forEach(m => {
@@ -759,37 +838,6 @@ const ZonePerformance = ({
                     }
                 });
 
-                jhpmsLab.forEach(l => {
-                    const udise = cleanUdise(l.udise || getVal(l, 'udise'));
-                    if (ccUdises.has(udise)) {
-                        const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
-                        const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
-                        const dateStr = formatDateStr(l.date || getVal(l, 'date'));
-
-                        if (dateStr && dateStr >= startDate && dateStr <= endDate) {
-                            if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
-                                // Ignore
-                            } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                                ictClasses++;
-                            } else if (labType.includes('SMART')) {
-                                smartClasses++;
-                            }
-                        }
-                    }
-                });
-
-                visits.forEach(v => {
-                    const udise = cleanUdise(v.udise_code);
-                    if (ccUdises.has(udise)) {
-                        const dateStr = formatDateStr(v.visit_date || getVal(v, 'date'));
-                        const type = (v.visit_type || '').toLowerCase();
-                        if (dateStr && dateStr >= startDate && dateStr <= endDate) {
-                            if (type.includes('ict')) totalIctVisits++;
-                            if (type.includes('smart')) totalSmartVisits++;
-                        }
-                    }
-                });
-
                 const cpuUtil = cpuInstalled > 0 ? (cpuUsed / cpuInstalled) : 0;
                 const miniUtil = miniPcInstalled > 0 ? (miniPcUsed / miniPcInstalled) : 0;
                 const panelUtil = panelInstalled > 0 ? (panelUsed / panelInstalled) : 0;
@@ -797,9 +845,6 @@ const ZonePerformance = ({
                 const infraScore = (activeDeviceTypes.length > 0 ? activeDeviceTypes.reduce((a, b) => a + b, 0) / activeDeviceTypes.length : 0) * 25;
 
                 const avgCpu = cpuInstalled > 0 ? (totalCpuHours / days / cpuInstalled) : 0;
-                const avgMini = miniPcInstalled > 0 ? (totalMiniPcHours / days / miniPcInstalled) : 0;
-                const avgPanel = panelInstalled > 0 ? (totalPanelHours / days / panelInstalled) : 0;
-
                 const academic = totalSchools > 0 ? (ictClasses / totalSchools) : 0;
                 const smart = totalSchools > 0 ? (smartClasses / totalSchools) : 0;
                 const monitoring = totalSchools > 0 ? ((totalIctVisits + totalSmartVisits) / totalSchools) : 0;
@@ -812,10 +857,10 @@ const ZonePerformance = ({
                     instructorWorking,
                     cpuInstalled,
                     cpuUsed,
-                    miniPcInstalled: miniPcInstalled,
-                    miniPcUsed: miniPcUsed,
-                    panelInstalled: panelInstalled,
-                    panelUsed: panelUsed,
+                    miniPcInstalled,
+                    miniPcUsed,
+                    panelInstalled,
+                    panelUsed,
                     totalCpuHours: parseFloat(totalCpuHours.toFixed(1)),
                     totalMiniPcHours: parseFloat(totalMiniPcHours.toFixed(1)),
                     totalPanelHours: parseFloat(totalPanelHours.toFixed(1)),
@@ -837,19 +882,171 @@ const ZonePerformance = ({
             return filteredCc.map((row, index) => ({ ...row, slno: index + 1 }));
         }
 
+        if (viewType === 'projects') {
+            const projMap = {};
+            zoneSchoolsList.forEach(s => {
+                const proj = s.project_name || 'Unassigned';
+                if (!projMap[proj]) {
+                    projMap[proj] = {
+                        projectName: proj,
+                        totalSchools: 0,
+                        instructorWorking: 0,
+                        cpuInstalled: 0,
+                        cpuUsed: 0,
+                        miniPcInstalled: 0,
+                        miniPcUsed: 0,
+                        panelInstalled: 0,
+                        panelUsed: 0,
+                        totalCpuHours: 0,
+                        totalMiniPcHours: 0,
+                        totalPanelHours: 0,
+                        ictClasses: 0,
+                        smartClasses: 0,
+                        ictVisits: 0,
+                        smartVisits: 0,
+                        udises: new Set()
+                    };
+                }
+                projMap[proj].totalSchools++;
+                projMap[proj].udises.add(cleanUdise(s.udise_code));
+            });
+
+            zoneSchoolsList.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const proj = s.project_name || 'Unassigned';
+                const p = projMap[proj];
+                if (!p) return;
+
+                const schoolManpower = manpowerMap[udise] || [];
+                let instructorRec = schoolManpower.find(mp => {
+                    const status = String(getVal(mp, 'status') || '').trim().toUpperCase();
+                    return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
+                });
+                if (!instructorRec && schoolManpower.length > 0) {
+                    instructorRec = schoolManpower[0];
+                }
+                const rawStatus = instructorRec ? (instructorRec.status || getVal(instructorRec, 'status') || 'Active') : 'N/A';
+                const isWorking = rawStatus.toUpperCase().includes('WORKING') || rawStatus.toUpperCase().includes('ACTIVE') || rawStatus === '';
+                if (isWorking) p.instructorWorking++;
+
+                const schoolDevices = edustatMasterMap[udise] || [];
+                schoolDevices.forEach(m => {
+                    const device = String(m.device || '').toUpperCase();
+                    const installed = String(m.installed || '').toUpperCase();
+                    if (installed === 'YES') {
+                        if (device === 'CPU') p.cpuInstalled++;
+                        else if (device === 'MINI PC' || device === 'THIN CLIENT') p.miniPcInstalled++;
+                        else if (device === 'INTERACTIVE FLAT PANEL') p.panelInstalled++;
+                    }
+                });
+
+                const schoolEdustat = edustatMap[udise] || [];
+                schoolEdustat.forEach(e => {
+                    const serial = String(e.serial).trim();
+                    const hours = Number(e.hours) || 0;
+                    const deviceType = serialMap[serial] || 'CPU';
+
+                    if (deviceType === 'CPU') p.totalCpuHours += hours;
+                    else if (deviceType === 'MINI PC' || deviceType === 'THIN CLIENT') p.totalMiniPcHours += hours;
+                    else if (deviceType === 'INTERACTIVE FLAT PANEL') p.totalPanelHours += hours;
+                });
+
+                const schoolClasses = jhpmsMap[udise] || [];
+                schoolClasses.forEach(l => {
+                    const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+                    const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
+                    if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                        // Ignore
+                    } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                        p.ictClasses++;
+                    } else if (labType.includes('SMART')) {
+                        p.smartClasses++;
+                    }
+                });
+
+                const schoolVisits = rangeVisitsMap[udise] || [];
+                schoolVisits.forEach(v => {
+                    const type = (v.visit_type || '').toLowerCase();
+                    if (type.includes('ict')) p.ictVisits++;
+                    if (type.includes('smart')) p.smartVisits++;
+                });
+            });
+
+            const activeSerialsP = new Set();
+            rangeEdustat.forEach(e => { if (e.hours > 0 && e.serial) activeSerialsP.add(String(e.serial).trim()); });
+
+            (edustatMaster || []).forEach(m => {
+                const udise = String(m.udise).trim();
+                const serial = String(m.serial).trim();
+                const device = String(m.device || '').toUpperCase();
+                const installed = String(m.installed || '').toUpperCase();
+                if (zoneUdises.has(udise) && installed === 'YES' && activeSerialsP.has(serial)) {
+                    Object.values(projMap).forEach(p => {
+                        if (p.udises.has(udise)) {
+                            if (device === 'CPU') p.cpuUsed++;
+                            else if (device === 'MINI PC' || device === 'THIN CLIENT') p.miniPcUsed++;
+                            else if (device === 'INTERACTIVE FLAT PANEL') p.panelUsed++;
+                        }
+                    });
+                }
+            });
+
+            const projList = Object.values(projMap).map(p => {
+                const totalInstalled = p.cpuInstalled + p.miniPcInstalled + p.panelInstalled;
+                const totalUsed = p.cpuUsed + p.miniPcUsed + p.panelUsed;
+                const deviceUtil = totalInstalled > 0 ? ((totalUsed / totalInstalled) * 100).toFixed(1) : '0.0';
+                const totalVisits = p.ictVisits + p.smartVisits;
+                const classRate = p.totalSchools > 0 && days > 0 ? ((p.ictClasses + p.smartClasses) / (days * p.totalSchools)).toFixed(3) : '0.000';
+                const monitoring = p.totalSchools > 0 ? (totalVisits / p.totalSchools).toFixed(2) : '0.00';
+                const instRate = p.totalSchools > 0 ? ((p.instructorWorking / p.totalSchools) * 100).toFixed(1) : '0.0';
+                return {
+                    projectName: p.projectName,
+                    totalSchools: p.totalSchools,
+                    instructorWorking: p.instructorWorking,
+                    cpuInstalled: p.cpuInstalled,
+                    cpuUsed: p.cpuUsed,
+                    miniPcInstalled: p.miniPcInstalled,
+                    miniPcUsed: p.miniPcUsed,
+                    panelInstalled: p.panelInstalled,
+                    panelUsed: p.panelUsed,
+                    totalCpuHours: parseFloat(p.totalCpuHours.toFixed(1)),
+                    totalMiniPcHours: parseFloat(p.totalMiniPcHours.toFixed(1)),
+                    totalPanelHours: parseFloat(p.totalPanelHours.toFixed(1)),
+                    totalHours: parseFloat((p.totalCpuHours + p.totalMiniPcHours + p.totalPanelHours).toFixed(1)),
+                    ictClasses: p.ictClasses,
+                    smartClasses: p.smartClasses,
+                    visitsCount: totalVisits,
+                    performanceScore: parseFloat((
+                        ((totalInstalled > 0 ? totalUsed / totalInstalled : 0) * 25) +
+                        ((p.totalSchools > 0 ? (p.totalCpuHours / days / p.totalSchools) : 0) * 5) +
+                        ((p.totalSchools > 0 ? p.ictClasses / p.totalSchools : 0) * 20) +
+                        ((p.totalSchools > 0 ? p.smartClasses / p.totalSchools : 0) * 10) +
+                        ((p.totalSchools > 0 ? totalVisits / p.totalSchools : 0) * 15) +
+                        ((p.totalSchools > 0 ? p.instructorWorking / p.totalSchools : 0) * 10)
+                    ).toFixed(1))
+                };
+            }).sort((a, b) => b.totalSchools - a.totalSchools);
+
+            let filteredProj = projList;
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                filteredProj = filteredProj.filter(p => p.projectName.toLowerCase().includes(q));
+            }
+            return filteredProj.map((item, idx) => ({ ...item, slno: idx + 1 }));
+        }
+
         if (viewType === 'devices') {
             const masterDevices = (edustatMaster || []).filter(m => zoneUdises.has(cleanUdise(m.udise || getVal(m, 'udise'))));
 
-            const filteredEdustat = edustat.filter(row => {
-                const dateStr = formatDateStr(row.date || getVal(row, 'date'));
-                return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(row.udise || getVal(row, 'udise')));
-            });
-
             const activeSerials = new Set();
-            filteredEdustat.forEach(e => {
-                if (Number(e.hours) > 0 && e.serial) {
-                    activeSerials.add(String(e.serial).trim());
-                }
+            zoneSchoolsList.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const schoolEdustat = edustatMap[udise] || [];
+                schoolEdustat.forEach(e => {
+                    if (Number(e.hours) > 0 && e.serial) {
+                        activeSerials.add(String(e.serial).trim());
+                    }
+                });
             });
 
             let filteredDevices = masterDevices;
@@ -875,7 +1072,7 @@ const ZonePerformance = ({
                 filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'INTERACTIVE FLAT PANEL' && String(m.installed || '').toUpperCase() === 'YES' && !activeSerials.has(String(m.serial || '').trim()));
             }
 
-            const list = filteredDevices.map((m, idx) => {
+            const list = filteredDevices.map(m => {
                 const udise = cleanUdise(m.udise || getVal(m, 'udise'));
                 const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
                 
@@ -902,9 +1099,14 @@ const ZonePerformance = ({
         }
 
         if (viewType === 'instructors') {
-            const ccManpower = manpower.filter(m => zoneUdises.has(cleanUdise(m.udise || getVal(m, 'udise'))));
+            const ccManpower = [];
+            zoneSchoolsList.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const schoolManpower = manpowerMap[udise] || [];
+                schoolManpower.forEach(m => ccManpower.push(m));
+            });
             
-            const listData = ccManpower.map((m, idx) => {
+            const listData = ccManpower.map(m => {
                 const udise = cleanUdise(m.udise || getVal(m, 'udise'));
                 const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
                 const rawStatus = m.status || getVal(m, 'status') || 'Active';
@@ -937,34 +1139,24 @@ const ZonePerformance = ({
         }
 
         if (viewType === 'usage_logs') {
-            const filteredEdustat = edustat.filter(row => {
-                const dateStr = formatDateStr(row.date || getVal(row, 'date'));
-                return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(row.udise || getVal(row, 'udise')));
-            });
-
-            const serialMap = {};
-            (edustatMaster || []).forEach(m => {
-                if (m.serial) {
-                    serialMap[String(m.serial).trim()] = String(m.device || '').toUpperCase();
-                }
-            });
-
-            let logRows = filteredEdustat.map(e => {
-                const udise = cleanUdise(e.udise || getVal(e, 'udise') || '');
-                const serial = String(e.serial || '').trim();
-                const devType = serialMap[serial] || 'CPU';
-                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
-
-                return {
-                    date: formatDateClean(e.date || getVal(e, 'date')),
-                    dateRaw: formatDateStr(e.date || getVal(e, 'date')),
-                    udise,
-                    schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
-                    block: schoolRec ? (schoolRec.block || '-') : '-',
-                    serial,
-                    deviceType: devType,
-                    hours: Number(e.hours) || 0
-                };
+            let logRows = [];
+            zoneSchoolsList.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const schoolEdustat = edustatMap[udise] || [];
+                schoolEdustat.forEach(e => {
+                    const serial = String(e.serial || '').trim();
+                    const devType = serialMap[serial] || 'CPU';
+                    logRows.push({
+                        date: formatDateClean(e.date || getVal(e, 'date')),
+                        dateRaw: formatDateStr(e.date || getVal(e, 'date')),
+                        udise,
+                        schoolName: s.school_name || s.school || '-',
+                        block: s.block || '-',
+                        serial,
+                        deviceType: devType,
+                        hours: Number(e.hours) || 0
+                    });
+                });
             });
 
             if (drilldownFilter === 'cpu_hours_logs') {
@@ -986,42 +1178,35 @@ const ZonePerformance = ({
         }
 
         if (viewType === 'classes') {
-            const filteredJhpms = jhpmsLab.filter(l => {
-                const udise = cleanUdise(l.udise || getVal(l, 'udise'));
-                const dateStr = formatDateStr(l.date || getVal(l, 'date'));
-                return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(udise);
-            });
-
             let classRows = [];
-            filteredJhpms.forEach(l => {
-                const udise = cleanUdise(l.udise || getVal(l, 'udise'));
-                const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
-                
-                const teacherKey = Object.keys(l).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('subjectteacher'));
-                const teacher = teacherKey ? String(l[teacherKey] || '').trim() : (getVal(l, 'teacher') || 'N/A');
-                
-                const subjectKey = Object.keys(l).find(k => k !== teacherKey && k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('sub'));
-                const subject = subjectKey ? String(l[subjectKey] || '').trim().toUpperCase() : '';
-                
-                const remarks = l.remarks || getVal(l, 'remarks') || getVal(l, 'topic') || '-';
-                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+            zoneSchoolsList.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const schoolClasses = jhpmsMap[udise] || [];
+                schoolClasses.forEach(l => {
+                    const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+                    const teacherKey = Object.keys(l).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('subjectteacher'));
+                    const teacher = teacherKey ? String(l[teacherKey] || '').trim() : (getVal(l, 'teacher') || 'N/A');
+                    const subjectKey = Object.keys(l).find(k => k !== teacherKey && k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('sub'));
+                    const subject = subjectKey ? String(l[subjectKey] || '').trim().toUpperCase() : '';
+                    const remarks = l.remarks || getVal(l, 'remarks') || getVal(l, 'topic') || '-';
 
-                const isIct = !subject.split(/[^A-Z0-9]+/).includes('MIS') && (labType.includes('ICT') && subject.includes('COMPUTER'));
-                const isSmart = !subject.split(/[^A-Z0-9]+/).includes('MIS') && !(labType.includes('ICT') && subject.includes('COMPUTER')) && labType.includes('SMART');
+                    const isIct = !subject.split(/[^A-Z0-9]+/).includes('MIS') && (labType.includes('ICT') && subject.includes('COMPUTER'));
+                    const isSmart = !subject.split(/[^A-Z0-9]+/).includes('MIS') && !(labType.includes('ICT') && subject.includes('COMPUTER')) && labType.includes('SMART');
 
-                if ((drilldownFilter === 'ict_classes' && isIct) || (drilldownFilter === 'smart_classes' && isSmart)) {
-                    classRows.push({
-                        date: formatDateClean(l.date || getVal(l, 'date')),
-                        dateRaw: formatDateStr(l.date || getVal(l, 'date')),
-                        udise,
-                        schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
-                        block: schoolRec ? (schoolRec.block || '-') : '-',
-                        labType: labType,
-                        subject: subject || 'N/A',
-                        teacher: teacher,
-                        remarks
-                    });
-                }
+                    if ((drilldownFilter === 'ict_classes' && isIct) || (drilldownFilter === 'smart_classes' && isSmart)) {
+                        classRows.push({
+                            date: formatDateClean(l.date || getVal(l, 'date')),
+                            dateRaw: formatDateStr(l.date || getVal(l, 'date')),
+                            udise,
+                            schoolName: s.school_name || s.school || '-',
+                            block: s.block || '-',
+                            labType: labType,
+                            subject: subject || 'N/A',
+                            teacher,
+                            remarks
+                        });
+                    }
+                });
             });
 
             classRows.sort((a, b) => (b.dateRaw || '').localeCompare(a.dateRaw || ''));
@@ -1035,32 +1220,29 @@ const ZonePerformance = ({
         }
 
         if (viewType === 'visits') {
-            const ccVisits = visits.filter(v => {
-                const dateStr = formatDateStr(v.visit_date || getVal(v, 'date'));
-                return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(v.udise_code));
+            let visitRows = [];
+            zoneSchoolsList.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const schoolVisits = rangeVisitsMap[udise] || [];
+                schoolVisits.forEach(v => {
+                    const type = (v.visit_type || '').toLowerCase();
+                    const isTarget = (drilldownFilter === 'all_visits') ||
+                                     (drilldownFilter === 'ict_visits' && type.includes('ict')) ||
+                                     (drilldownFilter === 'smart_visits' && type.includes('smart'));
+                    if (isTarget) {
+                        visitRows.push({
+                            date: formatDateClean(v.visit_date || getVal(v, 'date')),
+                            dateRaw: formatDateStr(v.visit_date || getVal(v, 'date')),
+                            udise,
+                            schoolName: s.school_name || s.school || '-',
+                            block: s.block || '-',
+                            visitorName: v.visitor_name || 'N/A',
+                            visitType: v.visit_type || 'Visit',
+                            remarks: v.remarks || getVal(v, 'remarks') || getVal(v, 'remark') || '-'
+                        });
+                    }
+                });
             });
-
-            let visitRows = ccVisits.map(v => {
-                const udise = cleanUdise(v.udise_code);
-                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
-
-                return {
-                    date: formatDateClean(v.visit_date || getVal(v, 'date')),
-                    dateRaw: formatDateStr(v.visit_date || getVal(v, 'date')),
-                    udise,
-                    schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
-                    block: schoolRec ? (schoolRec.block || '-') : '-',
-                    visitorName: v.visitor_name || 'N/A',
-                    visitType: v.visit_type || 'Visit',
-                    remarks: v.remarks || getVal(v, 'remarks') || getVal(v, 'remark') || '-'
-                };
-            });
-
-            if (drilldownFilter === 'ict_visits') {
-                visitRows = visitRows.filter(v => v.visitType.toLowerCase().includes('ict'));
-            } else if (drilldownFilter === 'smart_visits') {
-                visitRows = visitRows.filter(v => v.visitType.toLowerCase().includes('smart'));
-            }
 
             visitRows.sort((a, b) => (b.dateRaw || '').localeCompare(a.dateRaw || ''));
 
@@ -1073,28 +1255,9 @@ const ZonePerformance = ({
         }
 
         // Default 'schools' view
-        const zoneSchoolsList = schools.filter(s => zoneUdises.has(cleanUdise(s.udise_code)));
-
-        const rangeVisits = visits.filter(v => {
-            const dateStr = formatDateStr(v.visit_date);
-            return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(v.udise_code));
-        });
-
-        const rangeJhpms = jhpmsLab.filter(l => {
-            const udise = cleanUdise(l.udise || getVal(l, 'udise') || '');
-            const dateStr = formatDateStr(l.date || getVal(l, 'date'));
-            return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(udise);
-        });
-
-        const rangeEdustat = edustat.filter(e => {
-            const dateStr = formatDateStr(e.date || getVal(e, 'date'));
-            return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(e.udise || getVal(e, 'udise') || ''));
-        });
-
-        const schDetailsList = zoneSchoolsList.map((s, idx) => {
+        const schDetailsList = zoneSchoolsList.map(s => {
             const udise = cleanUdise(s.udise_code);
-
-            const schoolManpower = manpower.filter(m => cleanUdise(m.udise || getVal(m, 'udise') || '') === udise);
+            const schoolManpower = manpowerMap[udise] || [];
             let instructorRec = schoolManpower.find(m => {
                 const status = String(getVal(m, 'status') || '').trim().toUpperCase();
                 return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
@@ -1116,31 +1279,25 @@ const ZonePerformance = ({
             let panelInstalledSch = 0;
             let edustatNotInstalled = 0;
 
-            (edustatMaster || []).forEach(m => {
-                if (cleanUdise(m.udise) === udise) {
-                    const device = String(m.device || '').toUpperCase();
-                    const installed = String(m.installed || '').toUpperCase();
-                    if (installed === 'YES') {
-                        if (device === 'CPU') cpuInstalled++;
-                        else if (device === 'MINI PC' || device === 'THIN CLIENT') miniInstalled++;
-                        else if (device === 'INTERACTIVE FLAT PANEL') panelInstalledSch++;
-                    } else if (installed === 'NO') {
-                        edustatNotInstalled++;
-                    }
+            const schoolDevices = edustatMasterMap[udise] || [];
+            schoolDevices.forEach(m => {
+                const device = String(m.device || '').toUpperCase();
+                const installed = String(m.installed || '').toUpperCase();
+                if (installed === 'YES') {
+                    if (device === 'CPU') cpuInstalled++;
+                    else if (device === 'MINI PC' || device === 'THIN CLIENT') miniInstalled++;
+                    else if (device === 'INTERACTIVE FLAT PANEL') panelInstalledSch++;
+                } else if (installed === 'NO') {
+                    edustatNotInstalled++;
                 }
             });
 
             let ictClasses = 0;
             let smartClasses = 0;
-            rangeJhpms.forEach(l => {
-                const rowUdise = cleanUdise(l.udise || getVal(l, 'udise') || '');
-                if (rowUdise !== udise) return;
-
+            const schoolClasses = jhpmsMap[udise] || [];
+            schoolClasses.forEach(l => {
                 const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
-                const teacherKey = Object.keys(l).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('subjectteacher'));
-                const teacher = teacherKey ? String(l[teacherKey] || '').trim() : (getVal(l, 'teacher') || '');
-                const subjectKey = Object.keys(l).find(k => k !== teacherKey && k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('sub'));
-                const subject = subjectKey ? String(l[subjectKey] || '').trim().toUpperCase() : '';
+                const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
 
                 if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
                     // Ignore
@@ -1155,17 +1312,8 @@ const ZonePerformance = ({
             let totalMiniPcHours = 0;
             let totalPanelHoursSch = 0;
             
-            const serialMap = {};
-            (edustatMaster || []).forEach(m => {
-                if (m.serial) {
-                    serialMap[String(m.serial).trim()] = String(m.device || '').toUpperCase();
-                }
-            });
-
-            rangeEdustat.forEach(e => {
-                const rowUdise = cleanUdise(e.udise || getVal(e, 'udise') || '');
-                if (rowUdise !== udise) return;
-
+            const schoolEdustat = edustatMap[udise] || [];
+            schoolEdustat.forEach(e => {
                 const serial = String(e.serial || '').trim();
                 const hours = Number(e.hours) || 0;
                 const devType = serialMap[serial] || 'CPU';
@@ -1179,17 +1327,11 @@ const ZonePerformance = ({
                 }
             });
 
-            let visitsCount = 0;
-            let lastVisitDate = '-';
+            const visitsCount = (rangeVisitsMap[udise] || []).length;
             
-            rangeVisits.forEach(v => {
-                if (cleanUdise(v.udise_code) === udise) {
-                    visitsCount++;
-                }
-            });
-
-            visits.forEach(v => {
-                if (cleanUdise(v.udise_code) !== udise) return;
+            let lastVisitDate = '-';
+            const schoolAllVisits = allVisitsMap[udise] || [];
+            schoolAllVisits.forEach(v => {
                 const vDateStr = formatDateStr(v.visit_date);
                 if (vDateStr) {
                     if (lastVisitDate === '-' || vDateStr > lastVisitDate) {
@@ -1292,6 +1434,8 @@ const ZonePerformance = ({
             viewType = 'visits';
         } else if (drilldownFilter === 'coordinators') {
             viewType = 'coordinators';
+        } else if (drilldownFilter === 'projects') {
+            viewType = 'projects';
         }
 
         if (viewType === 'coordinators') {
@@ -1315,6 +1459,27 @@ const ZonePerformance = ({
                 'Local Performance Score': c.performanceScore
             }));
             label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Coordinators_Performance`;
+        } else if (viewType === 'projects') {
+            exportFormat = activeZoneDetailsData.map(p => ({
+                'Slno': p.slno,
+                'Project Name': p.projectName,
+                'Schools Count': p.totalSchools,
+                'Instructors Working': p.instructorWorking,
+                'CPU Installed': p.cpuInstalled,
+                'CPU Used': p.cpuUsed,
+                'Mini PC Installed': p.miniPcInstalled,
+                'Mini PC Used': p.miniPcUsed,
+                'Panel Installed': p.panelInstalled,
+                'Panel Used': p.panelUsed,
+                'CPU Run Hours': p.totalCpuHours,
+                'Mini PC Run Hours': p.totalMiniPcHours,
+                'Panel Run Hours': p.totalPanelHours,
+                'ICT Classes Conducted': p.ictClasses,
+                'Smart Classes Conducted': p.smartClasses,
+                'Total Visits': p.visitsCount,
+                'Local Performance Score': p.performanceScore
+            }));
+            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Projects_Performance`;
         } else if (viewType === 'devices') {
             exportFormat = activeZoneDetailsData.map(d => ({
                 'Slno': d.slno,
@@ -1424,6 +1589,8 @@ const ZonePerformance = ({
             return 'visits';
         } else if (drilldownFilter === 'coordinators') {
             return 'coordinators';
+        } else if (drilldownFilter === 'projects') {
+            return 'projects';
         }
         return 'schools';
     }, [drilldownFilter]);
@@ -1701,9 +1868,9 @@ const ZonePerformance = ({
                                         {row.zoneName}
                                     </td>
                                     <td
-                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('all'); setSearchQuery(''); }}
-                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-semibold text-gray-700 dark:text-gray-300 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer transition-all"
-                                        title="Click to view all zone schools"
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('projects'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view the ${row.totalProjects} projects in this zone`}
                                     >
                                         {row.totalProjects}
                                     </td>
@@ -2169,6 +2336,7 @@ const ZonePerformance = ({
                                     {drilldownFilter === 'ict_visits' && "Field ICT Visits Logging Details"}
                                     {drilldownFilter === 'smart_visits' && "Field Smart Board Visits Logging Details"}
                                     {drilldownFilter === 'all_visits' && "Field Team All Visits Logging Details"}
+                                    {drilldownFilter === 'projects' && "Zone Projects-Wise Breakdown & Comparative Metrics"}
                                 </h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
                                     Zone: <span className="font-bold text-gray-800 dark:text-gray-200">{activeZoneDetail.zoneName}</span> — Projects: {activeZoneDetail.totalProjects}
@@ -2207,6 +2375,8 @@ const ZonePerformance = ({
                                     placeholder={
                                         drilldownViewType === 'coordinators'
                                             ? "Search by CC name..."
+                                            : drilldownViewType === 'projects'
+                                            ? "Search by project name..."
                                             : drilldownViewType === 'devices'
                                             ? "Search by school, UDISE, or serial no..."
                                             : drilldownViewType === 'usage_logs'
@@ -2235,6 +2405,24 @@ const ZonePerformance = ({
                                             <tr className="divide-x divide-teal-700/30">
                                                 <th className="p-3 text-center w-[50px]">Rank</th>
                                                 <th className="p-3">CC/DEF Name</th>
+                                                <th className="p-3 text-center">Schools Covered</th>
+                                                <th className="p-3 text-center">Active Instructors</th>
+                                                <th className="p-3 text-center bg-teal-900/40">CPU Installed/Used</th>
+                                                <th className="p-3 text-center bg-purple-900/40">Mini PC Installed/Used</th>
+                                                <th className="p-3 text-center bg-indigo-900/40">Panel Installed/Used</th>
+                                                <th className="p-3 text-center bg-orange-900/40">CPU Hours</th>
+                                                <th className="p-3 text-center bg-orange-900/40">Mini PC Hours</th>
+                                                <th className="p-3 text-center bg-orange-900/40">Panel Hours</th>
+                                                <th className="p-3 text-center bg-pink-900/40">ICT Classes</th>
+                                                <th className="p-3 text-center bg-yellow-900/40">Smart Classes</th>
+                                                <th className="p-3 text-center">Visits</th>
+                                                <th className="p-3 text-center bg-indigo-900/80">Local Score</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'projects' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">Slno</th>
+                                                <th className="p-3">Project Name</th>
                                                 <th className="p-3 text-center">Schools Covered</th>
                                                 <th className="p-3 text-center">Active Instructors</th>
                                                 <th className="p-3 text-center bg-teal-900/40">CPU Installed/Used</th>
@@ -2357,6 +2545,40 @@ const ZonePerformance = ({
                                                 <td className="p-2.5 text-center">
                                                     <span className={`px-2 py-1 rounded font-bold text-[11px] ${cc.performanceScore >= 75 ? 'bg-emerald-500/10 text-emerald-500' : cc.performanceScore >= 50 ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-500'}`}>
                                                         {cc.performanceScore}%
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'projects' && activeZoneDetailsData.map((proj, i) => (
+                                            <tr key={proj.projectName} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{i + 1}</td>
+                                                <td className="p-2.5 font-bold text-teal-800 dark:text-teal-400">{proj.projectName}</td>
+                                                <td className="p-2.5 text-center font-semibold text-gray-700 dark:text-gray-300">{proj.totalSchools}</td>
+                                                <td className="p-2.5 text-center font-semibold text-emerald-700 dark:text-emerald-400">{proj.instructorWorking}</td>
+                                                <td className="p-2.5 text-center">
+                                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{proj.cpuInstalled}</span>
+                                                    <span className="text-gray-400 mx-1">/</span>
+                                                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">{proj.cpuUsed}</span>
+                                                </td>
+                                                <td className="p-2.5 text-center">
+                                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{proj.miniPcInstalled}</span>
+                                                    <span className="text-gray-400 mx-1">/</span>
+                                                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">{proj.miniPcUsed}</span>
+                                                </td>
+                                                <td className="p-2.5 text-center">
+                                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{proj.panelInstalled}</span>
+                                                    <span className="text-gray-400 mx-1">/</span>
+                                                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">{proj.panelUsed}</span>
+                                                </td>
+                                                <td className="p-2.5 text-center font-medium text-gray-600 dark:text-gray-400">{proj.totalCpuHours} hrs</td>
+                                                <td className="p-2.5 text-center font-medium text-gray-600 dark:text-gray-400">{proj.totalMiniPcHours} hrs</td>
+                                                <td className="p-2.5 text-center font-medium text-gray-600 dark:text-gray-400">{proj.totalPanelHours} hrs</td>
+                                                <td className="p-2.5 text-center font-semibold text-gray-700 dark:text-gray-300">{proj.ictClasses}</td>
+                                                <td className="p-2.5 text-center font-semibold text-gray-700 dark:text-gray-300">{proj.smartClasses}</td>
+                                                <td className="p-2.5 text-center font-bold text-teal-600 dark:text-teal-400">{proj.visitsCount}</td>
+                                                <td className="p-2.5 text-center">
+                                                    <span className={`px-2 py-1 rounded font-bold text-[11px] ${proj.performanceScore >= 75 ? 'bg-emerald-500/10 text-emerald-500' : proj.performanceScore >= 50 ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                                        {proj.performanceScore}%
                                                     </span>
                                                 </td>
                                             </tr>
