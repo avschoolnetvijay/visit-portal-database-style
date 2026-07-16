@@ -650,6 +650,8 @@ const ZonePerformance = ({
             viewType = 'devices';
         } else if (drilldownFilter === 'working_instructors') {
             viewType = 'instructors';
+        } else if (drilldownFilter === 'vacant_instructors') {
+            viewType = 'vacant_instructors';
         } else if (['cpu_hours_logs', 'mini_hours_logs', 'panel_hours_logs'].includes(drilldownFilter)) {
             viewType = 'usage_logs';
         } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
@@ -1138,6 +1140,66 @@ const ZonePerformance = ({
             return filteredList.map((ins, idx) => ({ ...ins, slno: idx + 1 }));
         }
 
+        if (viewType === 'vacant_instructors') {
+            const vacantSchools = zoneSchoolsList.filter(s => {
+                const udise = cleanUdise(s.udise_code);
+                const schoolManpower = manpowerMap[udise] || [];
+                let instructorRec = schoolManpower.find(mp => {
+                    const status = String(getVal(mp, 'status') || '').trim().toUpperCase();
+                    return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
+                });
+                return !instructorRec;
+            });
+
+            const listData = vacantSchools.map(s => {
+                const udise = cleanUdise(s.udise_code);
+                const schoolManpower = manpowerMap[udise] || [];
+                
+                let lastInstructorName = 'N/A';
+                let lastWorkingDate = 'N/A';
+
+                const inactiveRecords = schoolManpower.filter(mp => {
+                    const status = String(getVal(mp, 'status') || '').trim().toUpperCase();
+                    return !(status.includes('WORKING') || status.includes('ACTIVE') || status === '');
+                });
+
+                const sortedHistory = [...inactiveRecords].sort((a, b) => {
+                    const da = new Date(a.statusDate || getVal(a, 'statusDate') || 0);
+                    const db = new Date(b.statusDate || getVal(b, 'statusDate') || 0);
+                    return db - da;
+                });
+
+                const lastRec = sortedHistory[0] || schoolManpower[0];
+                if (lastRec) {
+                    lastInstructorName = lastRec.instructorName || getVal(lastRec, 'name') || 'N/A';
+                    const rawDate = lastRec.statusDate || getVal(lastRec, 'statusDate');
+                    if (rawDate) {
+                        const d = new Date(rawDate);
+                        if (!isNaN(d.getTime())) {
+                            lastWorkingDate = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+                        } else {
+                            lastWorkingDate = String(rawDate);
+                        }
+                    }
+                }
+
+                return {
+                    udise,
+                    schoolName: s.school_name || s.school || '-',
+                    block: s.block || '-',
+                    lastInstructorName,
+                    lastWorkingDate
+                };
+            });
+
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                const filtered = listData.filter(ins => ins.schoolName.toLowerCase().includes(q) || ins.udise.includes(q) || ins.lastInstructorName.toLowerCase().includes(q));
+                return filtered.map((ins, idx) => ({ ...ins, slno: idx + 1 }));
+            }
+            return listData.map((ins, idx) => ({ ...ins, slno: idx + 1 }));
+        }
+
         if (viewType === 'usage_logs') {
             let logRows = [];
             zoneSchoolsList.forEach(s => {
@@ -1426,6 +1488,8 @@ const ZonePerformance = ({
             viewType = 'devices';
         } else if (drilldownFilter === 'working_instructors') {
             viewType = 'instructors';
+        } else if (drilldownFilter === 'vacant_instructors') {
+            viewType = 'vacant_instructors';
         } else if (['cpu_hours_logs', 'mini_hours_logs', 'panel_hours_logs'].includes(drilldownFilter)) {
             viewType = 'usage_logs';
         } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
@@ -1501,6 +1565,16 @@ const ZonePerformance = ({
                 'Instructor Status': ins.instructorStatus
             }));
             label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Active_Instructors`;
+        } else if (viewType === 'vacant_instructors') {
+            exportFormat = activeZoneDetailsData.map(ins => ({
+                'Slno': ins.slno,
+                'UDISE Code': ins.udise,
+                'School Name': ins.schoolName,
+                'Block': ins.block,
+                'Last Working Instructor Name': ins.lastInstructorName,
+                'Last Working Date': ins.lastWorkingDate
+            }));
+            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Vacant_Schools_Report`;
         } else if (viewType === 'usage_logs') {
             exportFormat = activeZoneDetailsData.map(l => ({
                 'Slno': l.slno,
@@ -1581,6 +1655,8 @@ const ZonePerformance = ({
             return 'devices';
         } else if (drilldownFilter === 'working_instructors') {
             return 'instructors';
+        } else if (drilldownFilter === 'vacant_instructors') {
+            return 'vacant_instructors';
         } else if (['cpu_hours_logs', 'mini_hours_logs', 'panel_hours_logs'].includes(drilldownFilter)) {
             return 'usage_logs';
         } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
@@ -1752,6 +1828,7 @@ const ZonePerformance = ({
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">Coordinators</th>
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">No.of Schools</th>
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[90px]">No. of Instructor Working</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-red-950/40 text-red-200 min-w-[90px]">Vacant Instructor</th>
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 min-w-[90px]">No.Of CPU Installed</th>
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top bg-red-950/40 text-red-200 min-w-[100px]">EduStat Not Installed</th>
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 min-w-[80px]">No.Of CPU Used</th>
@@ -1765,81 +1842,22 @@ const ZonePerformance = ({
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (CPU)</th>
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[110px]">Total Hours Used (Mini PC / Thin Client)</th>
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (Panel / IFP)</th>
-                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]">
-                                    <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
-                                        <span>Avg Hrs/Day/Sch/CPU</span>
-                                        <span className="text-emerald-300">ⓘ</span>
-                                        <div className="custom-tooltip-box text-white font-normal">
-                                            <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for CPU</strong>
-                                            <div className="border-t border-white/10 pt-1.5 mt-1">
-                                                <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
-                                                <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total CPU Hours / (Working Days × CPUs Installed)</span>
-                                            </div>
-                                            <p className="text-[10px] text-gray-300 mt-1.5">
-                                                Shows the average daily usage hours for each active CPU device within the selected period.
-                                            </p>
-                                        </div>
-                                    </div>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]" title="Formula: Total CPU Hours / (Working Days × CPUs Installed)">
+                                    Avg Hrs/Day/Sch/CPU
                                 </th>
-                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[115px]">
-                                    <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
-                                        <span>Avg Hrs/Day/Sch/Mini PC</span>
-                                        <span className="text-emerald-300">ⓘ</span>
-                                        <div className="custom-tooltip-box text-white font-normal">
-                                            <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for Mini PC / Thin Client</strong>
-                                            <div className="border-t border-white/10 pt-1.5 mt-1">
-                                                <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
-                                                <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Mini PC Hours / (Working Days × Mini PCs Installed)</span>
-                                            </div>
-                                            <p className="text-[10px] text-gray-300 mt-1.5">
-                                                Shows the average daily usage hours for each active Mini PC within the selected period.
-                                            </p>
-                                        </div>
-                                    </div>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[115px]" title="Formula: Total Mini PC Hours / (Working Days × Mini PCs Installed)">
+                                    Avg Hrs/Day/Sch/Mini PC
                                 </th>
-                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]">
-                                    <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
-                                        <span>Avg Hrs/Day/Sch/Panel</span>
-                                        <span className="text-emerald-300">ⓘ</span>
-                                        <div className="custom-tooltip-box text-white font-normal">
-                                            <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for Panel (IFP)</strong>
-                                            <div className="border-t border-white/10 pt-1.5 mt-1">
-                                                <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
-                                                <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Panel Hours / (Working Days × Panels Installed)</span>
-                                            </div>
-                                            <p className="text-[10px] text-gray-300 mt-1.5">
-                                                Shows the average daily usage hours for each Interactive Flat Panel (IFP) within the selected period.
-                                            </p>
-                                        </div>
-                                    </div>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]" title="Formula: Total Panel Hours / (Working Days × Panels Installed)">
+                                    Avg Hrs/Day/Sch/Panel
                                 </th>
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top bg-pink-900/40 min-w-[80px]">ICT Classes</th>
-                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-pink-900/40 min-w-[110px]">
-                                    <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
-                                        <span>Avg Classes/per school/Day</span>
-                                        <span className="text-pink-300">ⓘ</span>
-                                        <div className="custom-tooltip-box text-white font-normal">
-                                            <strong className="text-pink-300 font-bold block mb-1">Average ICT Classes per School per Day</strong>
-                                            <div className="border-t border-white/10 pt-1.5 mt-1">
-                                                <span className="font-mono text-pink-400 text-[10px] block">FORMULA:</span>
-                                                <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Computer Classes / (Working Days × Total Schools)</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-pink-900/40 min-w-[110px]" title="Formula: Total Computer Classes / (Working Days × Total Schools)">
+                                    Avg Classes/per school/Day
                                 </th>
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top bg-yellow-900/40 min-w-[80px]">Smart Classes</th>
-                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-yellow-900/40 min-w-[110px]">
-                                    <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
-                                        <span>Avg Smart Classes/per school/Day</span>
-                                        <span className="text-yellow-300">ⓘ</span>
-                                        <div className="custom-tooltip-box text-white font-normal">
-                                            <strong className="text-yellow-300 font-bold block mb-1">Average Smart Classes per School per Day</strong>
-                                            <div className="border-t border-white/10 pt-1.5 mt-1">
-                                                <span className="font-mono text-yellow-400 text-[10px] block">FORMULA:</span>
-                                                <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Smart Classes / (Working Days × Total Schools)</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-yellow-900/40 min-w-[110px]" title="Formula: Total Smart Classes / (Working Days × Total Schools)">
+                                    Avg Smart Classes/per school/Day
                                 </th>
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">Total ICT Visit</th>
                                 <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">Total Smart Visit</th>
@@ -1901,6 +1919,13 @@ const ZonePerformance = ({
                                         title={`Click to view schools with active working instructors (Total: ${row.instructorWorking})`}
                                     >
                                         {row.instructorWorking}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('vacant_instructors'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-red-50/20 dark:bg-red-950/10 font-bold text-red-650 dark:text-red-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-red-900 dark:hover:text-red-300 transition-all"
+                                        title={`Click to view schools with vacant instructors (Total: ${row.totalSchools - row.instructorWorking})`}
+                                    >
+                                        {row.totalSchools - row.instructorWorking}
                                     </td>
                                     <td
                                         onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('cpu_installed'); setSearchQuery(''); }}
@@ -2194,59 +2219,59 @@ const ZonePerformance = ({
                             <h3 className="text-[10px] uppercase tracking-widest font-black text-gray-500 dark:text-gray-400 mb-3">
                                 Project-wise Breakdown within {auditComparativeData.selZoneName}
                             </h3>
-                            <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-white/5">
-                                <table className="w-full text-left border-collapse">
+                            <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-white/10 shadow-md">
+                                <table className="w-full text-left border-collapse border border-gray-200 dark:border-white/10">
                                     <thead>
-                                        <tr className="bg-slate-50/60 dark:bg-slate-800/30 text-[9px] uppercase tracking-widest font-black text-slate-500 dark:text-slate-400 border-b border-gray-100 dark:border-white/5">
-                                            <th className="p-3">Project</th>
-                                            <th className="p-3 text-center">Schools</th>
-                                            <th className="p-3 text-center">Instructors</th>
-                                            <th className="p-3 text-center">CPU I/U</th>
-                                            <th className="p-3 text-center">Mini PC I/U</th>
-                                            <th className="p-3 text-center">Panel I/U</th>
-                                            <th className="p-3 text-center">Total Hours</th>
-                                            <th className="p-3 text-center">Device Util%</th>
-                                            <th className="p-3 text-center">ICT Classes</th>
-                                            <th className="p-3 text-center">Smart Classes</th>
-                                            <th className="p-3 text-center">Class Rate</th>
-                                            <th className="p-3 text-center">Visits</th>
-                                            <th className="p-3 text-center">Visit/Sch</th>
-                                            <th className="p-3 text-center">Instr.%</th>
+                                        <tr className="bg-teal-850 dark:bg-teal-950 text-white text-[10px] uppercase tracking-wider font-bold divide-x divide-teal-700/30">
+                                            <th className="p-2.5">Project</th>
+                                            <th className="p-2.5 text-center">Schools</th>
+                                            <th className="p-2.5 text-center">Instructors</th>
+                                            <th className="p-2.5 text-center">CPU I/U</th>
+                                            <th className="p-2.5 text-center">Mini PC I/U</th>
+                                            <th className="p-2.5 text-center">Panel I/U</th>
+                                            <th className="p-2.5 text-center">Total Hours</th>
+                                            <th className="p-2.5 text-center">Device Util%</th>
+                                            <th className="p-2.5 text-center">ICT Classes</th>
+                                            <th className="p-2.5 text-center">Smart Classes</th>
+                                            <th className="p-2.5 text-center">Class Rate</th>
+                                            <th className="p-2.5 text-center">Visits</th>
+                                            <th className="p-2.5 text-center">Visit/Sch</th>
+                                            <th className="p-2.5 text-center">Instr.%</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                                    <tbody className="divide-y divide-gray-200 dark:divide-white/5 text-xs text-gray-700 dark:text-gray-300">
                                         {projectBreakdownData.map((p) => (
-                                            <tr key={p.projectName} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-colors">
-                                                <td className="p-3 font-bold text-indigo-700 dark:text-indigo-400">{p.projectName}</td>
-                                                <td className="p-3 text-center font-semibold text-gray-700 dark:text-gray-300">{p.totalSchools}</td>
-                                                <td className="p-3 text-center font-semibold text-emerald-700 dark:text-emerald-400">{p.instructorWorking}</td>
-                                                <td className="p-3 text-center">
+                                            <tr key={p.projectName} className="hover:bg-teal-50/40 dark:hover:bg-white/[0.02] even:bg-slate-50/70 dark:even:bg-slate-800/10 transition-colors divide-x divide-gray-200 dark:divide-white/5">
+                                                <td className="p-2.5 font-bold text-indigo-700 dark:text-indigo-400">{p.projectName}</td>
+                                                <td className="p-2.5 text-center font-semibold">{p.totalSchools}</td>
+                                                <td className="p-2.5 text-center font-semibold text-emerald-700 dark:text-emerald-400">{p.instructorWorking}</td>
+                                                <td className="p-2.5 text-center">
                                                     <span className="font-bold text-gray-800 dark:text-gray-200">{p.cpuInstalled}</span>
                                                     <span className="text-gray-400 mx-0.5">/</span>
                                                     <span className="font-bold text-emerald-600 dark:text-emerald-400">{p.cpuUsed}</span>
                                                 </td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-2.5 text-center">
                                                     <span className="font-bold text-gray-800 dark:text-gray-200">{p.miniPcInstalled}</span>
                                                     <span className="text-gray-400 mx-0.5">/</span>
                                                     <span className="font-bold text-emerald-600 dark:text-emerald-400">{p.miniPcUsed}</span>
                                                 </td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-2.5 text-center">
                                                     <span className="font-bold text-gray-800 dark:text-gray-200">{p.panelInstalled}</span>
                                                     <span className="text-gray-400 mx-0.5">/</span>
                                                     <span className="font-bold text-emerald-600 dark:text-emerald-400">{p.panelUsed}</span>
                                                 </td>
-                                                <td className="p-3 text-center font-bold text-gray-700 dark:text-gray-300">{p.totalHours}h</td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-2.5 text-center font-bold text-slate-700 dark:text-slate-350">{p.totalHours}h</td>
+                                                <td className="p-2.5 text-center">
                                                     <span className={`px-2 py-0.5 rounded font-black text-[10px] ${parseFloat(p.deviceUtil) >= 60 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : parseFloat(p.deviceUtil) >= 30 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
                                                         {p.deviceUtil}%
                                                     </span>
                                                 </td>
-                                                <td className="p-3 text-center font-semibold text-indigo-600 dark:text-indigo-400">{p.ictClasses}</td>
-                                                <td className="p-3 text-center font-semibold text-purple-600 dark:text-purple-400">{p.smartClasses}</td>
-                                                <td className="p-3 text-center font-semibold text-gray-600 dark:text-gray-400">{p.classRate}</td>
-                                                <td className="p-3 text-center font-bold text-teal-600 dark:text-teal-400">{p.totalVisits}</td>
-                                                <td className="p-3 text-center font-semibold text-gray-600 dark:text-gray-400">{p.monitoring}</td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-2.5 text-center font-semibold text-indigo-600 dark:text-indigo-400">{p.ictClasses}</td>
+                                                <td className="p-2.5 text-center font-semibold text-purple-600 dark:text-purple-400">{p.smartClasses}</td>
+                                                <td className="p-2.5 text-center font-semibold text-gray-600 dark:text-gray-400">{p.classRate}</td>
+                                                <td className="p-2.5 text-center font-bold text-teal-600 dark:text-teal-400">{p.totalVisits}</td>
+                                                <td className="p-2.5 text-center font-semibold text-gray-600 dark:text-gray-400">{p.monitoring}</td>
+                                                <td className="p-2.5 text-center">
                                                     <span className={`px-2 py-0.5 rounded font-black text-[10px] ${parseFloat(p.instRate) >= 80 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : parseFloat(p.instRate) >= 50 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
                                                         {p.instRate}%
                                                     </span>
@@ -2337,6 +2362,7 @@ const ZonePerformance = ({
                                     {drilldownFilter === 'smart_visits' && "Field Smart Board Visits Logging Details"}
                                     {drilldownFilter === 'all_visits' && "Field Team All Visits Logging Details"}
                                     {drilldownFilter === 'projects' && "Zone Projects-Wise Breakdown & Comparative Metrics"}
+                                    {drilldownFilter === 'vacant_instructors' && "Zone Schools with Vacant Instructor Posts"}
                                 </h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
                                     Zone: <span className="font-bold text-gray-800 dark:text-gray-200">{activeZoneDetail.zoneName}</span> — Projects: {activeZoneDetail.totalProjects}
@@ -2377,6 +2403,8 @@ const ZonePerformance = ({
                                             ? "Search by CC name..."
                                             : drilldownViewType === 'projects'
                                             ? "Search by project name..."
+                                            : drilldownViewType === 'vacant_instructors'
+                                            ? "Search by school, UDISE, or last instructor..."
                                             : drilldownViewType === 'devices'
                                             ? "Search by school, UDISE, or serial no..."
                                             : drilldownViewType === 'usage_logs'
@@ -2456,6 +2484,16 @@ const ZonePerformance = ({
                                                 <th className="p-3 text-center">Block</th>
                                                 <th className="p-3 text-center">Instructor Name</th>
                                                 <th className="p-3 text-center">Instructor Status</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'vacant_instructors' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 text-center">UDISE Code</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Last Working Instructor Name</th>
+                                                <th className="p-3 text-center text-red-200">Last Working Date</th>
                                             </tr>
                                         )}
                                         {drilldownViewType === 'usage_logs' && (
@@ -2610,6 +2648,16 @@ const ZonePerformance = ({
                                                     {ins.instructorStatus === 'Pending' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm leading-none">Pending</span>}
                                                     {ins.instructorStatus === 'Vacant' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-sm leading-none">Vacant</span>}
                                                 </td>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'vacant_instructors' && activeZoneDetailsData.map((ins, idx) => (
+                                            <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{ins.slno}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{ins.udise}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">{ins.schoolName}</td>
+                                                <td className="p-2.5 text-center">{ins.block}</td>
+                                                <td className="p-2.5 text-left pl-4 font-semibold text-slate-800 dark:text-slate-200">{ins.lastInstructorName}</td>
+                                                <td className="p-2.5 text-center text-rose-600 dark:text-rose-450 font-bold">{ins.lastWorkingDate}</td>
                                             </tr>
                                         ))}
                                         {drilldownViewType === 'usage_logs' && activeZoneDetailsData.map((log, sIdx) => (
