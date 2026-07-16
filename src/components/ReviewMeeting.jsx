@@ -277,53 +277,67 @@ const ReviewMeeting = ({
         // Roster / Staffing
         const staffRatio = dossierData.totalSchools > 0 ? (dossierData.activeStaff / dossierData.totalSchools) * 100 : 0;
         if (staffRatio >= 90) {
-            strengths.push("High Instructor Placement: Near-full operational strength with active instructors in class.");
+            strengths.push(`High Instructor Placement: Near-full operational strength (${Math.round(staffRatio)}%) with active instructors.`);
+            strengths.push("Staffing Stability: Minimal class disruptions due to reliable instructor presence.");
         } else if (staffRatio < 70) {
-            weaknesses.push(`Severe Staffing Shortage: ${dossierData.vacantStaff} vacant instructor post(s) causing learning downtime.`);
+            weaknesses.push(`Critical Staffing Deficit: ${dossierData.vacantStaff} vacant instructor post(s) causing learning downtime.`);
             threats.push("Prolonged instructor vacancy leading to student detachment from Computer Labs.");
+            opportunities.push("Conduct urgent recruitment drives or coordinate remote instructor hubs.");
         } else {
-            weaknesses.push("Moderate Instructor Vacancies: Intermittent lab lockouts due to unfilled slots.");
+            weaknesses.push(`Moderate Roster Gaps: ${dossierData.vacantStaff} school(s) vacant, causing intermittent lab locking.`);
+            opportunities.push("Cross-deploy instructors from neighboring schools on alternate days.");
         }
 
         // Conduction rate
-        if (dossierData.classRate >= 1.0) {
-            strengths.push(`Excellent Class Conduction Rate: Averaging ${dossierData.classRate} computer classes per school daily.`);
-        } else if (dossierData.classRate < 0.4) {
-            weaknesses.push(`Extremely Low Class Conduction: Labs are severely under-utilized (${dossierData.classRate} classes/day).`);
-            opportunities.push("Conduct special training drives for coordinators to increase daily class frequency.");
+        if (dossierData.classRate >= 1.2) {
+            strengths.push(`High Lab Utilisation: Averaging ${dossierData.classRate} computer classes per school daily, exceeding target.`);
+        } else if (dossierData.classRate < 0.5) {
+            weaknesses.push(`Low Class Logging Density: Computer labs are severely under-utilized (${dossierData.classRate} classes/day).`);
+            opportunities.push("Enforce mandatory ICT slots in the weekly school academic timetable.");
+            threats.push("Risk of program failure due to insufficient hands-on practice for students.");
         } else {
-            opportunities.push("Scope to maximize Smart Class logging compliance up to 1.5 classes/day.");
+            strengths.push(`Moderate Class Density: Logging ${dossierData.classRate} daily classes, approaching baseline targets.`);
+            opportunities.push("Maximize Smart Class logging compliance up to 1.5 classes/day.");
         }
 
         // Sync Status
         const syncRatio = dossierData.totalSchools > 0 ? (dossierData.syncSchoolsCount / dossierData.totalSchools) * 100 : 0;
-        if (syncRatio >= 85) {
-            strengths.push("Excellent Data Syncing: Real-time hardware utilization logs are highly compliant.");
-        } else if (syncRatio < 50) {
-            weaknesses.push(`Data Inflow Gap: ${dossierData.nonSyncSchoolsCount} schools are not syncing device usage logs.`);
-            threats.push("Extended hardware breakdowns hidden due to lack of device sync reporting.");
-            opportunities.push("Initiate manual hardware audit visits to restore internet/sync services.");
+        if (syncRatio >= 90) {
+            strengths.push(`Excellent Connectivity: ${Math.round(syncRatio)}% of labs are actively syncing hardware logs.`);
+        } else if (syncRatio < 60) {
+            weaknesses.push(`Critical Connectivity Gap: ${dossierData.nonSyncSchoolsCount} schools fail to report device sync logs.`);
+            threats.push("Extended hardware breakdowns hidden due to lack of real-time sync telemetry.");
+            opportunities.push("Deploy coordinator audit visits to restore internet and agent connectivity.");
+        } else {
+            weaknesses.push(`Reporting Inconsistencies: ${dossierData.nonSyncSchoolsCount} schools are currently offline.`);
+            opportunities.push("Establish local offline logging fallback protocols using paper log sheets.");
         }
 
         // Hours & Hardware
-        const avgHours = dossierData.totalDevices > 0 ? dossierData.totalHours / dossierData.totalDevices : 0;
-        if (avgHours > 20) {
-            strengths.push("Strong Device Utilization: System run-times show active student participation.");
+        const avgHoursPerSch = dossierData.totalSchools > 0 ? dossierData.totalHours / dossierData.totalSchools : 0;
+        if (avgHoursPerSch >= 30) {
+            strengths.push(`Robust Cumulative Run Time: Averaging ${Math.round(avgHoursPerSch)} system hours per school.`);
         } else {
-            weaknesses.push("Low Cumulative Runtime: Low run-hours point to passive or unlogged sessions.");
+            weaknesses.push(`Low Device Run Hours: Daily run-times average a low ${Math.round(avgHoursPerSch)} hours per school.`);
+            opportunities.push("Organize inter-school lab competitions to increase daily usage motivation.");
+        }
+
+        if (dossierData.panelInstalled > 0) {
+            strengths.push(`Visual Infrastructure: Integrated deployment of ${dossierData.panelInstalled} Smart Flat Panels.`);
         }
 
         // Monitoring
         if (dossierData.visitRate >= 1.0) {
-            strengths.push(`Proactive Supervision: Coordinator visit rate stands at a strong ${dossierData.visitRate} visits per school.`);
+            strengths.push(`Proactive Field Auditing: Coordinator visit rate stands at a strong ${dossierData.visitRate} per school.`);
         } else {
-            weaknesses.push("Deficient Supervision: Low visitation rates reduce coordinator oversight and support.");
-            opportunities.push("Implement mandatory field visit route-mapping for all regional CCs.");
+            weaknesses.push(`Deficient Supervision: Low visitation rates (${dossierData.visitRate}) limit direct coordinator oversight.`);
+            opportunities.push("Establish mandatory field visitation targets and GPS verification.");
+            threats.push("Lax operational standards in remote schools due to lack of coordinator visits.");
         }
 
         // General
-        opportunities.push("Integrate student computer labs with local academic curriculum projects.");
-        threats.push("Hardware deprecation risk due to lack of regular upkeep and dust protection.");
+        opportunities.push("Integrate student computer projects with local curriculum homework.");
+        threats.push("Hardware deterioration risk (rust/dust) in vacant locked rooms.");
 
         return { strengths, weaknesses, opportunities, threats };
     }, [dossierData]);
@@ -336,27 +350,25 @@ const ReviewMeeting = ({
         const futurePlans = [];
 
         if (dossierData.vacantStaff > 0) {
-            challenges.push(`Recruitment Gaps: ${dossierData.vacantStaff} school(s) currently operate without active IT instructors.`);
-            futurePlans.push("Accelerate recruitment workflows to fill instructor vacancies within 14 business days.");
+            challenges.push(`IT Instructor Recruitment: ${dossierData.vacantStaff} school(s) operating without active instructors.`);
+            futurePlans.push("Accelerate recruitment workflows to fill vacancies within 14 business days.");
         }
         if (dossierData.nonSyncSchoolsCount > 0) {
-            challenges.push(`Network & Reporting Issues: ${dossierData.nonSyncSchoolsCount} schools failed to sync any device logs.`);
-            futurePlans.push("Deploy a technical taskforce to inspect internet and local agent sync software at non-reporting labs.");
+            challenges.push(`Internet Connectivity Outages: ${dossierData.nonSyncSchoolsCount} schools failed to sync any device logs.`);
+            futurePlans.push("Deploy a technical support team to inspect local routers, agents, and SIM cards.");
         }
-        if (dossierData.classRate < 0.6) {
-            challenges.push("Sub-optimal Classroom Conduction: Weekly lab logging averages fall below target benchmarks.");
-            futurePlans.push("Enforce strict timetable allocation ensuring every student group gets 2+ lab sessions weekly.");
+        if (dossierData.classRate < 0.8) {
+            challenges.push(`Under-utilised Timetable Slots: Cumulative daily class rate of ${dossierData.classRate} is below targets.`);
+            futurePlans.push("Implement mandatory school-wise weekly lab timetables matching student strength.");
+        }
+        if (dossierData.visitRate < 1.0) {
+            challenges.push(`Insufficient Field Monitoring: Average visitation rate (${dossierData.visitRate}) falls below the 1.0 threshold.`);
+            futurePlans.push("Re-route CC schedules to prioritize non-visited schools first.");
         }
 
-        if (dossierData.compositeScore < 60) {
-            challenges.push("Below Average Composite Grade: Performance indicators show general regional lag.");
-            futurePlans.push("Organize monthly review meetings with CCs to inspect local lab attendance registers.");
-        }
-
-        // Default backups
         if (challenges.length === 0) {
-            challenges.push("Sustaining current operational efficiency across all metrics.");
-            challenges.push("Ensuring periodic hardware checkups to prevent hardware failure.");
+            challenges.push("Sustaining operational efficiency and maintaining full roster stability.");
+            challenges.push("Ensuring periodic hardware checkups to prevent sudden component failure.");
         }
         if (futurePlans.length === 0) {
             futurePlans.push("Introduce reward mechanisms for top-performing CCs and schools.");
@@ -378,6 +390,148 @@ const ReviewMeeting = ({
         }
     }, [swotAnalysis, roadmapData, hasUserEdited]);
 
+    // Grouping calculations for tables & charts
+    const subGroups = useMemo(() => {
+        const groups = {};
+        entitySchools.forEach(s => {
+            let key = '';
+            if (reviewLevel === 'zone') key = s.project_name || 'Unassigned Project';
+            else if (reviewLevel === 'project') key = s.block || 'Unassigned Block';
+            else if (reviewLevel === 'district') key = s.block || 'Unassigned Block';
+            else if (reviewLevel === 'cc') key = s.school_name || s.school || 'Unassigned School';
+            else if (reviewLevel === 'school') key = s.school_name || s.school || 'Unassigned School';
+
+            if (!groups[key]) {
+                groups[key] = {
+                    name: key,
+                    schools: [],
+                    udises: new Set()
+                };
+            }
+            groups[key].schools.push(s);
+            groups[key].udises.add(cleanUdise(s.udise_code));
+        });
+        return Object.values(groups);
+    }, [entitySchools, reviewLevel]);
+
+    const subGroupKPIs = useMemo(() => {
+        return subGroups.map(group => {
+            let activeStaff = 0;
+            let vacantStaff = 0;
+            group.schools.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const schoolMp = manpower.filter(m => cleanUdise(m.udise || getVal(m, 'udise')) === udise);
+                const isWorking = schoolMp.some(m => {
+                    const status = String(getVal(m, 'status') || '').trim().toUpperCase();
+                    return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
+                });
+                if (isWorking) activeStaff++;
+                else vacantStaff++;
+            });
+
+            let cpuInstalled = 0;
+            let miniInstalled = 0;
+            let panelInstalled = 0;
+            group.schools.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const masterRec = edustatMaster.find(m => cleanUdise(m.udise || getVal(m, 'udise')) === udise);
+                if (masterRec) {
+                    cpuInstalled += Number(getVal(masterRec, 'cpu') || 0);
+                    miniInstalled += Number(getVal(masterRec, 'mini') || getVal(masterRec, 'thin') || 0);
+                    panelInstalled += Number(getVal(masterRec, 'panel') || 0);
+                } else {
+                    cpuInstalled += 1;
+                }
+            });
+
+            let totalHours = 0;
+            let syncSchoolsCount = 0;
+            const syncedUdises = new Set();
+            edustat.forEach(row => {
+                const udise = cleanUdise(row.udise || getVal(row, 'udise'));
+                if (!group.udises.has(udise)) return;
+                const rDate = parseDateRobust(row.date || getVal(row, 'date'));
+                if (rDate && startDate && endDate) {
+                    const dStr = rDate.toISOString().split('T')[0];
+                    if (dStr >= startDate && dStr <= endDate) {
+                        totalHours += Number(row.hours || getVal(row, 'hours') || 0);
+                        syncedUdises.add(udise);
+                    }
+                }
+            });
+            syncSchoolsCount = syncedUdises.size;
+
+            let ictClasses = 0;
+            let smartClasses = 0;
+            jhpmsLab.forEach(row => {
+                const udise = cleanUdise(row.udise || getVal(row, 'udise') || row.udise_code);
+                if (!group.udises.has(udise)) return;
+                const rDate = parseDateRobust(row.date || getVal(row, 'date') || row.visit_date);
+                if (rDate && startDate && endDate) {
+                    const dStr = rDate.toISOString().split('T')[0];
+                    if (dStr >= startDate && dStr <= endDate) {
+                        const lab = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
+                        if (lab.includes('ICT') || lab.includes('COMP')) ictClasses++;
+                        else if (lab.includes('SMART') || lab.includes('BOARD') || lab.includes('PANEL')) smartClasses++;
+                    }
+                }
+            });
+            const totalClasses = ictClasses + smartClasses;
+            const days = Number(workingDays) || 1;
+            const classRate = parseFloat((totalClasses / (group.schools.length * days)).toFixed(2));
+
+            let totalVisits = 0;
+            visits.forEach(row => {
+                const udise = cleanUdise(row.udise_code);
+                if (!group.udises.has(udise)) return;
+                const rDate = parseDateRobust(row.visit_date);
+                if (rDate && startDate && endDate) {
+                    const dStr = rDate.toISOString().split('T')[0];
+                    if (dStr >= startDate && dStr <= endDate) {
+                        totalVisits++;
+                    }
+                }
+            });
+            const visitRate = parseFloat((totalVisits / group.schools.length).toFixed(2));
+
+            const totalDevices = cpuInstalled + miniInstalled + panelInstalled;
+            const activeStaffPct = group.schools.length > 0 ? (activeStaff / group.schools.length) * 100 : 0;
+            const classTargetPct = Math.min(100, (classRate / 1.5) * 100);
+            const runHourTargetPct = Math.min(100, ((totalHours / Math.max(1, totalDevices * days)) / 2) * 100);
+            const visitTargetPct = Math.min(100, (visitRate / 1.0) * 100);
+
+            const compositeScore = Math.round(
+                (activeStaffPct * 0.25) +
+                (classTargetPct * 0.35) +
+                (runHourTargetPct * 0.25) +
+                (visitTargetPct * 0.15)
+            );
+
+            let grade = 'D';
+            if (compositeScore >= 85) grade = 'A+';
+            else if (compositeScore >= 70) grade = 'A';
+            else if (compositeScore >= 55) grade = 'B';
+            else if (compositeScore >= 40) grade = 'C';
+
+            return {
+                name: group.name,
+                totalSchools: group.schools.length,
+                activeStaff,
+                vacantStaff,
+                syncSchoolsCount,
+                syncRate: group.schools.length > 0 ? Math.round((syncSchoolsCount / group.schools.length) * 100) : 0,
+                totalHours,
+                totalClasses,
+                classRate,
+                totalVisits,
+                visitRate,
+                totalDevices,
+                compositeScore,
+                grade
+            };
+        });
+    }, [subGroups, manpower, edustat, edustatMaster, jhpmsLab, visits, startDate, endDate, workingDays]);
+
     const handlePPTXExport = async () => {
         if (!selectedEntity || !dossierData) return;
         setExportingPPTX(true);
@@ -387,7 +541,7 @@ const ReviewMeeting = ({
             const pptx = new PptxGen();
             pptx.layout = 'LAYOUT_16x9';
 
-            // Premium Corporate Colors
+            // Premium Corporate Palette
             const colorTealDark = '0B4F48';
             const colorTealMid = '0D9488';
             const colorAmber = 'D97706';
@@ -404,34 +558,35 @@ const ReviewMeeting = ({
                 ? `${formatDate(startDate)} to ${formatDate(endDate)}` 
                 : 'All time data';
 
+            // Header Builder Helper
             const addSlideHeader = (slide, title, categoryLabel) => {
                 slide.background = { fill: colorBgLight };
                 
-                // Header bar
+                // Top header bar shape
                 slide.addShape(pptx.shapes.RECTANGLE, {
                     x: 0, y: 0, w: 10.0, h: 0.9, fill: { color: colorTealDark }
                 });
 
-                // Category
+                // Category tag
                 slide.addText(categoryLabel.toUpperCase(), {
                     x: 0.5, y: 0.12, w: 8.0, h: 0.2,
                     fontSize: 8, bold: true, color: '8BF8E0', tracking: 2
                 });
 
-                // Main Title
+                // Title
                 slide.addText(title, {
                     x: 0.5, y: 0.32, w: 7.0, h: 0.45,
                     fontSize: 18, bold: true, color: colorWhite, fontFace: 'Georgia'
                 });
 
-                // Top right brand badge
+                // Brand Badge
                 slide.addText('JHARKHAND EDUCATION PROJECT COUNCIL', {
                     x: 7.2, y: 0.35, w: 2.3, h: 0.3,
                     fontSize: 8, bold: true, color: '8BF8E0', align: 'right', tracking: 1
                 });
             };
 
-            // SLIDE 1: Executive Cover
+            // SLIDE 1: Executive Title Cover
             const slideCover = pptx.addSlide();
             slideCover.background = { fill: colorTealDark };
 
@@ -455,7 +610,6 @@ const ReviewMeeting = ({
                 x: 0.6, y: 2.9, w: 1.8, h: 0.04, fill: { color: colorAmber }
             });
 
-            // Meta fields
             slideCover.addText('DATE RANGE', { x: 0.6, y: 3.3, w: 4.0, h: 0.2, fontSize: 9, bold: true, color: '8BF8E0', tracking: 1 });
             slideCover.addText(timeRangeText, { x: 0.6, y: 3.5, w: 4.0, h: 0.4, fontSize: 12, bold: true, color: colorWhite });
 
@@ -481,7 +635,6 @@ const ReviewMeeting = ({
             const slideKPI = pptx.addSlide();
             addSlideHeader(slideKPI, 'Operational KPI Scorecard', 'Performance Review');
 
-            // Grade Card on Left
             slideKPI.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
                 x: 0.5, y: 1.3, w: 3.2, h: 3.8, fill: { color: colorWhite }, line: { color: 'E2E8F0', width: 1 }
             });
@@ -495,12 +648,13 @@ const ReviewMeeting = ({
                 x: 0.8, y: 3.1, w: 2.6, h: 0.4, fontSize: 16, bold: true, color: colorTealMid, align: 'center'
             });
             
-            const statsOverviewText = 
-                `• Total Schools Managed: ${dossierData.totalSchools}\n` +
-                `• Student-to-Device Ratio: 1:${dossierData.studentToDevice}\n` +
-                `• Conduction Target Index: ${Math.round(Math.min(100, (dossierData.classRate / 1.5) * 100))}%`;
-            slideKPI.addText(statsOverviewText, {
-                x: 0.8, y: 3.7, w: 2.6, h: 1.2, fontSize: 10, color: colorTextDark, lineSpacing: 5
+            const statsOverviewRuns = [
+                { text: `Total Schools Managed: ${dossierData.totalSchools}`, options: { bullet: true, fontSize: 9.5, color: colorTextDark, paraSpaceBefore: 4 } },
+                { text: `Student-to-Device Ratio: 1:${dossierData.studentToDevice}`, options: { bullet: true, fontSize: 9.5, color: colorTextDark, paraSpaceBefore: 4 } },
+                { text: `Conduction Index: ${Math.round(Math.min(100, (dossierData.classRate / 1.5) * 100))}% of target`, options: { bullet: true, fontSize: 9.5, color: colorTextDark, paraSpaceBefore: 4 } }
+            ];
+            slideKPI.addText(statsOverviewRuns, {
+                x: 0.8, y: 3.7, w: 2.6, h: 1.2
             });
 
             // 4 Grid KPI Boxes on Right
@@ -521,7 +675,6 @@ const ReviewMeeting = ({
                     x: xPos, y: yPos, w: 2.5, h: 1.7, fill: { color: colorWhite }, line: { color: 'E2E8F0', width: 1 }
                 });
 
-                // Top color strip
                 slideKPI.addShape(pptx.shapes.RECTANGLE, {
                     x: xPos + 0.15, y: yPos + 0.15, w: 0.08, h: 0.4, fill: { color: item.color }
                 });
@@ -540,7 +693,65 @@ const ReviewMeeting = ({
             });
 
 
-            // SLIDE 3: SWOT Analysis Grid
+            // SLIDE 3: REFERENCE TABLE - Core Metrics Overview Table
+            const slide3Table = pptx.addSlide();
+            addSlideHeader(slide3Table, 'Core KPI & Sub-Entity Reference Sheet', 'Data Reference');
+
+            const table3Data = [
+                [
+                    { text: "Sub-Entity Name", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Schools", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Active Staff", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Vacant Staff", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Sync Rate", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Run Hours", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Class Rate", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Visit Rate", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Comp Score", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Grade", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } }
+                ]
+            ];
+
+            subGroupKPIs.forEach(g => {
+                table3Data.push([
+                    { text: String(g.name), options: { fontSize: 8 } },
+                    { text: String(g.totalSchools), options: { fontSize: 8 } },
+                    { text: String(g.activeStaff), options: { fontSize: 8 } },
+                    { text: String(g.vacantStaff), options: { fontSize: 8, color: g.vacantStaff > 0 ? "DC2626" : "1E293B", bold: g.vacantStaff > 0 } },
+                    { text: `${g.syncRate}%`, options: { fontSize: 8 } },
+                    { text: String(g.totalHours), options: { fontSize: 8 } },
+                    { text: String(g.classRate), options: { fontSize: 8 } },
+                    { text: String(g.visitRate), options: { fontSize: 8 } },
+                    { text: `${g.compositeScore}%`, options: { fontSize: 8, bold: true } },
+                    { text: String(g.grade), options: { fontSize: 8, bold: true, color: g.compositeScore >= 70 ? "0D9488" : "D97706" } }
+                ]);
+            });
+
+            // Total row
+            table3Data.push([
+                { text: "OVERALL / TOTAL", options: { bold: true, fontSize: 8, fill: "F1F5F9" } },
+                { text: String(dossierData.totalSchools), options: { bold: true, fontSize: 8, fill: "F1F5F9" } },
+                { text: String(dossierData.activeStaff), options: { bold: true, fontSize: 8, fill: "F1F5F9" } },
+                { text: String(dossierData.vacantStaff), options: { bold: true, fontSize: 8, fill: "F1F5F9", color: dossierData.vacantStaff > 0 ? "DC2626" : "1E293B" } },
+                { text: `${Math.round((dossierData.syncSchoolsCount / dossierData.totalSchools) * 100)}%`, options: { bold: true, fontSize: 8, fill: "F1F5F9" } },
+                { text: String(dossierData.totalHours), options: { bold: true, fontSize: 8, fill: "F1F5F9" } },
+                { text: String(dossierData.classRate), options: { bold: true, fontSize: 8, fill: "F1F5F9" } },
+                { text: String(dossierData.visitRate), options: { bold: true, fontSize: 8, fill: "F1F5F9" } },
+                { text: `${dossierData.compositeScore}%`, options: { bold: true, fontSize: 8, fill: "F1F5F9" } },
+                { text: String(dossierData.grade), options: { bold: true, fontSize: 8, fill: "F1F5F9" } }
+            ]);
+
+            slide3Table.addTable(table3Data, {
+                x: 0.5, y: 1.2, w: 9.0, h: 3.8,
+                autoPage: true,
+                autoPageHeader: true,
+                autoPageLineMultiplier: 0.8,
+                colWidths: [1.7, 0.7, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.9, 0.9],
+                border: { type: "solid", color: "E2E8F0", width: 0.5 }
+            });
+
+
+            // SLIDE 4: Strategic SWOT Matrix
             const slideSWOT = pptx.addSlide();
             addSlideHeader(slideSWOT, 'Strategic SWOT Matrix', 'Strategic Insights');
 
@@ -557,31 +768,85 @@ const ReviewMeeting = ({
                 const xPos = 0.5 + (col * 4.6);
                 const yPos = 1.2 + (row * 2.0);
 
-                // Main card
                 slideSWOT.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
                     x: xPos, y: yPos, w: 4.4, h: 1.8, fill: { color: block.bg }, line: { color: 'E2E8F0', width: 1 }
                 });
 
-                // Colored Header
                 slideSWOT.addText(block.title, {
                     x: xPos + 0.2, y: yPos + 0.15, w: 4.0, h: 0.3,
                     fontSize: 10, bold: true, color: block.color, tracking: 1
                 });
 
-                // Points
-                const bullets = block.list.slice(0, 3).map(p => `• ${p}`).join('\n');
-                slideSWOT.addText(bullets || '• No specific entries determined.', {
-                    x: xPos + 0.2, y: yPos + 0.45, w: 4.0, h: 1.2,
-                    fontSize: 8.5, bold: true, color: colorTextDark, lineSpacing: 4
+                const textRuns = block.list.slice(0, 4).map(p => {
+                    return { text: p, options: { bullet: true, fontSize: 8.2, color: colorTextDark, paraSpaceBefore: 3 } };
+                });
+                if (textRuns.length === 0) {
+                    textRuns.push({ text: 'No specific entries identified.', options: { bullet: true, fontSize: 8.2, color: '64748B' } });
+                }
+
+                slideSWOT.addText(textRuns, {
+                    x: xPos + 0.2, y: yPos + 0.45, w: 4.0, h: 1.25
                 });
             });
 
 
-            // SLIDE 4: Infrastructure & Logging Health
+            // SLIDE 5: SWOT Reference Rules & Benchmarks
+            const slideSWOTRef = pptx.addSlide();
+            addSlideHeader(slideSWOTRef, 'SWOT Dimension & Target Evaluation Metrics', 'Data Reference');
+
+            const staffingPct = dossierData.totalSchools > 0 ? Math.round((dossierData.activeStaff / dossierData.totalSchools) * 100) : 0;
+            const syncPct = dossierData.totalSchools > 0 ? Math.round((dossierData.syncSchoolsCount / dossierData.totalSchools) * 100) : 0;
+            const avgRunHoursPerSch = dossierData.totalSchools > 0 ? Math.round(dossierData.totalHours / dossierData.totalSchools) : 0;
+
+            const table5Data = [
+                [
+                    { text: "Performance Dimension", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 9 } },
+                    { text: "Target Benchmark", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 9 } },
+                    { text: "Current Entity Value", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 9 } },
+                    { text: "Evaluation Result", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 9 } }
+                ],
+                [
+                    { text: "IT Instructor Placement", options: { fontSize: 8.5 } },
+                    { text: ">= 90% placement", options: { fontSize: 8.5 } },
+                    { text: `${staffingPct}% (${dossierData.activeStaff}/${dossierData.totalSchools} schools)`, options: { fontSize: 8.5 } },
+                    { text: staffingPct >= 90 ? "STRENGTH (Satisfactory)" : staffingPct < 70 ? "CRITICAL WEAKNESS" : "MODERATE WEAKNESS", options: { fontSize: 8.5, bold: true, color: staffingPct >= 90 ? "059669" : "DC2626" } }
+                ],
+                [
+                    { text: "Daily Class Conduction", options: { fontSize: 8.5 } },
+                    { text: ">= 1.0 classes/school/day", options: { fontSize: 8.5 } },
+                    { text: `${dossierData.classRate} classes/day average`, options: { fontSize: 8.5 } },
+                    { text: dossierData.classRate >= 1.0 ? "STRENGTH (Satisfactory)" : dossierData.classRate < 0.4 ? "CRITICAL WEAKNESS" : "MODERATE WEAKNESS", options: { fontSize: 8.5, bold: true, color: dossierData.classRate >= 1.0 ? "059669" : "DC2626" } }
+                ],
+                [
+                    { text: "Hardware Sync Connectivity", options: { fontSize: 8.5 } },
+                    { text: ">= 85% syncing compliance", options: { fontSize: 8.5 } },
+                    { text: `${syncPct}% syncing labs`, options: { fontSize: 8.5 } },
+                    { text: syncPct >= 85 ? "STRENGTH (Satisfactory)" : syncPct < 50 ? "CRITICAL WEAKNESS" : "MODERATE WEAKNESS", options: { fontSize: 8.5, bold: true, color: syncPct >= 85 ? "059669" : "DC2626" } }
+                ],
+                [
+                    { text: "Cumulative Run Hours", options: { fontSize: 8.5 } },
+                    { text: ">= 20 hrs/school average", options: { fontSize: 8.5 } },
+                    { text: `${avgRunHoursPerSch} hrs/school`, options: { fontSize: 8.5 } },
+                    { text: avgRunHoursPerSch >= 20 ? "STRENGTH (Satisfactory)" : "WEAKNESS (Below Average)", options: { fontSize: 8.5, bold: true, color: avgRunHoursPerSch >= 20 ? "059669" : "D97706" } }
+                ],
+                [
+                    { text: "Field Coordinator Supervision", options: { fontSize: 8.5 } },
+                    { text: ">= 1.0 visits/school", options: { fontSize: 8.5 } },
+                    { text: `${dossierData.visitRate} visits/school`, options: { fontSize: 8.5 } },
+                    { text: dossierData.visitRate >= 1.0 ? "STRENGTH (Satisfactory)" : "WEAKNESS (Below Average)", options: { fontSize: 8.5, bold: true, color: dossierData.visitRate >= 1.0 ? "059669" : "D97706" } }
+                ]
+            ];
+
+            slideSWOTRef.addTable(table5Data, {
+                x: 0.5, y: 1.3, w: 9.0, h: 3.2,
+                border: { type: "solid", color: "E2E8F0", width: 0.5 }
+            });
+
+
+            // SLIDE 6: Hardware Infrastructure Breakdown
             const slideHardware = pptx.addSlide();
             addSlideHeader(slideHardware, 'Hardware Infrastructure & Compliance', 'Operations & Compliance');
 
-            // Left Box: Sync compliance
             slideHardware.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
                 x: 0.5, y: 1.3, w: 4.3, h: 3.8, fill: { color: colorWhite }, line: { color: 'E2E8F0', width: 1 }
             });
@@ -589,28 +854,25 @@ const ReviewMeeting = ({
                 x: 0.8, y: 1.6, w: 3.7, h: 0.3, fontSize: 10, bold: true, color: '64748B', tracking: 1
             });
 
-            const syncRatio = dossierData.totalSchools > 0 
-                ? Math.round((dossierData.syncSchoolsCount / dossierData.totalSchools) * 100) 
-                : 0;
-
-            slideHardware.addText(`${syncRatio}%`, {
-                x: 0.8, y: 2.0, w: 3.7, h: 0.9, fontSize: 44, bold: true, color: syncRatio >= 75 ? '059669' : 'DC2626', fontFace: 'Courier'
+            slideHardware.addText(`${syncPct}%`, {
+                x: 0.8, y: 2.0, w: 3.7, h: 0.9, fontSize: 44, bold: true, color: syncPct >= 75 ? '059669' : 'DC2626', fontFace: 'Courier'
             });
 
             slideHardware.addText(`Syncing: ${dossierData.syncSchoolsCount} / ${dossierData.totalSchools} Active Labs`, {
                 x: 0.8, y: 2.9, w: 3.7, h: 0.3, fontSize: 12, bold: true, color: colorTextDark
             });
 
-            const hardwareBarText = 
-                `• CPUs Configured: ${dossierData.cpuInstalled} systems\n` +
-                `• Mini PCs Configured: ${dossierData.miniInstalled} nodes\n` +
-                `• Panel IFPs Active: ${dossierData.panelInstalled} boards\n` +
-                `• Total Hardware Node Roster: ${dossierData.totalDevices} units`;
-            slideHardware.addText(hardwareBarText, {
-                x: 0.8, y: 3.3, w: 3.7, h: 1.5, fontSize: 10, color: '475569', lineSpacing: 5
+            const hardwareRuns = [
+                { text: `CPUs Configured: ${dossierData.cpuInstalled} systems`, options: { bullet: true, fontSize: 9, color: '475569', paraSpaceBefore: 3 } },
+                { text: `Mini PCs Configured: ${dossierData.miniInstalled} nodes`, options: { bullet: true, fontSize: 9, color: '475569', paraSpaceBefore: 3 } },
+                { text: `Panel IFPs Active: ${dossierData.panelInstalled} boards`, options: { bullet: true, fontSize: 9, color: '475569', paraSpaceBefore: 3 } },
+                { text: `Total Hardware Node Roster: ${dossierData.totalDevices} units`, options: { bullet: true, fontSize: 9, color: '475569', paraSpaceBefore: 3 } }
+            ];
+            slideHardware.addText(hardwareRuns, {
+                x: 0.8, y: 3.3, w: 3.7, h: 1.5
             });
 
-            // Right Box: Classes breakdown
+            // Right Box: Classes compliance
             slideHardware.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
                 x: 5.2, y: 1.3, w: 4.3, h: 3.8, fill: { color: colorWhite }, line: { color: 'E2E8F0', width: 1 }
             });
@@ -626,19 +888,478 @@ const ReviewMeeting = ({
                 x: 5.5, y: 2.9, w: 3.7, h: 0.3, fontSize: 12, bold: true, color: colorTextDark
             });
 
-            const classesBreakdownText = 
-                `• ICT / Computer Lab classes: ${dossierData.ictClasses} logged\n` +
-                `• Smart Interactive Board classes: ${dossierData.smartClasses} logged\n` +
-                `• Field verification visit sessions: ${dossierData.totalVisits} logs\n` +
-                `• Monitoring visits per school: ${dossierData.visitRate} average`;
-            slideHardware.addText(classesBreakdownText, {
-                x: 5.5, y: 3.3, w: 3.7, h: 1.5, fontSize: 10, color: '475569', lineSpacing: 5
+            const classesRuns = [
+                { text: `ICT / Computer Lab classes: ${dossierData.ictClasses} logged`, options: { bullet: true, fontSize: 9, color: '475569', paraSpaceBefore: 3 } },
+                { text: `Smart Interactive Board classes: ${dossierData.smartClasses} logged`, options: { bullet: true, fontSize: 9, color: '475569', paraSpaceBefore: 3 } },
+                { text: `Field verification visit sessions: ${dossierData.totalVisits} logs`, options: { bullet: true, fontSize: 9, color: '475569', paraSpaceBefore: 3 } },
+                { text: `Monitoring visits per school: ${dossierData.visitRate} average`, options: { bullet: true, fontSize: 9, color: '475569', paraSpaceBefore: 3 } }
+            ];
+            slideHardware.addText(classesRuns, {
+                x: 5.5, y: 3.3, w: 3.7, h: 1.5
             });
 
 
-            // SLIDE 5: Strategic Challenges
+            // SLIDE 7: REFERENCE TABLE - School-wise Hardware Inventory Table
+            const slide7Table = pptx.addSlide();
+            addSlideHeader(slide7Table, 'School-wise Hardware Infrastructure Inventory', 'Data Reference');
+
+            const table7Data = [
+                [
+                    { text: "School Name", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "UDISE Code", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Project Name", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "CPUs", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Mini PCs", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Panel IFPs", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Total Nodes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } }
+                ]
+            ];
+
+            entitySchools.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const masterRec = edustatMaster.find(m => cleanUdise(m.udise || getVal(m, 'udise')) === udise);
+                let c = 0, m = 0, p = 0;
+                if (masterRec) {
+                    c = Number(getVal(masterRec, 'cpu') || 0);
+                    m = Number(getVal(masterRec, 'mini') || getVal(masterRec, 'thin') || 0);
+                    p = Number(getVal(masterRec, 'panel') || 0);
+                } else {
+                    c = 1;
+                }
+
+                table7Data.push([
+                    { text: s.school_name || s.school || "N/A", options: { fontSize: 8 } },
+                    { text: udise, options: { fontSize: 8 } },
+                    { text: s.project_name || "N/A", options: { fontSize: 8 } },
+                    { text: String(c), options: { fontSize: 8 } },
+                    { text: String(m), options: { fontSize: 8 } },
+                    { text: String(p), options: { fontSize: 8 } },
+                    { text: String(c + m + p), options: { fontSize: 8, bold: true } }
+                ]);
+            });
+
+            slide7Table.addTable(table7Data, {
+                x: 0.5, y: 1.2, w: 9.0, h: 3.8,
+                autoPage: true,
+                autoPageHeader: true,
+                autoPageLineMultiplier: 0.8,
+                colWidths: [3.2, 1.0, 1.8, 0.7, 0.7, 0.8, 0.8],
+                border: { type: "solid", color: "E2E8F0", width: 0.5 }
+            });
+
+
+            // SLIDE 8: NATIVE COLUMN CHART - Hardware Asset Configuration
+            const slideHwChart = pptx.addSlide();
+            addSlideHeader(slideHwChart, 'Hardware Configuration Distribution by Sub-Group', 'Data Visualisation');
+
+            const subChartLabels = [];
+            const cpusVal = [];
+            const minisVal = [];
+            const panelsVal = [];
+
+            subGroupKPIs.slice(0, 10).forEach(g => {
+                subChartLabels.push(g.name.substring(0, 15));
+                let cpuSum = 0;
+                let miniSum = 0;
+                let panelSum = 0;
+
+                const grp = subGroups.find(gr => gr.name === g.name);
+                if (grp) {
+                    grp.schools.forEach(s => {
+                        const udise = cleanUdise(s.udise_code);
+                        const masterRec = edustatMaster.find(m => cleanUdise(m.udise || getVal(m, 'udise')) === udise);
+                        if (masterRec) {
+                            cpuSum += Number(getVal(masterRec, 'cpu') || 0);
+                            miniSum += Number(getVal(masterRec, 'mini') || getVal(masterRec, 'thin') || 0);
+                            panelSum += Number(getVal(masterRec, 'panel') || 0);
+                        } else {
+                            cpuSum += 1;
+                        }
+                    });
+                }
+
+                cpusVal.push(cpuSum);
+                minisVal.push(miniSum);
+                panelsVal.push(panelSum);
+            });
+
+            const hwChartData = [
+                { name: "CPUs Installed", labels: subChartLabels, values: cpusVal },
+                { name: "Mini PCs Installed", labels: subChartLabels, values: minisVal },
+                { name: "Smart Flat Panels", labels: subChartLabels, values: panelsVal }
+            ];
+
+            slideHwChart.addChart(pptx.charts.BAR, hwChartData, {
+                x: 0.5, y: 1.3, w: 9.0, h: 3.8,
+                showLegend: true,
+                legendPos: "b",
+                showTitle: false,
+                barDir: "col",
+                chartColors: ["0D9488", "3B82F6", "8B5CF6"]
+            });
+
+
+            // SLIDE 9: Hardware Run Hours & Connectivity Sync Details
+            const slideSyncHours = pptx.addSlide();
+            addSlideHeader(slideSyncHours, 'Daily System Utilisation & Connectivity Sync', 'Operations & Compliance');
+
+            slideSyncHours.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+                x: 0.5, y: 1.3, w: 9.0, h: 3.8, fill: { color: colorWhite }, line: { color: 'E2E8F0', width: 1 }
+            });
+
+            slideSyncHours.addText('UTILISATION COMPLIANCE SUMMARY', {
+                x: 0.8, y: 1.6, w: 8.4, h: 0.3, fontSize: 10, bold: true, color: colorTealMid, tracking: 1
+            });
+
+            const totalHoursLog = dossierData.totalHours;
+            const offlineSchs = dossierData.nonSyncSchoolsCount;
+            const syncSchs = dossierData.syncSchoolsCount;
+
+            const syncHoursRuns = [
+                { text: `Data uploading compliance stands at ${syncPct}% across the selected entity scope.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Active Logging: ${syncSchs} computer labs have synced their daily hardware usage files successfully.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Offline/MIA Labs: ${offlineSchs} schools have failed to report sync logs during the range, indicating internet outages.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Cumulative Runtimes: Logged system runtime stands at ${totalHoursLog} hours across CPUs and Panels.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Average Run Hours: Daily runtime per syncing school stands at ${avgRunHoursPerSch} hours, pointing to active lab usage.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } }
+            ];
+
+            slideSyncHours.addText(syncHoursRuns, {
+                x: 0.8, y: 2.1, w: 8.4, h: 2.6
+            });
+
+
+            // SLIDE 10: REFERENCE TABLE - School-wise Hardware Utilisation and Last Sync Table
+            const slide10Table = pptx.addSlide();
+            addSlideHeader(slide10Table, 'School-wise Hardware Utilisation & Sync Compliance', 'Data Reference');
+
+            const table10Data = [
+                [
+                    { text: "School Name", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "UDISE Code", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Sync Status", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Total Run Hours", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Avg Daily Hours", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } }
+                ]
+            ];
+
+            entitySchools.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                let totalHrs = 0;
+                let synced = false;
+
+                edustat.forEach(row => {
+                    const rUdise = cleanUdise(row.udise || getVal(row, 'udise'));
+                    if (rUdise !== udise) return;
+                    const rDate = parseDateRobust(row.date || getVal(row, 'date'));
+                    if (rDate && startDate && endDate) {
+                        const dStr = rDate.toISOString().split('T')[0];
+                        if (dStr >= startDate && dStr <= endDate) {
+                            totalHrs += Number(row.hours || getVal(row, 'hours') || 0);
+                            synced = true;
+                        }
+                    }
+                });
+
+                const days = Number(workingDays) || 1;
+                const avgHrs = parseFloat((totalHrs / days).toFixed(2));
+
+                table10Data.push([
+                    { text: s.school_name || s.school || "N/A", options: { fontSize: 8 } },
+                    { text: udise, options: { fontSize: 8 } },
+                    { text: synced ? "🟢 SYNCING" : "🔴 OFFLINE", options: { fontSize: 8, bold: true, color: synced ? "059669" : "DC2626" } },
+                    { text: String(totalHrs), options: { fontSize: 8 } },
+                    { text: String(avgHrs), options: { fontSize: 8 } }
+                ]);
+            });
+
+            slide10Table.addTable(table10Data, {
+                x: 0.5, y: 1.2, w: 9.0, h: 3.8,
+                autoPage: true,
+                autoPageHeader: true,
+                autoPageLineMultiplier: 0.8,
+                colWidths: [3.8, 1.2, 1.6, 1.2, 1.2],
+                border: { type: "solid", color: "E2E8F0", width: 0.5 }
+            });
+
+
+            // SLIDE 11: Academic Class Conduction Performance
+            const slideClassConduction = pptx.addSlide();
+            addClassConduction.background = { fill: colorBgLight };
+            addSlideHeader(slideClassConduction, 'Academic Class Conduction Density', 'Operations & Compliance');
+
+            slideClassConduction.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+                x: 0.5, y: 1.3, w: 9.0, h: 3.8, fill: { color: colorWhite }, line: { color: 'E2E8F0', width: 1 }
+            });
+
+            slideClassConduction.addText('CLASS LOGGING DENSITY METRICS', {
+                x: 0.8, y: 1.6, w: 8.4, h: 0.3, fontSize: 10, bold: true, color: '8B5CF6', tracking: 1
+            });
+
+            const classConductionRuns = [
+                { text: `Cumulative computer classes conducted: ${dossierData.totalClasses} logging entries recorded.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `ICT / Traditional Computer classes: ${dossierData.ictClasses} logged, emphasizing coding and digital literacy.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Smart Flat Panel classes: ${dossierData.smartClasses} logged, indicating classroom video learning.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Logging Density Rate: Averaging ${dossierData.classRate} classes per school daily against the target of 1.5.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Roster coverage indicator: Classes are parsed and audited against the active manpower roster.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } }
+            ];
+
+            slideClassConduction.addText(classConductionRuns, {
+                x: 0.8, y: 2.1, w: 8.4, h: 2.6
+            });
+
+
+            // SLIDE 12: REFERENCE TABLE - School-wise Class Conduction Logs Table
+            const slide12Table = pptx.addSlide();
+            addSlideHeader(slide12Table, 'School-wise Academic Class Conduction Logs', 'Data Reference');
+
+            const table12Data = [
+                [
+                    { text: "School Name", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "UDISE Code", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "ICT Classes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Smart Classes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Total Classes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Classes/Day", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } }
+                ]
+            ];
+
+            entitySchools.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                let ict = 0;
+                let smart = 0;
+
+                jhpmsLab.forEach(row => {
+                    const rUdise = cleanUdise(row.udise || getVal(row, 'udise') || row.udise_code);
+                    if (rUdise !== udise) return;
+                    const rDate = parseDateRobust(row.date || getVal(row, 'date') || row.visit_date);
+                    if (rDate && startDate && endDate) {
+                        const dStr = rDate.toISOString().split('T')[0];
+                        if (dStr >= startDate && dStr <= endDate) {
+                            const lab = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
+                            if (lab.includes('ICT') || lab.includes('COMP')) ict++;
+                            else if (lab.includes('SMART') || lab.includes('BOARD') || lab.includes('PANEL')) smart++;
+                        }
+                    }
+                });
+
+                const total = ict + smart;
+                const days = Number(workingDays) || 1;
+                const rate = parseFloat((total / days).toFixed(2));
+
+                table12Data.push([
+                    { text: s.school_name || s.school || "N/A", options: { fontSize: 8 } },
+                    { text: udise, options: { fontSize: 8 } },
+                    { text: String(ict), options: { fontSize: 8 } },
+                    { text: String(smart), options: { fontSize: 8 } },
+                    { text: String(total), options: { fontSize: 8, bold: true } },
+                    { text: String(rate), options: { fontSize: 8 } }
+                ]);
+            });
+
+            slide12Table.addTable(table12Data, {
+                x: 0.5, y: 1.2, w: 9.0, h: 3.8,
+                autoPage: true,
+                autoPageHeader: true,
+                autoPageLineMultiplier: 0.8,
+                colWidths: [3.5, 1.1, 1.1, 1.1, 1.1, 1.1],
+                border: { type: "solid", color: "E2E8F0", width: 0.5 }
+            });
+
+
+            // SLIDE 13: NATIVE BAR CHART - Class Conduction Metrics
+            const slideClChart = pptx.addSlide();
+            addSlideHeader(slideClChart, 'Class Conduction Performance by Sub-Group', 'Data Visualisation');
+
+            const classLabels = [];
+            const totalClassesVal = [];
+
+            subGroupKPIs.slice(0, 10).forEach(g => {
+                classLabels.push(g.name.substring(0, 15));
+                totalClassesVal.push(g.totalClasses);
+            });
+
+            const classChartData = [
+                { name: "Total Classes Logged", labels: classLabels, values: totalClassesVal }
+            ];
+
+            slideClChart.addChart(pptx.charts.BAR, classChartData, {
+                x: 0.5, y: 1.3, w: 9.0, h: 3.8,
+                showLegend: true,
+                legendPos: "b",
+                showTitle: false,
+                barDir: "col",
+                chartColors: ["8B5CF6"]
+            });
+
+
+            // SLIDE 14: Field Team Visitation & Monitoring
+            const slideVisits = pptx.addSlide();
+            addSlideHeader(slideVisits, 'Field Coordinator Visitation & Monitoring Compliance', 'Operations & Compliance');
+
+            slideVisits.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+                x: 0.5, y: 1.3, w: 9.0, h: 3.8, fill: { color: colorWhite }, line: { color: 'E2E8F0', width: 1 }
+            });
+
+            slideVisits.addText('FIELD MONITORING METRICS', {
+                x: 0.8, y: 1.6, w: 8.4, h: 0.3, fontSize: 10, bold: true, color: 'F59E0B', tracking: 1
+            });
+
+            const visitRuns = [
+                { text: `Total coordinator monitoring visits recorded: ${dossierData.totalVisits} sessions during the period.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Visitation Density: Averaging ${dossierData.visitRate} supervisor visits per school, reflecting operational oversight.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Supervision Targets: Target benchmark is at least 1.0 visits per school during a monthly operational cycle.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Impact: Direct field audits help identify network sync dropouts and instruct roster vacancies quickly.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } }
+            ];
+
+            slideVisits.addText(visitRuns, {
+                x: 0.8, y: 2.1, w: 8.4, h: 2.6
+            });
+
+
+            // SLIDE 15: REFERENCE TABLE - School-wise Visitation Logs Table
+            const slide15Table = pptx.addSlide();
+            addSlideHeader(slide15Table, 'School-wise Field Monitoring Visits Log', 'Data Reference');
+
+            const table15Data = [
+                [
+                    { text: "School Name", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "UDISE Code", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Visits Count", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Last Visit Date", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Coordinator (CC)", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } }
+                ]
+            ];
+
+            entitySchools.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                let count = 0;
+                let lastDate = null;
+
+                visits.forEach(row => {
+                    if (cleanUdise(row.udise_code) !== udise) return;
+                    const rDate = parseDateRobust(row.visit_date);
+                    if (rDate && startDate && endDate) {
+                        const dStr = rDate.toISOString().split('T')[0];
+                        if (dStr >= startDate && dStr <= endDate) {
+                            count++;
+                            if (!lastDate || rDate > lastDate) {
+                                lastDate = rDate;
+                            }
+                        }
+                    }
+                });
+
+                table15Data.push([
+                    { text: s.school_name || s.school || "N/A", options: { fontSize: 8 } },
+                    { text: udise, options: { fontSize: 8 } },
+                    { text: String(count), options: { fontSize: 8, bold: count > 0 } },
+                    { text: lastDate ? formatDate(lastDate) : "No Visits", options: { fontSize: 8, color: lastDate ? "1E293B" : "64748B" } },
+                    { text: s.visitor_name || "Unassigned CC", options: { fontSize: 8 } }
+                ]);
+            });
+
+            slide15Table.addTable(table15Data, {
+                x: 0.5, y: 1.2, w: 9.0, h: 3.8,
+                autoPage: true,
+                autoPageHeader: true,
+                autoPageLineMultiplier: 0.8,
+                colWidths: [3.8, 1.2, 1.2, 1.4, 1.4],
+                border: { type: "solid", color: "E2E8F0", width: 0.5 }
+            });
+
+
+            // SLIDE 16: Staffing & Instructor Roster Status
+            const slideManpower = pptx.addSlide();
+            addSlideHeader(slideManpower, 'Instructor Roster Deployment Status', 'Manpower Deployment');
+
+            slideManpower.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+                x: 0.5, y: 1.3, w: 9.0, h: 3.8, fill: { color: colorWhite }, line: { color: 'E2E8F0', width: 1 }
+            });
+
+            slideManpower.addText('MANPOWER ROSTER COMPLIANCE', {
+                x: 0.8, y: 1.6, w: 8.4, h: 0.3, fontSize: 10, bold: true, color: '10B981', tracking: 1
+            });
+
+            const staffPct = dossierData.totalSchools > 0 ? Math.round((dossierData.activeStaff / dossierData.totalSchools) * 100) : 0;
+
+            const manpowerRuns = [
+                { text: `Roster placement stands at a strong ${staffPct}% across the selected entity scope.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Active Personnel: ${dossierData.activeStaff} school computer labs have working instructors.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Vacant Posts: ${dossierData.vacantStaff} schools operate without assigned instructors, leading to locked lab rooms.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } },
+                { text: `Impact: Recruitment gaps remain the largest single bottleneck to achieving 100% lab usage compliance.`, options: { bullet: true, fontSize: 10, color: colorTextDark, paraSpaceBefore: 6 } }
+            ];
+
+            slideManpower.addText(manpowerRuns, {
+                x: 0.8, y: 2.1, w: 8.4, h: 2.6
+            });
+
+
+            // SLIDE 17: REFERENCE TABLE - School-wise Staffing Directory Table
+            const slide17Table = pptx.addSlide();
+            addSlideHeader(slide17Table, 'School-wise IT Instructor Staffing Directory', 'Data Reference');
+
+            const table17Data = [
+                [
+                    { text: "School Name", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "UDISE Code", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Instructor Name", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Roster Status", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Join / Last Working Date", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } }
+                ]
+            ];
+
+            entitySchools.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const schoolMp = manpower.filter(m => cleanUdise(m.udise || getVal(m, 'udise')) === udise);
+                const activeRec = schoolMp.find(m => {
+                    const status = String(getVal(m, 'status') || '').trim().toUpperCase();
+                    return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
+                });
+
+                let name = "N/A";
+                let status = "🔴 VACANT";
+                let statusDate = "N/A";
+
+                if (activeRec) {
+                    name = getVal(activeRec, 'instructor') || getVal(activeRec, 'name') || "Assigned Instructor";
+                    status = "🟢 WORKING";
+                    const dateVal = getVal(activeRec, 'date') || getVal(activeRec, 'statusDate') || getVal(activeRec, 'join');
+                    if (dateVal) {
+                        const parsed = parseDateRobust(dateVal);
+                        if (parsed) statusDate = formatDate(parsed);
+                    }
+                } else if (schoolMp.length > 0) {
+                    const lastRec = schoolMp[schoolMp.length - 1];
+                    name = getVal(lastRec, 'instructor') || getVal(lastRec, 'name') || "Last Instructor";
+                    const dateVal = getVal(lastRec, 'date') || getVal(lastRec, 'statusDate') || getVal(lastRec, 'last_working_day');
+                    if (dateVal) {
+                        const parsed = parseDateRobust(dateVal);
+                        if (parsed) statusDate = formatDate(parsed);
+                    }
+                }
+
+                table17Data.push([
+                    { text: s.school_name || s.school || "N/A", options: { fontSize: 8 } },
+                    { text: udise, options: { fontSize: 8 } },
+                    { text: name, options: { fontSize: 8 } },
+                    { text: status, options: { fontSize: 8, bold: true, color: activeRec ? "059669" : "DC2626" } },
+                    { text: statusDate, options: { fontSize: 8 } }
+                ]);
+            });
+
+            slide17Table.addTable(table17Data, {
+                x: 0.5, y: 1.2, w: 9.0, h: 3.8,
+                autoPage: true,
+                autoPageHeader: true,
+                autoPageLineMultiplier: 0.8,
+                colWidths: [3.8, 1.2, 1.6, 1.2, 1.2],
+                border: { type: "solid", color: "E2E8F0", width: 0.5 }
+            });
+
+
+            // SLIDE 18: Key Operational Challenges & Risks
             const slideChallenges = pptx.addSlide();
-            addSlideHeader(slideChallenges, 'Key Operational Challenges', 'Risk Assessment');
+            addSlideHeader(slideChallenges, 'Key Operational Challenges & Risks', 'Risk Assessment');
 
             slideChallenges.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
                 x: 0.5, y: 1.3, w: 9.0, h: 3.8, fill: { color: colorWhite }, line: { color: 'E2E8F0', width: 1 }
@@ -648,17 +1369,88 @@ const ReviewMeeting = ({
                 x: 0.8, y: 1.6, w: 8.4, h: 0.3, fontSize: 10, bold: true, color: 'DC2626', tracking: 1
             });
 
-            // List challenges in a structured large font view
-            const challengesList = customChallenges.map((item, idx) => {
-                return `[Risk ${idx + 1}]  ${item}`;
-            }).join('\n\n');
+            const challengesRuns = customChallenges.map((item, idx) => {
+                return { text: `[Risk ${idx + 1}]  ${item}`, options: { bullet: true, fontSize: 10.5, color: colorTextDark, paraSpaceBefore: 8, bold: true } };
+            });
+            if (challengesRuns.length === 0) {
+                challengesRuns.push({ text: 'No high-risk operational bottlenecks identified for the selected scope.', options: { bullet: true, fontSize: 10.5, color: '64748B' } });
+            }
 
-            slideChallenges.addText(challengesList || 'No high-risk operational bottlenecks identified for the selected scope.', {
-                x: 0.8, y: 2.1, w: 8.4, h: 2.6, fontSize: 11, bold: true, color: colorTextDark, lineSpacing: 8
+            slideChallenges.addText(challengesRuns, {
+                x: 0.8, y: 2.1, w: 8.4, h: 2.6
             });
 
 
-            // SLIDE 6: Future Roadmap & Action Plan
+            // SLIDE 19: REFERENCE TABLE - Risk Priority & Remediation Mapping Table
+            const slide19Table = pptx.addSlide();
+            addSlideHeader(slide19Table, 'Operational Risk Remediation Mapping', 'Data Reference');
+
+            const table19Data = [
+                [
+                    { text: "Identified Challenge / Risk", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Risk Level", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Immediate Remediation Action Plan", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Timeline", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Responsible Owner", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } }
+                ]
+            ];
+
+            customChallenges.forEach((ch, idx) => {
+                let risk = "MODERATE";
+                let riskColor = "D97706";
+                let remediation = "Monitor metrics weekly and report deviations.";
+                let timeline = "15 Days";
+                let owner = "Regional CC In-Charge";
+
+                if (ch.toLowerCase().includes("recruitment") || ch.toLowerCase().includes("vacant")) {
+                    risk = "HIGH";
+                    riskColor = "DC2626";
+                    remediation = "Accelerate candidate interview and allocate replacement roster.";
+                    timeline = "14 Days";
+                    owner = "HR Operations Team";
+                } else if (ch.toLowerCase().includes("network") || ch.toLowerCase().includes("sync") || ch.toLowerCase().includes("offline")) {
+                    risk = "HIGH";
+                    riskColor = "DC2626";
+                    remediation = "Inspect routers, power supplies, and check SIM card validity.";
+                    timeline = "7 Days";
+                    owner = "Field IT Support Eng.";
+                } else if (ch.toLowerCase().includes("class") || ch.toLowerCase().includes("logging") || ch.toLowerCase().includes("conduction")) {
+                    risk = "MODERATE";
+                    remediation = "Enforce lab schedules in school timetables and monitor logins.";
+                    timeline = "30 Days";
+                    owner = "School Principal / CC";
+                }
+
+                table19Data.push([
+                    { text: ch, options: { fontSize: 8 } },
+                    { text: risk, options: { fontSize: 8, bold: true, color: riskColor } },
+                    { text: remediation, options: { fontSize: 8 } },
+                    { text: timeline, options: { fontSize: 8 } },
+                    { text: owner, options: { fontSize: 8 } }
+                ]);
+            });
+
+            if (customChallenges.length === 0) {
+                table19Data.push([
+                    { text: "No operational risks defined.", options: { fontSize: 8, italic: true } },
+                    { text: "LOW", options: { fontSize: 8 } },
+                    { text: "Sustain daily compliance inspections.", options: { fontSize: 8 } },
+                    { text: "Ongoing", options: { fontSize: 8 } },
+                    { text: "All CCs", options: { fontSize: 8 } }
+                ]);
+            }
+
+            slide19Table.addTable(table19Data, {
+                x: 0.5, y: 1.2, w: 9.0, h: 3.8,
+                autoPage: true,
+                autoPageHeader: true,
+                autoPageLineMultiplier: 0.8,
+                colWidths: [2.5, 0.9, 3.2, 1.0, 1.4],
+                border: { type: "solid", color: "E2E8F0", width: 0.5 }
+            });
+
+
+            // SLIDE 20: Future Roadmap & Corrective Action Plan
             const slideRoadmap = pptx.addSlide();
             addSlideHeader(slideRoadmap, 'Strategic Roadmap & Action Plan', 'Strategic Roadmaps');
 
@@ -670,16 +1462,18 @@ const ReviewMeeting = ({
                 x: 0.8, y: 1.6, w: 8.4, h: 0.3, fontSize: 10, bold: true, color: '059669', tracking: 1
             });
 
-            // List future actions
-            const actionsList = customFuturePlans.map((item, idx) => {
-                return `✔  ${item}`;
-            }).join('\n\n');
+            const roadmapRuns = customFuturePlans.map((item, idx) => {
+                return { text: `✔  ${item}`, options: { bullet: true, fontSize: 10.5, color: colorTextDark, paraSpaceBefore: 8, bold: true } };
+            });
+            if (roadmapRuns.length === 0) {
+                roadmapRuns.push({ text: 'Sustain baseline operational standards and monitor metrics weekly.', options: { bullet: true, fontSize: 10.5, color: '64748B' } });
+            }
 
-            slideRoadmap.addText(actionsList || 'Sustain baseline operational standards and monitor metrics weekly.', {
-                x: 0.8, y: 2.1, w: 8.4, h: 2.6, fontSize: 11, bold: true, color: colorTextDark, lineSpacing: 8
+            slideRoadmap.addText(roadmapRuns, {
+                x: 0.8, y: 2.1, w: 8.4, h: 2.6
             });
 
-            // Save Presentation
+            // Save Presentation File
             const fileName = `Review_Meeting_${formattedEntityName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
             await pptx.writeFile({ fileName });
 
