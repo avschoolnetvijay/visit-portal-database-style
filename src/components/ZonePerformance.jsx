@@ -33,6 +33,7 @@ const ZonePerformance = ({
     const [activeZoneDetail, setActiveZoneDetail] = useState(null);
     const [detailTab, setDetailTab] = useState('cc'); // 'cc' or 'schools'
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedAuditZone, setSelectedAuditZone] = useState('');
 
     // helper to format date
     const formatDateStr = (dateInput) => {
@@ -367,6 +368,266 @@ const ZonePerformance = ({
         return finalData;
 
     }, [schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate, selZones, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, workingDays]);
+
+    // ============================
+    // AUDIT COMPARATIVE DATA
+    // ============================
+    const auditComparativeData = useMemo(() => {
+        if (!zoneData.length) return null;
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        const days = Number(workingDays) && Number(workingDays) >= 1
+            ? Number(workingDays)
+            : Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+
+        const getKPIs = (z) => {
+            const totalInstalled = z.cpuInstalled + z.miniPcInstalled + z.panelInstalled;
+            const totalUsed = z.cpuUsed + z.miniPcUsed + z.panelUsed;
+            const deviceUtil = totalInstalled > 0 ? (totalUsed / totalInstalled) * 100 : 0;
+            const totalHours = z.totalCpuHours + z.totalMiniPcHours + z.totalPanelHours;
+            const avgHoursPerDay = z.totalSchools > 0 && days > 0 ? totalHours / days / z.totalSchools : 0;
+            const classRate = z.totalSchools > 0 && days > 0 ? (z.ictClasses + z.smartClasses) / (days * z.totalSchools) : 0;
+            const smartRate = z.totalSchools > 0 && days > 0 ? z.smartClasses / (days * z.totalSchools) : 0;
+            const monitoring = z.totalSchools > 0 ? z.grandTotal / z.totalSchools : 0;
+            const instructorRate = z.totalSchools > 0 ? (z.instructorWorking / z.totalSchools) * 100 : 0;
+            return { deviceUtil, avgHoursPerDay, classRate, smartRate, monitoring, instructorRate };
+        };
+
+        const allKPIs = zoneData.map(getKPIs);
+        const n = allKPIs.length;
+        const stateAvg = {
+            deviceUtil: allKPIs.reduce((a, k) => a + k.deviceUtil, 0) / n,
+            avgHoursPerDay: allKPIs.reduce((a, k) => a + k.avgHoursPerDay, 0) / n,
+            classRate: allKPIs.reduce((a, k) => a + k.classRate, 0) / n,
+            smartRate: allKPIs.reduce((a, k) => a + k.smartRate, 0) / n,
+            monitoring: allKPIs.reduce((a, k) => a + k.monitoring, 0) / n,
+            instructorRate: allKPIs.reduce((a, k) => a + k.instructorRate, 0) / n,
+        };
+
+        const topZoneObj = zoneData[0];
+        const topZoneKPIs = allKPIs[0];
+
+        const selZoneName = selectedAuditZone || zoneData[0]?.zoneName || '';
+        const selIdx = zoneData.findIndex(z => z.zoneName === selZoneName);
+        const resolvedIdx = selIdx >= 0 ? selIdx : 0;
+        const selZoneObj = zoneData[resolvedIdx];
+        const selZoneKPIs = allKPIs[resolvedIdx];
+
+        return { days, selZoneName: selZoneObj?.zoneName || selZoneName, selZoneObj, selZoneKPIs, topZoneObj, topZoneKPIs, stateAvg };
+    }, [zoneData, selectedAuditZone, startDate, endDate, workingDays]);
+
+    // ============================
+    // PROJECT BREAKDOWN (within selected zone)
+    // ============================
+    const projectBreakdownData = useMemo(() => {
+        if (!auditComparativeData || !auditComparativeData.selZoneObj) return [];
+        const { selZoneObj, days } = auditComparativeData;
+        const zoneUdises = selZoneObj.udises;
+
+        const zoneSchools = schools.filter(s => zoneUdises.has(cleanUdise(s.udise_code)));
+        if (!zoneSchools.length) return [];
+
+        const projMap = {};
+        zoneSchools.forEach(s => {
+            const proj = s.project_name || 'Unassigned';
+            if (!projMap[proj]) {
+                projMap[proj] = {
+                    projectName: proj,
+                    totalSchools: 0, instructorWorking: 0,
+                    cpuInstalled: 0, cpuUsed: 0,
+                    miniPcInstalled: 0, miniPcUsed: 0,
+                    panelInstalled: 0, panelUsed: 0,
+                    totalCpuHours: 0, totalMiniPcHours: 0, totalPanelHours: 0,
+                    ictClasses: 0, smartClasses: 0,
+                    ictVisits: 0, smartVisits: 0,
+                    udises: new Set()
+                };
+            }
+            projMap[proj].totalSchools++;
+            projMap[proj].udises.add(cleanUdise(s.udise_code));
+        });
+
+        manpower.forEach(m => {
+            const udise = cleanUdise(m.udise || getVal(m, 'udise'));
+            const status = String(getVal(m, 'status') || '').trim();
+            const isWorking = status.toUpperCase().includes('WORKING') || status.toUpperCase().includes('ACTIVE') || status === '';
+            if (isWorking) {
+                Object.values(projMap).forEach(p => { if (p.udises.has(udise)) p.instructorWorking++; });
+            }
+        });
+
+        (edustatMaster || []).forEach(m => {
+            const udise = String(m.udise).trim();
+            const device = String(m.device || '').toUpperCase();
+            const installed = String(m.installed || '').toUpperCase();
+            if (installed === 'YES') {
+                Object.values(projMap).forEach(p => {
+                    if (p.udises.has(udise)) {
+                        if (device === 'CPU') p.cpuInstalled++;
+                        else if (device === 'MINI PC' || device === 'THIN CLIENT') p.miniPcInstalled++;
+                        else if (device === 'INTERACTIVE FLAT PANEL') p.panelInstalled++;
+                    }
+                });
+            }
+        });
+
+        const serialMapP = {};
+        (edustatMaster || []).forEach(m => { if (m.serial) serialMapP[String(m.serial).trim()] = String(m.device || '').toUpperCase(); });
+
+        const filteredEdustatP = edustat.filter(row => {
+            const dateStr = formatDateStr(row.date || getVal(row, 'date'));
+            return dateStr && dateStr >= startDate && dateStr <= endDate;
+        });
+        const activeSerialsP = new Set();
+        filteredEdustatP.forEach(e => { if (e.hours > 0 && e.serial) activeSerialsP.add(String(e.serial).trim()); });
+
+        filteredEdustatP.forEach(e => {
+            const udise = String(e.udise).trim();
+            const serial = String(e.serial).trim();
+            const hours = Number(e.hours) || 0;
+            const deviceType = serialMapP[serial] || 'CPU';
+            Object.values(projMap).forEach(p => {
+                if (p.udises.has(udise)) {
+                    if (deviceType === 'CPU') p.totalCpuHours += hours;
+                    else if (deviceType === 'MINI PC' || deviceType === 'THIN CLIENT') p.totalMiniPcHours += hours;
+                    else if (deviceType === 'INTERACTIVE FLAT PANEL') p.totalPanelHours += hours;
+                }
+            });
+        });
+
+        (edustatMaster || []).forEach(m => {
+            const udise = String(m.udise).trim();
+            const serial = String(m.serial).trim();
+            const device = String(m.device || '').toUpperCase();
+            const installed = String(m.installed || '').toUpperCase();
+            if (installed === 'YES' && activeSerialsP.has(serial)) {
+                Object.values(projMap).forEach(p => {
+                    if (p.udises.has(udise)) {
+                        if (device === 'CPU') p.cpuUsed++;
+                        else if (device === 'MINI PC' || device === 'THIN CLIENT') p.miniPcUsed++;
+                        else if (device === 'INTERACTIVE FLAT PANEL') p.panelUsed++;
+                    }
+                });
+            }
+        });
+
+        jhpmsLab.forEach(l => {
+            const udise = cleanUdise(l.udise || getVal(l, 'udise'));
+            const dateStr = formatDateStr(l.date || getVal(l, 'date'));
+            if (dateStr && dateStr >= startDate && dateStr <= endDate) {
+                const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+                const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
+                Object.values(projMap).forEach(p => {
+                    if (p.udises.has(udise)) {
+                        if (subject.split(/[^A-Z0-9]+/).includes('MIS')) return;
+                        if (labType.includes('ICT') && subject.includes('COMPUTER')) p.ictClasses++;
+                        else if (labType.includes('SMART')) p.smartClasses++;
+                    }
+                });
+            }
+        });
+
+        visits.forEach(v => {
+            const udise = cleanUdise(v.udise_code);
+            const dateStr = formatDateStr(v.visit_date || getVal(v, 'date'));
+            const type = (v.visit_type || '').toLowerCase();
+            if (dateStr && dateStr >= startDate && dateStr <= endDate) {
+                Object.values(projMap).forEach(p => {
+                    if (p.udises.has(udise)) {
+                        if (type.includes('ict')) p.ictVisits++;
+                        if (type.includes('smart')) p.smartVisits++;
+                    }
+                });
+            }
+        });
+
+        return Object.values(projMap).map(p => {
+            const totalInstalled = p.cpuInstalled + p.miniPcInstalled + p.panelInstalled;
+            const totalUsed = p.cpuUsed + p.miniPcUsed + p.panelUsed;
+            const deviceUtil = totalInstalled > 0 ? ((totalUsed / totalInstalled) * 100).toFixed(1) : '0.0';
+            const totalVisits = p.ictVisits + p.smartVisits;
+            const classRate = p.totalSchools > 0 && days > 0 ? ((p.ictClasses + p.smartClasses) / (days * p.totalSchools)).toFixed(3) : '0.000';
+            const monitoring = p.totalSchools > 0 ? (totalVisits / p.totalSchools).toFixed(2) : '0.00';
+            const instRate = p.totalSchools > 0 ? ((p.instructorWorking / p.totalSchools) * 100).toFixed(1) : '0.0';
+            return {
+                ...p,
+                totalHours: parseFloat((p.totalCpuHours + p.totalMiniPcHours + p.totalPanelHours).toFixed(1)),
+                totalVisits, deviceUtil, classRate, monitoring, instRate
+            };
+        }).sort((a, b) => b.totalSchools - a.totalSchools);
+    }, [auditComparativeData, schools, manpower, edustatMaster, edustat, jhpmsLab, visits, startDate, endDate]);
+
+    // ============================
+    // GAP ANALYSIS & BEST PRACTICES
+    // ============================
+    const gapAnalysisInsights = useMemo(() => {
+        if (!auditComparativeData || !auditComparativeData.selZoneKPIs) return { bestPractices: [], gaps: [] };
+        const { selZoneName, selZoneKPIs, stateAvg, topZoneObj } = auditComparativeData;
+        const fmt = (v, d = 1) => Number(v).toFixed(d);
+        const pct = (v) => `${fmt(v)}%`;
+        const THRESHOLD = 0.10;
+        const bestPractices = [];
+        const gaps = [];
+
+        if (topZoneObj && selZoneName === topZoneObj.zoneName) {
+            bestPractices.push(`🏆 ${selZoneName} is the overall Top Performing Zone with a performance score of ${topZoneObj.performanceScore}%.`);
+        }
+
+        // Device Utilization
+        if (selZoneKPIs.deviceUtil > stateAvg.deviceUtil * (1 + THRESHOLD)) {
+            bestPractices.push(`${selZoneName} leads in Device Utilization (${pct(selZoneKPIs.deviceUtil)}) — ${fmt(selZoneKPIs.deviceUtil - stateAvg.deviceUtil)}% above the state average of ${pct(stateAvg.deviceUtil)}.`);
+        } else if (stateAvg.deviceUtil > 0 && selZoneKPIs.deviceUtil < stateAvg.deviceUtil * (1 - THRESHOLD)) {
+            const def = fmt((stateAvg.deviceUtil - selZoneKPIs.deviceUtil) / stateAvg.deviceUtil * 100);
+            gaps.push(`Hardware underutilization: ${selZoneName} has ${pct(selZoneKPIs.deviceUtil)} device utilization, ${def}% below the state average of ${pct(stateAvg.deviceUtil)}. Action: CC must initiate syncing on idle devices and verify EduStat agent status.`);
+        }
+
+        // Avg EduStat Hours/Day
+        if (selZoneKPIs.avgHoursPerDay > stateAvg.avgHoursPerDay * (1 + THRESHOLD)) {
+            bestPractices.push(`${selZoneName} achieves the highest EduStat usage at ${fmt(selZoneKPIs.avgHoursPerDay, 2)} hrs/school/day, exceeding the state average of ${fmt(stateAvg.avgHoursPerDay, 2)} hrs.`);
+        } else if (stateAvg.avgHoursPerDay > 0 && selZoneKPIs.avgHoursPerDay < stateAvg.avgHoursPerDay * (1 - THRESHOLD)) {
+            const def = fmt((stateAvg.avgHoursPerDay - selZoneKPIs.avgHoursPerDay) / stateAvg.avgHoursPerDay * 100);
+            gaps.push(`Low usage hours: ${selZoneName} averages ${fmt(selZoneKPIs.avgHoursPerDay, 2)} hrs/school/day on EduStat, ${def}% below the state average of ${fmt(stateAvg.avgHoursPerDay, 2)} hrs. Action: Mandate minimum daily usage targets per school.`);
+        }
+
+        // Class Delivery Rate
+        if (selZoneKPIs.classRate > stateAvg.classRate * (1 + THRESHOLD)) {
+            bestPractices.push(`${selZoneName} maintains a superior class delivery rate of ${fmt(selZoneKPIs.classRate, 3)} classes/school/day vs state average of ${fmt(stateAvg.classRate, 3)}.`);
+        } else if (stateAvg.classRate > 0 && selZoneKPIs.classRate < stateAvg.classRate * (1 - THRESHOLD)) {
+            const def = fmt((stateAvg.classRate - selZoneKPIs.classRate) / stateAvg.classRate * 100);
+            gaps.push(`Academic delivery deficit: ${selZoneName} conducts ${fmt(selZoneKPIs.classRate, 3)} classes/school/day, ${def}% below the state average of ${fmt(stateAvg.classRate, 3)}. Action: Enforce JHPMS class entry compliance with CCs.`);
+        }
+
+        // Smart Class Rate
+        if (selZoneKPIs.smartRate > stateAvg.smartRate * (1 + THRESHOLD)) {
+            bestPractices.push(`${selZoneName} is leading in Smart Class delivery (${fmt(selZoneKPIs.smartRate, 3)}/school/day) across all zones in the state.`);
+        } else if (stateAvg.smartRate > 0 && selZoneKPIs.smartRate < stateAvg.smartRate * (1 - THRESHOLD)) {
+            const def = fmt((stateAvg.smartRate - selZoneKPIs.smartRate) / stateAvg.smartRate * 100);
+            gaps.push(`Smart Class deficit: ${selZoneName} conducts ${fmt(selZoneKPIs.smartRate, 3)} smart classes/school/day, ${def}% below the state average of ${fmt(stateAvg.smartRate, 3)}. Action: Mandate at least 1 smart class per day per school.`);
+        }
+
+        // Monitoring Intensity
+        if (selZoneKPIs.monitoring > stateAvg.monitoring * (1 + THRESHOLD)) {
+            bestPractices.push(`${selZoneName} demonstrates strong monitoring intensity at ${fmt(selZoneKPIs.monitoring, 2)} visits/school, surpassing the state average of ${fmt(stateAvg.monitoring, 2)}.`);
+        } else if (stateAvg.monitoring > 0 && selZoneKPIs.monitoring < stateAvg.monitoring * (1 - THRESHOLD)) {
+            const def = fmt((stateAvg.monitoring - selZoneKPIs.monitoring) / stateAvg.monitoring * 100);
+            gaps.push(`Monitoring gap: ${selZoneName} averages ${fmt(selZoneKPIs.monitoring, 2)} visits/school, ${def}% below state average of ${fmt(stateAvg.monitoring, 2)}. Action: Increase CC visit frequency and enforce monthly visit targets.`);
+        }
+
+        // Instructor Presence
+        if (selZoneKPIs.instructorRate > stateAvg.instructorRate * (1 + THRESHOLD)) {
+            bestPractices.push(`${selZoneName} leads in Instructor Availability (${pct(selZoneKPIs.instructorRate)}) across the state, ensuring consistent lab operations.`);
+        } else if (stateAvg.instructorRate > 0 && selZoneKPIs.instructorRate < stateAvg.instructorRate * (1 - THRESHOLD)) {
+            const def = fmt((stateAvg.instructorRate - selZoneKPIs.instructorRate) / stateAvg.instructorRate * 100);
+            gaps.push(`Instructor deficit: ${selZoneName} has ${pct(selZoneKPIs.instructorRate)} instructor presence, ${def}% below the state average of ${pct(stateAvg.instructorRate)}. Action: Expedite hiring and deployment of vacant positions.`);
+        }
+
+        if (!bestPractices.length && !gaps.length) {
+            bestPractices.push(`${selZoneName} is performing in line with the state average across all key metrics. Continue current operational cadence.`);
+        }
+
+        return { bestPractices, gaps };
+    }, [auditComparativeData]);
 
     // Active drill down detailed view contents
     const activeZoneDetailsData = useMemo(() => {
@@ -839,6 +1100,78 @@ const ZonePerformance = ({
                 </div>
             </div>
 
+            {/* Zone Performance Podium – Top 3 */}
+            {zoneData.length >= 1 && (
+                <div className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-md rounded-2xl border border-gray-200 dark:border-white/5 shadow-xl p-6">
+                    <div className="text-center mb-6">
+                        <h2 className="text-lg font-black text-teal-800 dark:text-teal-400 tracking-tight">🏆 Zone Performance Podium</h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Top performing zones ranked by weighted performance score</p>
+                    </div>
+                    <div className="flex items-end justify-center gap-3 md:gap-6 px-2">
+                        {/* Silver – Rank 2 */}
+                        {zoneData[1] && (
+                            <div className="flex-1 max-w-[200px] flex flex-col items-center">
+                                <div className="text-3xl mb-2">🥈</div>
+                                <div className="w-full bg-gradient-to-b from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 rounded-t-2xl p-4 text-center shadow-lg border border-slate-300/50 dark:border-slate-500/40 h-44 flex flex-col justify-between">
+                                    <div>
+                                        <div className="text-[10px] uppercase tracking-widest font-black text-slate-500 dark:text-slate-300">Rank #2</div>
+                                        <div className="text-sm font-black text-slate-800 dark:text-white mt-1 leading-tight">{zoneData[1].zoneName}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-black text-slate-700 dark:text-slate-200">{zoneData[1].performanceScore}%</div>
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{zoneData[1].totalSchools} Schools</div>
+                                        <div className="text-[10px] text-slate-400 dark:text-slate-500">{zoneData[1].grandTotal} Visits</div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {/* Gold – Rank 1 */}
+                        {zoneData[0] && (
+                            <div className="flex-1 max-w-[240px] flex flex-col items-center">
+                                <div className="text-4xl mb-2">🥇</div>
+                                <div className="w-full bg-gradient-to-b from-yellow-200 to-amber-400 dark:from-yellow-400 dark:to-amber-600 rounded-t-2xl p-5 text-center shadow-2xl border border-yellow-300/60 dark:border-yellow-500/50 h-56 flex flex-col justify-between">
+                                    <div>
+                                        <div className="text-[10px] uppercase tracking-widest font-black text-amber-700 dark:text-amber-100">Rank #1 — Top Zone</div>
+                                        <div className="text-base font-black text-amber-900 dark:text-white mt-1 leading-tight">{zoneData[0].zoneName}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-3xl font-black text-amber-800 dark:text-white">{zoneData[0].performanceScore}%</div>
+                                        <div className="text-[10px] text-amber-700 dark:text-amber-200 mt-0.5">{zoneData[0].totalSchools} Schools · {zoneData[0].grandTotal} Visits</div>
+                                        <div className="text-[10px] text-amber-600 dark:text-amber-300">{zoneData[0].ictClasses + zoneData[0].smartClasses} Classes Conducted</div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {/* Bronze – Rank 3 */}
+                        {zoneData[2] && (
+                            <div className="flex-1 max-w-[200px] flex flex-col items-center">
+                                <div className="text-3xl mb-2">🥉</div>
+                                <div className="w-full bg-gradient-to-b from-orange-200 to-orange-400 dark:from-orange-700 dark:to-orange-900 rounded-t-2xl p-4 text-center shadow-lg border border-orange-300/50 dark:border-orange-700/40 h-36 flex flex-col justify-between">
+                                    <div>
+                                        <div className="text-[10px] uppercase tracking-widest font-black text-orange-700 dark:text-orange-200">Rank #3</div>
+                                        <div className="text-sm font-black text-orange-900 dark:text-white mt-1 leading-tight">{zoneData[2].zoneName}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-black text-orange-800 dark:text-white">{zoneData[2].performanceScore}%</div>
+                                        <div className="text-[10px] text-orange-700 dark:text-orange-300 mt-0.5">{zoneData[2].totalSchools} Schools</div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {/* Remaining zones mini-badges */}
+                    {zoneData.length > 3 && (
+                        <div className="flex flex-wrap justify-center gap-2 mt-5 pt-4 border-t border-gray-100 dark:border-white/5">
+                            {zoneData.slice(3).map((z, i) => (
+                                <span key={z.zoneName} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800/60 text-gray-600 dark:text-gray-300 rounded-full text-xs font-bold border border-gray-200 dark:border-white/5">
+                                    #{i + 4} {z.zoneName} — {z.performanceScore}%
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Main Table Card */}
             <div className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-md rounded-2xl border border-gray-200 dark:border-white/5 shadow-xl overflow-hidden">
                 <div className="p-5 border-b border-gray-100 dark:border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -930,6 +1263,228 @@ const ZonePerformance = ({
                     </table>
                 </div>
             </div>
+
+            {/* Deep Audit Comparative Panel */}
+            {auditComparativeData && (
+                <div className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-md rounded-2xl border border-gray-200 dark:border-white/5 shadow-xl overflow-hidden">
+                    {/* Panel Header */}
+                    <div className="p-5 border-b border-gray-100 dark:border-white/5 bg-gradient-to-r from-teal-50/60 to-indigo-50/60 dark:from-teal-950/20 dark:to-indigo-950/20">
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-lg font-black text-teal-800 dark:text-teal-400 tracking-tight flex items-center gap-2">
+                                    <Icons.Dashboard className="w-5 h-5" /> Zone Comparative &amp; Deep Audit
+                                </h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Select a zone to compare its KPIs against the state average and the top-performing zone.</p>
+                            </div>
+                            <select
+                                value={selectedAuditZone || auditComparativeData.selZoneName}
+                                onChange={(e) => setSelectedAuditZone(e.target.value)}
+                                className="bg-white dark:bg-slate-800/80 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-teal-800 dark:text-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-500 min-w-[220px] shadow-sm"
+                            >
+                                {zoneData.map(z => (
+                                    <option key={z.zoneName} value={z.zoneName}>{z.zoneName} (Rank #{z.slno} · {z.performanceScore}%)</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* KPI Comparison Grid */}
+                    <div className="p-5">
+                        <h3 className="text-[10px] uppercase tracking-widest font-black text-gray-500 dark:text-gray-400 mb-4">Comparative KPI Overview — {auditComparativeData.selZoneName}</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                            {[
+                                {
+                                    label: 'Device Utilization',
+                                    unit: '%',
+                                    selVal: auditComparativeData.selZoneKPIs.deviceUtil.toFixed(1),
+                                    avgVal: auditComparativeData.stateAvg.deviceUtil.toFixed(1),
+                                    topVal: auditComparativeData.topZoneKPIs.deviceUtil.toFixed(1),
+                                    icon: '💻'
+                                },
+                                {
+                                    label: 'Avg EduStat Hrs/Day',
+                                    unit: ' hrs',
+                                    selVal: auditComparativeData.selZoneKPIs.avgHoursPerDay.toFixed(2),
+                                    avgVal: auditComparativeData.stateAvg.avgHoursPerDay.toFixed(2),
+                                    topVal: auditComparativeData.topZoneKPIs.avgHoursPerDay.toFixed(2),
+                                    icon: '⏱️'
+                                },
+                                {
+                                    label: 'Class Delivery Rate',
+                                    unit: '/sch/day',
+                                    selVal: auditComparativeData.selZoneKPIs.classRate.toFixed(3),
+                                    avgVal: auditComparativeData.stateAvg.classRate.toFixed(3),
+                                    topVal: auditComparativeData.topZoneKPIs.classRate.toFixed(3),
+                                    icon: '📚'
+                                },
+                                {
+                                    label: 'Monitoring Intensity',
+                                    unit: ' v/sch',
+                                    selVal: auditComparativeData.selZoneKPIs.monitoring.toFixed(2),
+                                    avgVal: auditComparativeData.stateAvg.monitoring.toFixed(2),
+                                    topVal: auditComparativeData.topZoneKPIs.monitoring.toFixed(2),
+                                    icon: '👁️'
+                                },
+                                {
+                                    label: 'Instructor Presence',
+                                    unit: '%',
+                                    selVal: auditComparativeData.selZoneKPIs.instructorRate.toFixed(1),
+                                    avgVal: auditComparativeData.stateAvg.instructorRate.toFixed(1),
+                                    topVal: auditComparativeData.topZoneKPIs.instructorRate.toFixed(1),
+                                    icon: '👤'
+                                }
+                            ].map((kpi) => {
+                                const selNum = parseFloat(kpi.selVal);
+                                const avgNum = parseFloat(kpi.avgVal);
+                                const isAbove = selNum >= avgNum;
+                                const diffPct = avgNum > 0 ? Math.abs(((selNum - avgNum) / avgNum) * 100).toFixed(1) : null;
+                                return (
+                                    <div key={kpi.label} className={`rounded-xl border p-4 flex flex-col gap-3 ${isAbove ? 'border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-950/10' : 'border-rose-200 dark:border-rose-800/40 bg-rose-50/40 dark:bg-rose-950/10'}`}>
+                                        <div className="flex items-start gap-2">
+                                            <span className="text-xl leading-none">{kpi.icon}</span>
+                                            <div className="text-[10px] uppercase tracking-widest font-black text-gray-500 dark:text-gray-400 leading-tight">{kpi.label}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[9px] uppercase font-black text-gray-400 dark:text-gray-500">Selected Zone</div>
+                                            <div className={`text-xl font-black ${isAbove ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{kpi.selVal}{kpi.unit}</div>
+                                        </div>
+                                        <div className="border-t border-gray-200/60 dark:border-white/5 pt-2 flex justify-between">
+                                            <div>
+                                                <div className="text-[9px] uppercase font-black text-gray-400 dark:text-gray-500">State Avg</div>
+                                                <div className="text-sm font-bold text-gray-600 dark:text-gray-300">{kpi.avgVal}{kpi.unit}</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-[9px] uppercase font-black text-amber-500">Best Zone</div>
+                                                <div className="text-sm font-bold text-amber-600 dark:text-amber-400">{kpi.topVal}{kpi.unit}</div>
+                                            </div>
+                                        </div>
+                                        <div className={`text-[9px] font-black uppercase tracking-wide ${isAbove ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                            {isAbove ? '▲ Above' : '▼ Below'} Avg{diffPct ? ` (${diffPct}%)` : ''}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Project-wise Breakdown within selected zone */}
+                    {projectBreakdownData.length > 0 && (
+                        <div className="px-5 pb-5">
+                            <h3 className="text-[10px] uppercase tracking-widest font-black text-gray-500 dark:text-gray-400 mb-3">
+                                Project-wise Breakdown within {auditComparativeData.selZoneName}
+                            </h3>
+                            <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-white/5">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-50/60 dark:bg-slate-800/30 text-[9px] uppercase tracking-widest font-black text-slate-500 dark:text-slate-400 border-b border-gray-100 dark:border-white/5">
+                                            <th className="p-3">Project</th>
+                                            <th className="p-3 text-center">Schools</th>
+                                            <th className="p-3 text-center">Instructors</th>
+                                            <th className="p-3 text-center">CPU I/U</th>
+                                            <th className="p-3 text-center">Mini PC I/U</th>
+                                            <th className="p-3 text-center">Panel I/U</th>
+                                            <th className="p-3 text-center">Total Hours</th>
+                                            <th className="p-3 text-center">Device Util%</th>
+                                            <th className="p-3 text-center">ICT Classes</th>
+                                            <th className="p-3 text-center">Smart Classes</th>
+                                            <th className="p-3 text-center">Class Rate</th>
+                                            <th className="p-3 text-center">Visits</th>
+                                            <th className="p-3 text-center">Visit/Sch</th>
+                                            <th className="p-3 text-center">Instr.%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                                        {projectBreakdownData.map((p) => (
+                                            <tr key={p.projectName} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-colors">
+                                                <td className="p-3 font-bold text-indigo-700 dark:text-indigo-400">{p.projectName}</td>
+                                                <td className="p-3 text-center font-semibold text-gray-700 dark:text-gray-300">{p.totalSchools}</td>
+                                                <td className="p-3 text-center font-semibold text-emerald-700 dark:text-emerald-400">{p.instructorWorking}</td>
+                                                <td className="p-3 text-center">
+                                                    <span className="font-bold text-gray-800 dark:text-gray-200">{p.cpuInstalled}</span>
+                                                    <span className="text-gray-400 mx-0.5">/</span>
+                                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{p.cpuUsed}</span>
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    <span className="font-bold text-gray-800 dark:text-gray-200">{p.miniPcInstalled}</span>
+                                                    <span className="text-gray-400 mx-0.5">/</span>
+                                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{p.miniPcUsed}</span>
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    <span className="font-bold text-gray-800 dark:text-gray-200">{p.panelInstalled}</span>
+                                                    <span className="text-gray-400 mx-0.5">/</span>
+                                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{p.panelUsed}</span>
+                                                </td>
+                                                <td className="p-3 text-center font-bold text-gray-700 dark:text-gray-300">{p.totalHours}h</td>
+                                                <td className="p-3 text-center">
+                                                    <span className={`px-2 py-0.5 rounded font-black text-[10px] ${parseFloat(p.deviceUtil) >= 60 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : parseFloat(p.deviceUtil) >= 30 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
+                                                        {p.deviceUtil}%
+                                                    </span>
+                                                </td>
+                                                <td className="p-3 text-center font-semibold text-indigo-600 dark:text-indigo-400">{p.ictClasses}</td>
+                                                <td className="p-3 text-center font-semibold text-purple-600 dark:text-purple-400">{p.smartClasses}</td>
+                                                <td className="p-3 text-center font-semibold text-gray-600 dark:text-gray-400">{p.classRate}</td>
+                                                <td className="p-3 text-center font-bold text-teal-600 dark:text-teal-400">{p.totalVisits}</td>
+                                                <td className="p-3 text-center font-semibold text-gray-600 dark:text-gray-400">{p.monitoring}</td>
+                                                <td className="p-3 text-center">
+                                                    <span className={`px-2 py-0.5 rounded font-black text-[10px] ${parseFloat(p.instRate) >= 80 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : parseFloat(p.instRate) >= 50 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
+                                                        {p.instRate}%
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Best Practices & Gap Analysis */}
+                    <div className="px-5 pb-6">
+                        <h3 className="text-[10px] uppercase tracking-widest font-black text-gray-500 dark:text-gray-400 mb-3">Best Practices &amp; Actionable Gap Analysis</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Best Practices */}
+                            <div className="bg-emerald-50/60 dark:bg-emerald-950/10 border border-emerald-200 dark:border-emerald-800/30 rounded-xl p-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="text-lg">✅</span>
+                                    <h4 className="text-xs uppercase font-black tracking-widest text-emerald-700 dark:text-emerald-400">Best Practice Insights</h4>
+                                </div>
+                                {gapAnalysisInsights.bestPractices.length > 0 ? (
+                                    <ul className="space-y-2.5">
+                                        {gapAnalysisInsights.bestPractices.map((insight, i) => (
+                                            <li key={i} className="flex items-start gap-2 text-[13px] leading-snug text-emerald-900 dark:text-emerald-200">
+                                                <span className="text-emerald-500 mt-0.5 shrink-0 font-bold">▶</span>
+                                                <span>{insight}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">No significant outperformance detected for this zone.</p>
+                                )}
+                            </div>
+
+                            {/* Gap Analysis */}
+                            <div className="bg-rose-50/60 dark:bg-rose-950/10 border border-rose-200 dark:border-rose-800/30 rounded-xl p-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="text-lg">🔍</span>
+                                    <h4 className="text-xs uppercase font-black tracking-widest text-rose-700 dark:text-rose-400">Gap Analysis &amp; Recommendations</h4>
+                                </div>
+                                {gapAnalysisInsights.gaps.length > 0 ? (
+                                    <ul className="space-y-2.5">
+                                        {gapAnalysisInsights.gaps.map((gap, i) => (
+                                            <li key={i} className="flex items-start gap-2 text-[13px] leading-snug text-rose-900 dark:text-rose-200">
+                                                <span className="text-rose-500 mt-0.5 shrink-0 font-bold">⚠</span>
+                                                <span>{gap}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">No significant gaps detected. Zone is performing at or above state average on all KPIs.</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Drilldown Detailed View Section */}
             {activeZoneDetail && (
