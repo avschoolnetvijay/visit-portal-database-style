@@ -31,7 +31,7 @@ const ZonePerformance = ({
     userPermissions = null
 }) => {
     const [activeZoneDetail, setActiveZoneDetail] = useState(null);
-    const [detailTab, setDetailTab] = useState('cc'); // 'cc' or 'schools'
+    const [drilldownFilter, setDrilldownFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAuditZone, setSelectedAuditZone] = useState('');
 
@@ -629,24 +629,44 @@ const ZonePerformance = ({
         return { bestPractices, gaps };
     }, [auditComparativeData]);
 
-    // Active drill down detailed view contents
     const activeZoneDetailsData = useMemo(() => {
         if (!activeZoneDetail) return null;
 
         const zoneUdises = activeZoneDetail.udises;
         const zoneCCs = activeZoneDetail.ccNames;
 
-        if (detailTab === 'cc') {
-            // Find all CCs operating in this zone
-            // We can map over the CC names in this zone, and calculate their performance score
-            // We'll extract only the schools for this CC *within* this zone
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        const days = Number(workingDays) && Number(workingDays) >= 1
+            ? Number(workingDays)
+            : Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+
+        let viewType = 'schools';
+        if ([
+            'cpu_installed', 'mini_installed', 'panel_installed', 'edustat_not_installed',
+            'cpu_used', 'mini_used', 'panel_used', 'cpu_not_used', 'mini_not_used', 'panel_not_used'
+        ].includes(drilldownFilter)) {
+            viewType = 'devices';
+        } else if (drilldownFilter === 'working_instructors') {
+            viewType = 'instructors';
+        } else if (['cpu_hours_logs', 'mini_hours_logs', 'panel_hours_logs'].includes(drilldownFilter)) {
+            viewType = 'usage_logs';
+        } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
+            viewType = 'classes';
+        } else if (['ict_visits', 'smart_visits', 'all_visits'].includes(drilldownFilter)) {
+            viewType = 'visits';
+        } else if (drilldownFilter === 'coordinators') {
+            viewType = 'coordinators';
+        }
+
+        if (viewType === 'coordinators') {
             const ccList = Array.from(zoneCCs);
 
             const ccPerf = ccList.map((cc, i) => {
                 const ccSchools = schools.filter(s => (s.visitor_name === cc || ccNameMapping[s.visitor_name] === cc) && zoneUdises.has(cleanUdise(s.udise_code)));
                 const ccUdises = new Set(ccSchools.map(s => cleanUdise(s.udise_code)));
 
-                // Count metrics for this CC in this Zone
                 let totalSchools = ccSchools.length;
                 let instructorWorking = 0;
                 let cpuInstalled = 0;
@@ -664,17 +684,23 @@ const ZonePerformance = ({
                 let totalIctVisits = 0;
                 let totalSmartVisits = 0;
 
-                // manpower
                 manpower.forEach(m => {
                     const udise = cleanUdise(m.udise || getVal(m, 'udise'));
                     if (ccUdises.has(udise)) {
-                        const status = String(getVal(m, 'status') || '').trim();
-                        const isWorking = status.toUpperCase().includes('WORKING') || status.toUpperCase().includes('ACTIVE') || status === '';
+                        const schoolManpower = manpower.filter(mp => cleanUdise(mp.udise || getVal(mp, 'udise') || '') === udise);
+                        let instructorRec = schoolManpower.find(mp => {
+                            const status = String(getVal(mp, 'status') || '').trim().toUpperCase();
+                            return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
+                        });
+                        if (!instructorRec && schoolManpower.length > 0) {
+                            instructorRec = schoolManpower[0];
+                        }
+                        const rawStatus = instructorRec ? (instructorRec.status || getVal(instructorRec, 'status') || 'Active') : 'N/A';
+                        const isWorking = rawStatus.toUpperCase().includes('WORKING') || rawStatus.toUpperCase().includes('ACTIVE') || rawStatus === '';
                         if (isWorking) instructorWorking++;
                     }
                 });
 
-                // edustatMaster
                 (edustatMaster || []).forEach(m => {
                     const udise = String(m.udise).trim();
                     if (ccUdises.has(udise)) {
@@ -689,14 +715,6 @@ const ZonePerformance = ({
                         }
                     }
                 });
-
-                // Edustat run logs
-                const start = new Date(startDate);
-                const end = new Date(endDate);
-                end.setHours(23, 59, 59, 999);
-                const days = Number(workingDays) && Number(workingDays) >= 1
-                    ? Number(workingDays)
-                    : Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
 
                 const filteredEdustat = edustat.filter(row => {
                     const dateStr = formatDateStr(row.date || getVal(row, 'date'));
@@ -741,7 +759,6 @@ const ZonePerformance = ({
                     }
                 });
 
-                // JHPMS
                 jhpmsLab.forEach(l => {
                     const udise = cleanUdise(l.udise || getVal(l, 'udise'));
                     if (ccUdises.has(udise)) {
@@ -761,7 +778,6 @@ const ZonePerformance = ({
                     }
                 });
 
-                // Visits
                 visits.forEach(v => {
                     const udise = cleanUdise(v.udise_code);
                     if (ccUdises.has(udise)) {
@@ -774,7 +790,6 @@ const ZonePerformance = ({
                     }
                 });
 
-                // Compute cc local scores
                 const cpuUtil = cpuInstalled > 0 ? (cpuUsed / cpuInstalled) : 0;
                 const miniUtil = miniPcInstalled > 0 ? (miniPcUsed / miniPcInstalled) : 0;
                 const panelUtil = panelInstalled > 0 ? (panelUsed / panelInstalled) : 0;
@@ -785,7 +800,6 @@ const ZonePerformance = ({
                 const avgMini = miniPcInstalled > 0 ? (totalMiniPcHours / days / miniPcInstalled) : 0;
                 const avgPanel = panelInstalled > 0 ? (totalPanelHours / days / panelInstalled) : 0;
 
-                // Simple local normalized scores (can just use raw average or local percentiles)
                 const academic = totalSchools > 0 ? (ictClasses / totalSchools) : 0;
                 const smart = totalSchools > 0 ? (smartClasses / totalSchools) : 0;
                 const monitoring = totalSchools > 0 ? ((totalIctVisits + totalSmartVisits) / totalSchools) : 0;
@@ -798,10 +812,10 @@ const ZonePerformance = ({
                     instructorWorking,
                     cpuInstalled,
                     cpuUsed,
-                    miniPcInstalled,
-                    miniPcUsed,
-                    panelInstalled,
-                    panelUsed,
+                    miniPcInstalled: miniPcInstalled,
+                    miniPcUsed: miniPcUsed,
+                    panelInstalled: panelInstalled,
+                    panelUsed: panelUsed,
                     totalCpuHours: parseFloat(totalCpuHours.toFixed(1)),
                     totalMiniPcHours: parseFloat(totalMiniPcHours.toFixed(1)),
                     totalPanelHours: parseFloat(totalPanelHours.toFixed(1)),
@@ -813,146 +827,417 @@ const ZonePerformance = ({
             });
 
             ccPerf.sort((a, b) => b.performanceScore - a.performanceScore);
-            ccPerf.forEach((row, index) => row.slno = index + 1);
-            return ccPerf;
-        } else {
-            // Schools view
-            const zoneSchools = schools.filter(s => zoneUdises.has(cleanUdise(s.udise_code)));
+            
+            let filteredCc = ccPerf;
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                filteredCc = filteredCc.filter(c => c.ccName.toLowerCase().includes(q));
+            }
 
-            const schList = zoneSchools.map((s, i) => {
-                const udise = cleanUdise(s.udise_code);
+            return filteredCc.map((row, index) => ({ ...row, slno: index + 1 }));
+        }
 
-                let instructorStatus = 'Vacant';
-                const schoolManpower = manpower.filter(m => cleanUdise(m.udise || getVal(m, 'udise') || '') === udise);
-                let instructorRec = schoolManpower.find(m => {
-                    const status = String(getVal(m, 'status') || '').trim().toUpperCase();
-                    return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
-                });
-                if (!instructorRec && schoolManpower.length > 0) {
-                    instructorRec = schoolManpower[0];
+        if (viewType === 'devices') {
+            const masterDevices = (edustatMaster || []).filter(m => zoneUdises.has(cleanUdise(m.udise || getVal(m, 'udise'))));
+
+            const filteredEdustat = edustat.filter(row => {
+                const dateStr = formatDateStr(row.date || getVal(row, 'date'));
+                return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(row.udise || getVal(row, 'udise')));
+            });
+
+            const activeSerials = new Set();
+            filteredEdustat.forEach(e => {
+                if (Number(e.hours) > 0 && e.serial) {
+                    activeSerials.add(String(e.serial).trim());
                 }
-                if (instructorRec) {
-                    const status = String(getVal(instructorRec, 'status') || '').trim();
-                    if (status.toUpperCase().includes('WORKING') || status.toUpperCase().includes('ACTIVE') || status === '') {
-                        instructorStatus = 'Active';
-                    } else if (status.toUpperCase().includes('PENDING')) {
-                        instructorStatus = 'Pending';
-                    }
-                }
+            });
 
-                // Installed devices
-                let cpuInstalled = 0;
-                let miniInstalled = 0;
-                let panelInstalled = 0;
-                (edustatMaster || []).forEach(m => {
-                    if (cleanUdise(m.udise) === udise && String(m.installed || '').toUpperCase() === 'YES') {
-                        const device = String(m.device || '').toUpperCase();
-                        if (device === 'CPU') cpuInstalled++;
-                        else if (device === 'MINI PC' || device === 'THIN CLIENT') miniInstalled++;
-                        else if (device === 'INTERACTIVE FLAT PANEL') panelInstalled++;
-                    }
-                });
+            let filteredDevices = masterDevices;
+            if (drilldownFilter === 'cpu_installed') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'CPU' && String(m.installed || '').toUpperCase() === 'YES');
+            } else if (drilldownFilter === 'mini_installed') {
+                filteredDevices = filteredDevices.filter(m => (String(m.device || '').toUpperCase() === 'MINI PC' || String(m.device || '').toUpperCase() === 'THIN CLIENT') && String(m.installed || '').toUpperCase() === 'YES');
+            } else if (drilldownFilter === 'panel_installed') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'INTERACTIVE FLAT PANEL' && String(m.installed || '').toUpperCase() === 'YES');
+            } else if (drilldownFilter === 'edustat_not_installed') {
+                filteredDevices = filteredDevices.filter(m => String(m.installed || '').toUpperCase() === 'NO');
+            } else if (drilldownFilter === 'cpu_used') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'CPU' && String(m.installed || '').toUpperCase() === 'YES' && activeSerials.has(String(m.serial || '').trim()));
+            } else if (drilldownFilter === 'mini_used') {
+                filteredDevices = filteredDevices.filter(m => (String(m.device || '').toUpperCase() === 'MINI PC' || String(m.device || '').toUpperCase() === 'THIN CLIENT') && String(m.installed || '').toUpperCase() === 'YES' && activeSerials.has(String(m.serial || '').trim()));
+            } else if (drilldownFilter === 'panel_used') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'INTERACTIVE FLAT PANEL' && String(m.installed || '').toUpperCase() === 'YES' && activeSerials.has(String(m.serial || '').trim()));
+            } else if (drilldownFilter === 'cpu_not_used') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'CPU' && String(m.installed || '').toUpperCase() === 'YES' && !activeSerials.has(String(m.serial || '').trim()));
+            } else if (drilldownFilter === 'mini_not_used') {
+                filteredDevices = filteredDevices.filter(m => (String(m.device || '').toUpperCase() === 'MINI PC' || String(m.device || '').toUpperCase() === 'THIN CLIENT') && String(m.installed || '').toUpperCase() === 'YES' && !activeSerials.has(String(m.serial || '').trim()));
+            } else if (drilldownFilter === 'panel_not_used') {
+                filteredDevices = filteredDevices.filter(m => String(m.device || '').toUpperCase() === 'INTERACTIVE FLAT PANEL' && String(m.installed || '').toUpperCase() === 'YES' && !activeSerials.has(String(m.serial || '').trim()));
+            }
 
-                // Utilization hours
-                let totalCpuHours = 0;
-                let totalMiniPcHours = 0;
-                let totalPanelHours = 0;
-
-                const serialMap = {};
-                (edustatMaster || []).forEach(m => {
-                    if (m.serial) {
-                        serialMap[String(m.serial).trim()] = String(m.device || '').toUpperCase();
-                    }
-                });
-
-                const schEdustat = edustat.filter(e => cleanUdise(e.udise || getVal(e, 'udise')) === udise && formatDateStr(e.date || getVal(e, 'date')) >= startDate && formatDateStr(e.date || getVal(e, 'date')) <= endDate);
-
-                schEdustat.forEach(e => {
-                    const serial = String(e.serial).trim();
-                    const hours = Number(e.hours) || 0;
-                    const deviceType = serialMap[serial] || 'CPU';
-
-                    if (deviceType === 'CPU') totalCpuHours += hours;
-                    else if (deviceType === 'MINI PC' || deviceType === 'THIN CLIENT') totalMiniPcHours += hours;
-                    else if (deviceType === 'INTERACTIVE FLAT PANEL') totalPanelHours += hours;
-                });
-
-                // Classes
-                let ictClasses = 0;
-                let smartClasses = 0;
-                jhpmsLab.forEach(l => {
-                    if (cleanUdise(l.udise || getVal(l, 'udise')) === udise) {
-                        const dateStr = formatDateStr(l.date || getVal(l, 'date'));
-                        if (dateStr && dateStr >= startDate && dateStr <= endDate) {
-                            const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
-                            const subject = String(l.subject || getVal(l, 'sub') || '').toUpperCase();
-                            if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
-                                // Ignore
-                            } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                                ictClasses++;
-                            } else if (labType.includes('SMART')) {
-                                smartClasses++;
-                            }
-                        }
-                    }
-                });
-
-                // Visits
-                let visitsCount = 0;
-                let lastVisitDate = '-';
-                visits.forEach(v => {
-                    if (cleanUdise(v.udise_code) === udise) {
-                        const dateStr = formatDateStr(v.visit_date);
-                        if (dateStr && dateStr >= startDate && dateStr <= endDate) {
-                            visitsCount++;
-                        }
-                        if (dateStr) {
-                            if (lastVisitDate === '-' || dateStr > lastVisitDate) {
-                                lastVisitDate = dateStr;
-                            }
-                        }
-                    }
-                });
+            const list = filteredDevices.map((m, idx) => {
+                const udise = cleanUdise(m.udise || getVal(m, 'udise'));
+                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+                
+                let status = 'Idle / Not Used';
+                if (String(m.installed || '').toUpperCase() === 'NO') status = 'Not Installed';
+                else if (activeSerials.has(String(m.serial || '').trim())) status = 'Active / Syncing';
 
                 return {
                     udise,
-                    schoolName: s.school_name || s.school || '-',
-                    project: s.project_name || '-',
-                    district: s.district || '-',
-                    block: s.block || '-',
-                    ccName: s.visitor_name || 'Unassigned',
-                    instructorStatus,
-                    cpuInstalled,
-                    totalCpuHours: parseFloat(totalCpuHours.toFixed(1)),
-                    miniInstalled,
-                    totalMiniPcHours: parseFloat(totalMiniPcHours.toFixed(1)),
-                    panelInstalled,
-                    totalPanelHours: parseFloat(totalPanelHours.toFixed(1)),
-                    ictClasses,
-                    smartClasses,
-                    visitsCount,
-                    lastVisitDate: lastVisitDate !== '-' ? formatDateClean(lastVisitDate) : '-'
+                    schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
+                    block: schoolRec ? (schoolRec.block || '-') : '-',
+                    serial: m.serial || 'N/A',
+                    deviceType: m.device || 'CPU',
+                    status
                 };
             });
 
-            // Filter by search query if any
-            let filteredSch = schList;
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
-                filteredSch = filteredSch.filter(s =>
-                    s.schoolName.toLowerCase().includes(q) ||
-                    s.udise.includes(q) ||
-                    s.block.toLowerCase().includes(q) ||
-                    s.ccName.toLowerCase().includes(q)
-                );
+                const filtered = list.filter(d => d.schoolName.toLowerCase().includes(q) || d.udise.includes(q) || d.serial.toLowerCase().includes(q));
+                return filtered.map((item, idx) => ({ ...item, slno: idx + 1 }));
+            }
+            return list.map((item, idx) => ({ ...item, slno: idx + 1 }));
+        }
+
+        if (viewType === 'instructors') {
+            const ccManpower = manpower.filter(m => zoneUdises.has(cleanUdise(m.udise || getVal(m, 'udise'))));
+            
+            const listData = ccManpower.map((m, idx) => {
+                const udise = cleanUdise(m.udise || getVal(m, 'udise'));
+                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+                const rawStatus = m.status || getVal(m, 'status') || 'Active';
+                
+                let instructorStatus = 'N/A';
+                if (rawStatus) {
+                    const sUpper = String(rawStatus).toUpperCase();
+                    if (sUpper.includes('WORKING') || sUpper.includes('ACTIVE')) instructorStatus = 'Active';
+                    else if (sUpper.includes('PENDING')) instructorStatus = 'Pending';
+                    else if (sUpper.includes('RESIGN') || sUpper.includes('TERMINATE') || sUpper.includes('VACANT')) instructorStatus = 'Vacant';
+                }
+
+                return {
+                    udise,
+                    schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
+                    block: schoolRec ? (schoolRec.block || '-') : '-',
+                    instructorName: m.instructorName || getVal(m, 'name') || 'N/A',
+                    instructorStatus
+                };
+            });
+
+            const filteredList = listData.filter(ins => ins.instructorStatus === 'Active');
+
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                const filtered = filteredList.filter(ins => ins.schoolName.toLowerCase().includes(q) || ins.udise.includes(q) || ins.instructorName.toLowerCase().includes(q));
+                return filtered.map((ins, idx) => ({ ...ins, slno: idx + 1 }));
+            }
+            return filteredList.map((ins, idx) => ({ ...ins, slno: idx + 1 }));
+        }
+
+        if (viewType === 'usage_logs') {
+            const filteredEdustat = edustat.filter(row => {
+                const dateStr = formatDateStr(row.date || getVal(row, 'date'));
+                return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(row.udise || getVal(row, 'udise')));
+            });
+
+            const serialMap = {};
+            (edustatMaster || []).forEach(m => {
+                if (m.serial) {
+                    serialMap[String(m.serial).trim()] = String(m.device || '').toUpperCase();
+                }
+            });
+
+            let logRows = filteredEdustat.map(e => {
+                const udise = cleanUdise(e.udise || getVal(e, 'udise') || '');
+                const serial = String(e.serial || '').trim();
+                const devType = serialMap[serial] || 'CPU';
+                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+
+                return {
+                    date: formatDateClean(e.date || getVal(e, 'date')),
+                    dateRaw: formatDateStr(e.date || getVal(e, 'date')),
+                    udise,
+                    schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
+                    block: schoolRec ? (schoolRec.block || '-') : '-',
+                    serial,
+                    deviceType: devType,
+                    hours: Number(e.hours) || 0
+                };
+            });
+
+            if (drilldownFilter === 'cpu_hours_logs') {
+                logRows = logRows.filter(l => l.deviceType === 'CPU');
+            } else if (drilldownFilter === 'mini_hours_logs') {
+                logRows = logRows.filter(l => l.deviceType === 'MINI PC' || l.deviceType === 'THIN CLIENT');
+            } else if (drilldownFilter === 'panel_hours_logs') {
+                logRows = logRows.filter(l => l.deviceType === 'INTERACTIVE FLAT PANEL');
             }
 
-            return filteredSch.map((sch, index) => ({
-                ...sch,
-                slno: index + 1
-            }));
+            logRows.sort((a, b) => (b.dateRaw || '').localeCompare(a.dateRaw || ''));
+
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                const filtered = logRows.filter(l => l.schoolName.toLowerCase().includes(q) || l.udise.includes(q) || l.serial.toLowerCase().includes(q));
+                return filtered.map((l, idx) => ({ ...l, slno: idx + 1 }));
+            }
+            return logRows.map((l, idx) => ({ ...l, slno: idx + 1 }));
         }
-    }, [activeZoneDetail, detailTab, schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate, workingDays, ccNameMapping, searchQuery]);
+
+        if (viewType === 'classes') {
+            const filteredJhpms = jhpmsLab.filter(l => {
+                const udise = cleanUdise(l.udise || getVal(l, 'udise'));
+                const dateStr = formatDateStr(l.date || getVal(l, 'date'));
+                return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(udise);
+            });
+
+            let classRows = [];
+            filteredJhpms.forEach(l => {
+                const udise = cleanUdise(l.udise || getVal(l, 'udise'));
+                const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+                
+                const teacherKey = Object.keys(l).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('subjectteacher'));
+                const teacher = teacherKey ? String(l[teacherKey] || '').trim() : (getVal(l, 'teacher') || 'N/A');
+                
+                const subjectKey = Object.keys(l).find(k => k !== teacherKey && k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('sub'));
+                const subject = subjectKey ? String(l[subjectKey] || '').trim().toUpperCase() : '';
+                
+                const remarks = l.remarks || getVal(l, 'remarks') || getVal(l, 'topic') || '-';
+                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+
+                const isIct = !subject.split(/[^A-Z0-9]+/).includes('MIS') && (labType.includes('ICT') && subject.includes('COMPUTER'));
+                const isSmart = !subject.split(/[^A-Z0-9]+/).includes('MIS') && !(labType.includes('ICT') && subject.includes('COMPUTER')) && labType.includes('SMART');
+
+                if ((drilldownFilter === 'ict_classes' && isIct) || (drilldownFilter === 'smart_classes' && isSmart)) {
+                    classRows.push({
+                        date: formatDateClean(l.date || getVal(l, 'date')),
+                        dateRaw: formatDateStr(l.date || getVal(l, 'date')),
+                        udise,
+                        schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
+                        block: schoolRec ? (schoolRec.block || '-') : '-',
+                        labType: labType,
+                        subject: subject || 'N/A',
+                        teacher: teacher,
+                        remarks
+                    });
+                }
+            });
+
+            classRows.sort((a, b) => (b.dateRaw || '').localeCompare(a.dateRaw || ''));
+
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                const filtered = classRows.filter(r => r.schoolName.toLowerCase().includes(q) || r.udise.includes(q) || r.teacher.toLowerCase().includes(q) || r.subject.toLowerCase().includes(q));
+                return filtered.map((r, idx) => ({ ...r, slno: idx + 1 }));
+            }
+            return classRows.map((r, idx) => ({ ...r, slno: idx + 1 }));
+        }
+
+        if (viewType === 'visits') {
+            const ccVisits = visits.filter(v => {
+                const dateStr = formatDateStr(v.visit_date || getVal(v, 'date'));
+                return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(v.udise_code));
+            });
+
+            let visitRows = ccVisits.map(v => {
+                const udise = cleanUdise(v.udise_code);
+                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+
+                return {
+                    date: formatDateClean(v.visit_date || getVal(v, 'date')),
+                    dateRaw: formatDateStr(v.visit_date || getVal(v, 'date')),
+                    udise,
+                    schoolName: schoolRec ? (schoolRec.school_name || schoolRec.school || '-') : '-',
+                    block: schoolRec ? (schoolRec.block || '-') : '-',
+                    visitorName: v.visitor_name || 'N/A',
+                    visitType: v.visit_type || 'Visit',
+                    remarks: v.remarks || getVal(v, 'remarks') || getVal(v, 'remark') || '-'
+                };
+            });
+
+            if (drilldownFilter === 'ict_visits') {
+                visitRows = visitRows.filter(v => v.visitType.toLowerCase().includes('ict'));
+            } else if (drilldownFilter === 'smart_visits') {
+                visitRows = visitRows.filter(v => v.visitType.toLowerCase().includes('smart'));
+            }
+
+            visitRows.sort((a, b) => (b.dateRaw || '').localeCompare(a.dateRaw || ''));
+
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                const filtered = visitRows.filter(v => v.schoolName.toLowerCase().includes(q) || v.udise.includes(q) || v.visitorName.toLowerCase().includes(q));
+                return filtered.map((v, idx) => ({ ...v, slno: idx + 1 }));
+            }
+            return visitRows.map((v, idx) => ({ ...v, slno: idx + 1 }));
+        }
+
+        // Default 'schools' view
+        const zoneSchoolsList = schools.filter(s => zoneUdises.has(cleanUdise(s.udise_code)));
+
+        const rangeVisits = visits.filter(v => {
+            const dateStr = formatDateStr(v.visit_date);
+            return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(v.udise_code));
+        });
+
+        const rangeJhpms = jhpmsLab.filter(l => {
+            const udise = cleanUdise(l.udise || getVal(l, 'udise') || '');
+            const dateStr = formatDateStr(l.date || getVal(l, 'date'));
+            return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(udise);
+        });
+
+        const rangeEdustat = edustat.filter(e => {
+            const dateStr = formatDateStr(e.date || getVal(e, 'date'));
+            return dateStr && dateStr >= startDate && dateStr <= endDate && zoneUdises.has(cleanUdise(e.udise || getVal(e, 'udise') || ''));
+        });
+
+        const schDetailsList = zoneSchoolsList.map((s, idx) => {
+            const udise = cleanUdise(s.udise_code);
+
+            const schoolManpower = manpower.filter(m => cleanUdise(m.udise || getVal(m, 'udise') || '') === udise);
+            let instructorRec = schoolManpower.find(m => {
+                const status = String(getVal(m, 'status') || '').trim().toUpperCase();
+                return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
+            });
+            if (!instructorRec && schoolManpower.length > 0) {
+                instructorRec = schoolManpower[0];
+            }
+            const rawStatus = instructorRec ? (instructorRec.status || getVal(instructorRec, 'status') || 'Active') : 'N/A';
+            let instructorStatus = 'N/A';
+            if (rawStatus) {
+                const sUpper = String(rawStatus).toUpperCase();
+                if (sUpper.includes('WORKING') || sUpper.includes('ACTIVE')) instructorStatus = 'Active';
+                else if (sUpper.includes('PENDING')) instructorStatus = 'Pending';
+                else if (sUpper.includes('RESIGN') || sUpper.includes('TERMINATE') || sUpper.includes('VACANT')) instructorStatus = 'Vacant';
+            }
+
+            let cpuInstalled = 0;
+            let miniInstalled = 0;
+            let panelInstalledSch = 0;
+            let edustatNotInstalled = 0;
+
+            (edustatMaster || []).forEach(m => {
+                if (cleanUdise(m.udise) === udise) {
+                    const device = String(m.device || '').toUpperCase();
+                    const installed = String(m.installed || '').toUpperCase();
+                    if (installed === 'YES') {
+                        if (device === 'CPU') cpuInstalled++;
+                        else if (device === 'MINI PC' || device === 'THIN CLIENT') miniInstalled++;
+                        else if (device === 'INTERACTIVE FLAT PANEL') panelInstalledSch++;
+                    } else if (installed === 'NO') {
+                        edustatNotInstalled++;
+                    }
+                }
+            });
+
+            let ictClasses = 0;
+            let smartClasses = 0;
+            rangeJhpms.forEach(l => {
+                const rowUdise = cleanUdise(l.udise || getVal(l, 'udise') || '');
+                if (rowUdise !== udise) return;
+
+                const labType = String(l.labType || getVal(l, 'lab') || '').toUpperCase();
+                const teacherKey = Object.keys(l).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('subjectteacher'));
+                const teacher = teacherKey ? String(l[teacherKey] || '').trim() : (getVal(l, 'teacher') || '');
+                const subjectKey = Object.keys(l).find(k => k !== teacherKey && k.toLowerCase().replace(/[^a-z0-9]/g, '').includes('sub'));
+                const subject = subjectKey ? String(l[subjectKey] || '').trim().toUpperCase() : '';
+
+                if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                    // Ignore
+                } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                    ictClasses++;
+                } else if (labType.includes('SMART')) {
+                    smartClasses++;
+                }
+            });
+
+            let totalCpuHours = 0;
+            let totalMiniPcHours = 0;
+            let totalPanelHoursSch = 0;
+            
+            const serialMap = {};
+            (edustatMaster || []).forEach(m => {
+                if (m.serial) {
+                    serialMap[String(m.serial).trim()] = String(m.device || '').toUpperCase();
+                }
+            });
+
+            rangeEdustat.forEach(e => {
+                const rowUdise = cleanUdise(e.udise || getVal(e, 'udise') || '');
+                if (rowUdise !== udise) return;
+
+                const serial = String(e.serial || '').trim();
+                const hours = Number(e.hours) || 0;
+                const devType = serialMap[serial] || 'CPU';
+
+                if (devType === 'CPU') {
+                    totalCpuHours += hours;
+                } else if (devType === 'MINI PC' || devType === 'THIN CLIENT') {
+                    totalMiniPcHours += hours;
+                } else if (devType === 'INTERACTIVE FLAT PANEL') {
+                    totalPanelHoursSch += hours;
+                }
+            });
+
+            let visitsCount = 0;
+            let lastVisitDate = '-';
+            
+            rangeVisits.forEach(v => {
+                if (cleanUdise(v.udise_code) === udise) {
+                    visitsCount++;
+                }
+            });
+
+            visits.forEach(v => {
+                if (cleanUdise(v.udise_code) !== udise) return;
+                const vDateStr = formatDateStr(v.visit_date);
+                if (vDateStr) {
+                    if (lastVisitDate === '-' || vDateStr > lastVisitDate) {
+                        lastVisitDate = vDateStr;
+                    }
+                }
+            });
+
+            let lastVisitClean = '-';
+            if (lastVisitDate !== '-') {
+                const parts = lastVisitDate.split('-');
+                lastVisitClean = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+
+            return {
+                udise,
+                schoolName: s.school_name || s.school || '-',
+                block: s.block || '-',
+                instructorStatus,
+                cpuInstalled,
+                totalCpuHours: parseFloat(totalCpuHours.toFixed(2)),
+                miniInstalled,
+                totalMiniPcHours: parseFloat(totalMiniPcHours.toFixed(2)),
+                panelInstalled: panelInstalledSch,
+                totalPanelHours: parseFloat(totalPanelHoursSch.toFixed(2)),
+                edustatNotInstalled,
+                ictClasses,
+                smartClasses,
+                visitsCount,
+                lastVisitDate: lastVisitClean
+            };
+        });
+
+        let filteredSch = schDetailsList;
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            filteredSch = filteredSch.filter(s =>
+                s.schoolName.toLowerCase().includes(q) ||
+                s.udise.includes(q) ||
+                s.block.toLowerCase().includes(q)
+            );
+        }
+
+        return filteredSch.map((sch, index) => ({
+            ...sch,
+            slno: index + 1
+        }));
+    }, [activeZoneDetail, drilldownFilter, schools, visits, jhpmsLab, edustat, edustatMaster, manpower, startDate, endDate, workingDays, ccNameMapping, searchQuery]);
 
     // Handle Exporting main zone performance data
     const handleExport = () => {
@@ -990,7 +1275,26 @@ const ZonePerformance = ({
 
         let exportFormat = [];
         let label = '';
-        if (detailTab === 'cc') {
+        
+        let viewType = 'schools';
+        if ([
+            'cpu_installed', 'mini_installed', 'panel_installed', 'edustat_not_installed',
+            'cpu_used', 'mini_used', 'panel_used', 'cpu_not_used', 'mini_not_used', 'panel_not_used'
+        ].includes(drilldownFilter)) {
+            viewType = 'devices';
+        } else if (drilldownFilter === 'working_instructors') {
+            viewType = 'instructors';
+        } else if (['cpu_hours_logs', 'mini_hours_logs', 'panel_hours_logs'].includes(drilldownFilter)) {
+            viewType = 'usage_logs';
+        } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
+            viewType = 'classes';
+        } else if (['ict_visits', 'smart_visits', 'all_visits'].includes(drilldownFilter)) {
+            viewType = 'visits';
+        } else if (drilldownFilter === 'coordinators') {
+            viewType = 'coordinators';
+        }
+
+        if (viewType === 'coordinators') {
             exportFormat = activeZoneDetailsData.map(c => ({
                 'Slno': c.slno,
                 'CC/DEF Name': c.ccName,
@@ -1011,15 +1315,70 @@ const ZonePerformance = ({
                 'Local Performance Score': c.performanceScore
             }));
             label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Coordinators_Performance`;
+        } else if (viewType === 'devices') {
+            exportFormat = activeZoneDetailsData.map(d => ({
+                'Slno': d.slno,
+                'UDISE Code': d.udise,
+                'School Name': d.schoolName,
+                'Block': d.block,
+                'Serial No of Device': d.serial,
+                'Device Type': d.deviceType,
+                'Device Status': d.status
+            }));
+            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Devices_Report`;
+        } else if (viewType === 'instructors') {
+            exportFormat = activeZoneDetailsData.map(ins => ({
+                'Slno': ins.slno,
+                'UDISE Code': ins.udise,
+                'School Name': ins.schoolName,
+                'Block': ins.block,
+                'Instructor Name': ins.instructorName,
+                'Instructor Status': ins.instructorStatus
+            }));
+            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Active_Instructors`;
+        } else if (viewType === 'usage_logs') {
+            exportFormat = activeZoneDetailsData.map(l => ({
+                'Slno': l.slno,
+                'Date': l.date,
+                'UDISE Code': l.udise,
+                'School Name': l.schoolName,
+                'Block': l.block,
+                'Serial No of Device': l.serial,
+                'Device Type': l.deviceType,
+                'Hours Used': l.hours
+            }));
+            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Usage_Logs`;
+        } else if (viewType === 'classes') {
+            exportFormat = activeZoneDetailsData.map(r => ({
+                'Slno': r.slno,
+                'Date': r.date,
+                'UDISE Code': r.udise,
+                'School Name': r.schoolName,
+                'Block': r.block,
+                'Lab Type': r.labType,
+                'Subject': r.subject,
+                'Subject Teacher': r.teacher,
+                'Topic/Remarks': r.remarks
+            }));
+            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Classes_Logs`;
+        } else if (viewType === 'visits') {
+            exportFormat = activeZoneDetailsData.map(v => ({
+                'Slno': v.slno,
+                'Date': v.date,
+                'UDISE Code': v.udise,
+                'School Name': v.schoolName,
+                'Block': v.block,
+                'Visit Type': v.visitType,
+                'Visitor / CC Name': v.visitorName,
+                'Remarks / Findings': v.remarks
+            }));
+            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Visits_Report`;
         } else {
             exportFormat = activeZoneDetailsData.map(s => ({
                 'Slno': s.slno,
-                'UDISE Code': s.udise,
                 'School Name': s.schoolName,
-                'Project': s.project,
-                'District': s.district,
+                'UDISE Code': s.udise,
                 'Block': s.block,
-                'Coordinator': s.ccName,
                 'Instructor Status': s.instructorStatus,
                 'CPU Installed': s.cpuInstalled,
                 'CPU Run Hours': s.totalCpuHours,
@@ -1027,9 +1386,10 @@ const ZonePerformance = ({
                 'Mini PC Run Hours': s.totalMiniPcHours,
                 'Panel Installed': s.panelInstalled,
                 'Panel Run Hours': s.totalPanelHours,
+                'Device Not Installed': s.edustatNotInstalled,
                 'ICT Classes': s.ictClasses,
                 'Smart Classes': s.smartClasses,
-                'Visits Done': s.visitsCount,
+                'Monitoring Visits': s.visitsCount,
                 'Last Visit Date': s.lastVisitDate
             }));
             label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Schools_Detailed_Report`;
@@ -1047,6 +1407,26 @@ const ZonePerformance = ({
             if (onRegisterExport) onRegisterExport(null);
         };
     }, [handleExport, onRegisterExport]);
+
+    const drilldownViewType = useMemo(() => {
+        if ([
+            'cpu_installed', 'mini_installed', 'panel_installed', 'edustat_not_installed',
+            'cpu_used', 'mini_used', 'panel_used', 'cpu_not_used', 'mini_not_used', 'panel_not_used'
+        ].includes(drilldownFilter)) {
+            return 'devices';
+        } else if (drilldownFilter === 'working_instructors') {
+            return 'instructors';
+        } else if (['cpu_hours_logs', 'mini_hours_logs', 'panel_hours_logs'].includes(drilldownFilter)) {
+            return 'usage_logs';
+        } else if (['ict_classes', 'smart_classes'].includes(drilldownFilter)) {
+            return 'classes';
+        } else if (['ict_visits', 'smart_visits', 'all_visits'].includes(drilldownFilter)) {
+            return 'visits';
+        } else if (drilldownFilter === 'coordinators') {
+            return 'coordinators';
+        }
+        return 'schools';
+    }, [drilldownFilter]);
 
     if (!schools.length) {
         return (
@@ -1194,75 +1574,342 @@ const ZonePerformance = ({
                     </button>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50 dark:bg-slate-800/40 text-[10px] uppercase tracking-widest font-black text-slate-500 dark:text-slate-400 border-b border-gray-200 dark:border-white/5">
-                                <th className="p-4 w-12 text-center">Rank</th>
-                                <th className="p-4">Zone Name</th>
-                                <th className="p-4 text-center">Projects</th>
-                                <th className="p-4 text-center">Districts</th>
-                                <th className="p-4 text-center">Schools</th>
-                                <th className="p-4 text-center">Coordinators</th>
-                                <th className="p-4 text-center">Instructors</th>
-                                <th className="p-4 text-center">CPU Installed / Used</th>
-                                <th className="p-4 text-center">Mini PC Installed / Used</th>
-                                <th className="p-4 text-center">Panel Installed / Used</th>
-                                <th className="p-4 text-center">Total Hours</th>
-                                <th className="p-4 text-center">Visits Done</th>
-                                <th className="p-4 text-center">Performance Score</th>
-                                <th className="p-4 text-center w-28">Action</th>
+                <div className="overflow-x-auto overflow-y-auto max-h-[600px] border border-teal-100 dark:border-white/5 rounded-xl shadow-inner bg-slate-50/50">
+                    <table className="w-full text-left border-collapse text-xs select-none">
+                        <thead className="bg-gradient-to-r from-teal-800 to-teal-700 text-white sticky top-0 z-30 shadow-md">
+                            <tr>
+                                <th className="p-3 border-r border-teal-600/30 align-top sticky top-0 left-0 z-40 bg-teal-800 w-[60px] min-w-[60px] max-w-[60px]">Slno</th>
+                                <th className="p-3 border-r border-teal-600/30 align-top sticky top-0 left-[60px] z-40 bg-teal-800 w-[120px] min-w-[120px] max-w-[120px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">Zone Name</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[70px]">Projects</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[70px]">Districts</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">Coordinators</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">No.of Schools</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[90px]">No. of Instructor Working</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 min-w-[90px]">No.Of CPU Installed</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-red-950/40 text-red-200 min-w-[100px]">EduStat Not Installed</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 min-w-[80px]">No.Of CPU Used</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-blue-900/40 text-red-200 min-w-[90px]">No. Of CPU Not Used</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 min-w-[110px]">No.Of Mini PC / Thin Client Installed</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 min-w-[100px]">No. Of Mini PC / Thin Client Used</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-purple-900/40 text-red-200 min-w-[110px]">No. Of Mini PC / Thin Client Not Used</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-indigo-900/40 min-w-[100px]">No.Of Panel (IFP) Installed</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-indigo-900/40 min-w-[90px]">No. Of Panel (IFP) Used</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-indigo-900/40 text-red-200 min-w-[100px]">No. Of Panel (IFP) Not Used</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (CPU)</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[110px]">Total Hours Used (Mini PC / Thin Client)</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (Panel / IFP)</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]">
+                                    <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
+                                        <span>Avg Hrs/Day/Sch/CPU</span>
+                                        <span className="text-emerald-300">ⓘ</span>
+                                        <div className="custom-tooltip-box text-white font-normal">
+                                            <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for CPU</strong>
+                                            <div className="border-t border-white/10 pt-1.5 mt-1">
+                                                <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
+                                                <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total CPU Hours / (Working Days × CPUs Installed)</span>
+                                            </div>
+                                            <p className="text-[10px] text-gray-300 mt-1.5">
+                                                Shows the average daily usage hours for each active CPU device within the selected period.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[115px]">
+                                    <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
+                                        <span>Avg Hrs/Day/Sch/Mini PC</span>
+                                        <span className="text-emerald-300">ⓘ</span>
+                                        <div className="custom-tooltip-box text-white font-normal">
+                                            <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for Mini PC / Thin Client</strong>
+                                            <div className="border-t border-white/10 pt-1.5 mt-1">
+                                                <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
+                                                <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Mini PC Hours / (Working Days × Mini PCs Installed)</span>
+                                            </div>
+                                            <p className="text-[10px] text-gray-300 mt-1.5">
+                                                Shows the average daily usage hours for each active Mini PC within the selected period.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-emerald-900/40 min-w-[110px]">
+                                    <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
+                                        <span>Avg Hrs/Day/Sch/Panel</span>
+                                        <span className="text-emerald-300">ⓘ</span>
+                                        <div className="custom-tooltip-box text-white font-normal">
+                                            <strong className="text-emerald-300 font-bold block mb-1">Avg Hours/Day/School for Panel (IFP)</strong>
+                                            <div className="border-t border-white/10 pt-1.5 mt-1">
+                                                <span className="font-mono text-teal-400 text-[10px] block">FORMULA:</span>
+                                                <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Panel Hours / (Working Days × Panels Installed)</span>
+                                            </div>
+                                            <p className="text-[10px] text-gray-300 mt-1.5">
+                                                Shows the average daily usage hours for each Interactive Flat Panel (IFP) within the selected period.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-pink-900/40 min-w-[80px]">ICT Classes</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-pink-900/40 min-w-[110px]">
+                                    <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
+                                        <span>Avg Classes/per school/Day</span>
+                                        <span className="text-pink-300">ⓘ</span>
+                                        <div className="custom-tooltip-box text-white font-normal">
+                                            <strong className="text-pink-300 font-bold block mb-1">Average ICT Classes per School per Day</strong>
+                                            <div className="border-t border-white/10 pt-1.5 mt-1">
+                                                <span className="font-mono text-pink-400 text-[10px] block">FORMULA:</span>
+                                                <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Computer Classes / (Working Days × Total Schools)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-yellow-900/40 min-w-[80px]">Smart Classes</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top bg-yellow-900/40 min-w-[110px]">
+                                    <div className="custom-tooltip-trigger flex items-center justify-center gap-1">
+                                        <span>Avg Smart Classes/per school/Day</span>
+                                        <span className="text-yellow-300">ⓘ</span>
+                                        <div className="custom-tooltip-box text-white font-normal">
+                                            <strong className="text-yellow-300 font-bold block mb-1">Average Smart Classes per School per Day</strong>
+                                            <div className="border-t border-white/10 pt-1.5 mt-1">
+                                                <span className="font-mono text-yellow-400 text-[10px] block">FORMULA:</span>
+                                                <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-[10px] block my-1">Total Smart Classes / (Working Days × Total Schools)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">Total ICT Visit</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[80px]">Total Smart Visit</th>
+                                <th className="p-3 border-r border-teal-600/30 text-center align-top min-w-[90px]">GrandTotal</th>
+                                <th className="p-3 text-center align-top bg-gradient-to-b from-indigo-700 to-indigo-800 text-white min-w-[120px] shadow-md border-l border-indigo-600">Performance Score</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                        <tbody className="divide-y divide-gray-100 dark:divide-white/5 text-gray-700 dark:text-gray-300 whitespace-nowrap">
                             {zoneData.map((row, idx) => (
                                 <tr
                                     key={row.zoneName}
-                                    className={`hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors duration-150 ${activeZoneDetail?.zoneName === row.zoneName ? 'bg-teal-50/30 dark:bg-teal-950/10' : ''}`}
+                                    className="hover:bg-teal-50/50 transition-all group"
                                 >
-                                    <td className="p-4 text-center font-bold text-gray-500 dark:text-gray-400">{idx + 1}</td>
-                                    <td className="p-4 font-black text-teal-800 dark:text-teal-400">{row.zoneName}</td>
-                                    <td className="p-4 text-center font-semibold text-gray-700 dark:text-gray-300">{row.totalProjects}</td>
-                                    <td className="p-4 text-center font-semibold text-gray-700 dark:text-gray-300">{row.totalDistricts}</td>
-                                    <td className="p-4 text-center font-bold text-indigo-700 dark:text-indigo-400">{row.totalSchools}</td>
-                                    <td className="p-4 text-center font-semibold text-gray-700 dark:text-gray-300">{row.totalCCs}</td>
-                                    <td className="p-4 text-center font-semibold text-emerald-700 dark:text-emerald-400">{row.instructorWorking}</td>
-                                    <td className="p-4 text-center">
-                                        <span className="font-bold text-gray-800 dark:text-gray-200">{row.cpuInstalled}</span>
-                                        <span className="text-gray-400 mx-1">/</span>
-                                        <span className="font-bold text-emerald-600 dark:text-emerald-400">{row.cpuUsed}</span>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('all'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-medium sticky left-0 z-20 bg-white dark:bg-slate-900 group-hover:bg-teal-50/80 dark:group-hover:bg-slate-800 w-[60px] min-w-[60px] max-w-[60px] overflow-hidden text-ellipsis cursor-pointer hover:text-teal-900 dark:hover:text-teal-400 transition-all"
+                                        title="Click to view all zone schools"
+                                    >
+                                        {idx + 1}
                                     </td>
-                                    <td className="p-4 text-center">
-                                        <span className="font-bold text-gray-800 dark:text-gray-200">{row.miniPcInstalled}</span>
-                                        <span className="text-gray-400 mx-1">/</span>
-                                        <span className="font-bold text-emerald-600 dark:text-emerald-400">{row.miniPcUsed}</span>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('all'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 sticky left-[60px] z-20 bg-white dark:bg-slate-900 group-hover:bg-teal-50/80 dark:group-hover:bg-slate-800 w-[120px] min-w-[120px] max-w-[120px] overflow-hidden text-ellipsis cursor-pointer hover:text-teal-900 dark:hover:text-teal-400 font-bold text-teal-800 dark:text-teal-500"
+                                        title="Click to view all zone schools"
+                                    >
+                                        {row.zoneName}
                                     </td>
-                                    <td className="p-4 text-center">
-                                        <span className="font-bold text-gray-800 dark:text-gray-200">{row.panelInstalled}</span>
-                                        <span className="text-gray-400 mx-1">/</span>
-                                        <span className="font-bold text-emerald-600 dark:text-emerald-400">{row.panelUsed}</span>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('all'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-semibold text-gray-700 dark:text-gray-300 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer transition-all"
+                                        title="Click to view all zone schools"
+                                    >
+                                        {row.totalProjects}
                                     </td>
-                                    <td className="p-4 text-center">
-                                        <div className="font-black text-gray-800 dark:text-gray-200">
-                                            {(row.totalCpuHours + row.totalMiniPcHours + row.totalPanelHours).toFixed(1)} hrs
-                                        </div>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('all'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-semibold text-gray-700 dark:text-gray-300 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer transition-all"
+                                        title="Click to view all zone schools"
+                                    >
+                                        {row.totalDistricts}
                                     </td>
-                                    <td className="p-4 text-center font-extrabold text-teal-600 dark:text-teal-400">{row.grandTotal}</td>
-                                    <td className="p-4 text-center">
-                                        <span className={`px-3 py-1.5 rounded-full font-black text-xs ${row.performanceScore >= 75 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : row.performanceScore >= 50 ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'}`}>
-                                            {row.performanceScore}%
-                                        </span>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('coordinators'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view the ${row.totalCCs} coordinators in this zone`}
+                                    >
+                                        {row.totalCCs}
                                     </td>
-                                    <td className="p-4 text-center">
-                                        <button
-                                            onClick={() => {
-                                                setActiveZoneDetail(activeZoneDetail?.zoneName === row.zoneName ? null : row);
-                                                setSearchQuery('');
-                                            }}
-                                            className="bg-slate-100 hover:bg-teal-50 hover:text-teal-600 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:hover:text-teal-400 text-gray-600 dark:text-gray-300 font-extrabold text-xs px-3.5 py-2 rounded-lg transition-all"
-                                        >
-                                            {activeZoneDetail?.zoneName === row.zoneName ? 'Close Details' : 'View Details'}
-                                        </button>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('all'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view all ${row.totalSchools} schools in this zone`}
+                                    >
+                                        {row.totalSchools}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('working_instructors'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view schools with active working instructors (Total: ${row.instructorWorking})`}
+                                    >
+                                        {row.instructorWorking}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('cpu_installed'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view schools with CPU devices installed (Total: ${row.cpuInstalled})`}
+                                    >
+                                        {row.cpuInstalled}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('edustat_not_installed'); setSearchQuery(''); }}
+                                        className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-red-50/20 dark:bg-red-950/10 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all ${row.edustatNotInstalled > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}
+                                        title={`Click to view schools where devices are Not Installed (Total: ${row.edustatNotInstalled})`}
+                                    >
+                                        {row.edustatNotInstalled}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('cpu_used'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view schools with active CPU usage (Total: ${row.cpuUsed})`}
+                                    >
+                                        {row.cpuUsed}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('cpu_not_used'); setSearchQuery(''); }}
+                                        className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all ${row.cpuNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}
+                                        title={`Click to view schools where CPU devices were installed but Not Used (Total: ${row.cpuNotUsed})`}
+                                    >
+                                        {row.cpuNotUsed}
+                                    </td>
+                                    
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('mini_installed'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view schools with Mini PC installed (Total: ${row.miniPcInstalled})`}
+                                    >
+                                        {row.miniPcInstalled}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('mini_used'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view schools with active Mini PC usage (Total: ${row.miniPcUsed})`}
+                                    >
+                                        {row.miniPcUsed}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('mini_not_used'); setSearchQuery(''); }}
+                                        className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all ${row.miniPcNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}
+                                        title={`Click to view schools where Mini PC was installed but Not Used (Total: ${row.miniPcNotUsed})`}
+                                    >
+                                        {row.miniPcNotUsed}
+                                    </td>
+
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('panel_installed'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view schools with Panel installed (Total: ${row.panelInstalled})`}
+                                    >
+                                        {row.panelInstalled}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('panel_used'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view schools with active Panel usage (Total: ${row.panelUsed})`}
+                                    >
+                                        {row.panelUsed}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('panel_not_used'); setSearchQuery(''); }}
+                                        className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all ${row.panelNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}
+                                        title={`Click to view schools where Panel was installed but Not Used (Total: ${row.panelNotUsed})`}
+                                    >
+                                        {row.panelNotUsed}
+                                    </td>
+
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('cpu_hours_logs'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view CPU daily logs list (Total: ${row.totalCpuHours} hrs)`}
+                                    >
+                                        {row.totalCpuHours}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('mini_hours_logs'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view Mini PC daily logs list (Total: ${row.totalMiniPcHours} hrs)`}
+                                    >
+                                        {row.totalMiniPcHours}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('panel_hours_logs'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view Panel daily logs list (Total: ${row.totalPanelHours} hrs)`}
+                                    >
+                                        {row.totalPanelHours}
+                                    </td>
+
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('cpu_hours_logs'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view CPU daily logs details (Avg: ${row.avgCpu})`}
+                                    >
+                                        {row.avgCpu}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('mini_hours_logs'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view Mini PC daily logs details (Avg: ${row.avgMini})`}
+                                    >
+                                        {row.avgMini}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('panel_hours_logs'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view Panel daily logs details (Avg: ${row.avgPanel})`}
+                                    >
+                                        {row.avgPanel}
+                                    </td>
+
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('ict_classes'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-pink-50/30 dark:bg-pink-950/10 text-pink-700 dark:text-pink-400 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view ICT classes conducted (Total: ${row.ictClasses})`}
+                                    >
+                                        {row.ictClasses}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('ict_classes'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-pink-50/30 dark:bg-pink-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view ICT daily class averages (Avg: ${row.avgClasses})`}
+                                    >
+                                        {row.avgClasses}
+                                    </td>
+
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('smart_classes'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-yellow-50/30 dark:bg-yellow-950/10 text-yellow-700 dark:text-yellow-400 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view Smart board classes conducted (Total: ${row.smartClasses})`}
+                                    >
+                                        {row.smartClasses}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('smart_classes'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-yellow-50/30 dark:bg-yellow-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view Smart board class averages (Avg: ${row.avgSmartClasses})`}
+                                    >
+                                        {row.avgSmartClasses}
+                                    </td>
+
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('ict_visits'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view ICT visits conducted (Total: ${row.totalIctVisits})`}
+                                    >
+                                        {row.totalIctVisits}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('smart_visits'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view Smart board visits conducted (Total: ${row.totalSmartVisits})`}
+                                    >
+                                        {row.totalSmartVisits}
+                                    </td>
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('all_visits'); setSearchQuery(''); }}
+                                        className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-extrabold text-teal-800 dark:text-teal-400 bg-teal-50/50 dark:bg-slate-800 hover:bg-teal-100/50 dark:hover:bg-slate-700 cursor-pointer underline decoration-teal-400/30 hover:text-teal-955 dark:hover:text-teal-300 transition-all"
+                                        title={`Click to view all visits list (Total: ${row.grandTotal})`}
+                                    >
+                                        {row.grandTotal}
+                                    </td>
+
+                                    <td
+                                        onClick={() => { setActiveZoneDetail(row); setDrilldownFilter('all'); setSearchQuery(''); }}
+                                        className="p-3 text-center font-extrabold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 border-l border-indigo-100 dark:border-white/5 text-sm shadow-[inset_1px_0_0_rgba(0,0,0,0.05)] cursor-pointer hover:bg-teal-100/50 dark:hover:bg-slate-850 hover:text-indigo-950 dark:hover:text-indigo-300 transition-all"
+                                        title={`Click to view details (Score: ${row.performanceScore}%)`}
+                                    >
+                                        {row.performanceScore}%
                                     </td>
                                 </tr>
                             ))}
@@ -1493,194 +2140,343 @@ const ZonePerformance = ({
                 </div>
             )}
 
-            {/* Drilldown Detailed View Section */}
+            {/* Drilldown Detailed View Modal Overlay */}
             {activeZoneDetail && (
-                <div className="bg-white dark:bg-slate-900/60 dark:backdrop-blur-md rounded-2xl border border-gray-200 dark:border-white/5 shadow-xl overflow-hidden transition-all duration-300 animate-fade-in no-print">
-                    <div className="p-5 border-b border-gray-100 dark:border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 bg-teal-50/10 dark:bg-slate-950/20">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-teal-500/20 text-teal-500 p-2.5 rounded-xl border border-teal-500/30">
-                                <Icons.ICTLab className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h3 className="text-base font-black text-teal-800 dark:text-teal-400 tracking-tight">
-                                    Zone Details: {activeZoneDetail.zoneName}
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in no-print">
+                    <div className="bg-white dark:bg-slate-900 border border-teal-100 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150 text-left">
+                        {/* Modal Header */}
+                        <div className="p-4 border-b border-gray-150 dark:border-white/5 flex items-center justify-between bg-gradient-to-r from-teal-50 to-teal-50/20 dark:from-teal-950/20 dark:to-transparent">
+                            <div className="text-left">
+                                <h3 className="font-extrabold text-teal-800 dark:text-teal-400 text-base leading-tight">
+                                    {drilldownFilter === 'all' && "Zone Schools Performance Breakdown"}
+                                    {drilldownFilter === 'coordinators' && "Zone Coordinators Performance Summary"}
+                                    {drilldownFilter === 'working_instructors' && "Zone Schools with Active Instructors"}
+                                    {drilldownFilter === 'cpu_installed' && "Zone Schools with CPU Devices Installed"}
+                                    {drilldownFilter === 'edustat_not_installed' && "Zone Schools with Devices Not Installed (EduStat Master)"}
+                                    {drilldownFilter === 'cpu_used' && "Zone Schools with Active CPU Devices"}
+                                    {drilldownFilter === 'cpu_not_used' && "Zone Schools with CPU Devices Installed but Not Used"}
+                                    {drilldownFilter === 'mini_installed' && "Zone Schools with Mini PC Installed"}
+                                    {drilldownFilter === 'mini_used' && "Zone Schools with Active Mini PC Devices"}
+                                    {drilldownFilter === 'mini_not_used' && "Zone Schools with Mini PC Installed but Not Used"}
+                                    {drilldownFilter === 'panel_installed' && "Zone Schools with Interactive Flat Panel Installed"}
+                                    {drilldownFilter === 'panel_used' && "Zone Schools with Active Panel (IFP) Devices"}
+                                    {drilldownFilter === 'panel_not_used' && "Zone Schools with Panel (IFP) Installed but Not Used"}
+                                    {drilldownFilter === 'cpu_hours_logs' && "CPU Daily Run Hours Detail (Active Logs)"}
+                                    {drilldownFilter === 'mini_hours_logs' && "Mini PC Daily Run Hours Detail (Active Logs)"}
+                                    {drilldownFilter === 'panel_hours_logs' && "Panel (IFP) Daily Run Hours Detail (Active Logs)"}
+                                    {drilldownFilter === 'ict_classes' && "JHPMS Computer Classes Logging Details"}
+                                    {drilldownFilter === 'smart_classes' && "JHPMS Smart Board Classes Logging Details"}
+                                    {drilldownFilter === 'ict_visits' && "Field ICT Visits Logging Details"}
+                                    {drilldownFilter === 'smart_visits' && "Field Smart Board Visits Logging Details"}
+                                    {drilldownFilter === 'all_visits' && "Field Team All Visits Logging Details"}
                                 </h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                    Viewing aggregated operational activities inside {activeZoneDetail.zoneName}.
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
+                                    Zone: <span className="font-bold text-gray-800 dark:text-gray-200">{activeZoneDetail.zoneName}</span> — Projects: {activeZoneDetail.totalProjects}
                                 </p>
                             </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            {/* Inner Tab Switches */}
-                            <div className="flex bg-slate-100 dark:bg-slate-850 p-1.5 rounded-xl border border-gray-200/40 dark:border-white/5">
+                            <div className="flex items-center gap-3">
+                                {/* Export to Excel Button */}
+                                {(!userPermissions || userPermissions.menu?.['excel-export-zone-performance']?.show !== false) && (
+                                    <button
+                                        onClick={handleExportDetail}
+                                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
+                                        title="Export detailed breakdown to Excel"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        <span>Export Excel</span>
+                                    </button>
+                                )}
+                                {/* Close Button */}
                                 <button
-                                    onClick={() => setDetailTab('cc')}
-                                    className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${detailTab === 'cc' ? 'bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-400 shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'}`}
+                                    onClick={() => { setActiveZoneDetail(null); setSearchQuery(''); }}
+                                    className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                                    title="Close dialog"
                                 >
-                                    Field Coordinators ({activeZoneDetail.totalCCs})
-                                </button>
-                                <button
-                                    onClick={() => setDetailTab('schools')}
-                                    className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${detailTab === 'schools' ? 'bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-400 shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'}`}
-                                >
-                                    Schools ({activeZoneDetail.totalSchools})
+                                    <Icons.Close className="w-5 h-5" />
                                 </button>
                             </div>
-
-                            <button
-                                onClick={handleExportDetail}
-                                className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-3 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2"
-                            >
-                                <Icons.Export className="w-4 h-4 text-white" /> Export Details
-                            </button>
                         </div>
-                    </div>
 
-                    {/* Drilldown Search and Table */}
-                    <div className="p-5">
-                        {detailTab === 'schools' && (
-                            <div className="mb-4 max-w-md relative">
+                        {/* Search and Filters inside the modal */}
+                        <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-900/40 border-b border-gray-150 dark:border-white/5 flex items-center justify-between gap-4">
+                            <div className="max-w-md w-full relative">
                                 <input
                                     type="text"
-                                    placeholder="Search by school, UDISE code, block, or coordinator..."
+                                    placeholder={
+                                        drilldownViewType === 'coordinators'
+                                            ? "Search by CC name..."
+                                            : drilldownViewType === 'devices'
+                                            ? "Search by school, UDISE, or serial no..."
+                                            : drilldownViewType === 'usage_logs'
+                                            ? "Search by school, UDISE, or serial..."
+                                            : "Search by school name, UDISE code, or block..."
+                                    }
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-950/40 border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
+                                    className="w-full bg-white dark:bg-slate-950/40 border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all shadow-sm"
                                 />
-                                <div className="absolute left-3 top-3.5 text-gray-400">
-                                    <Icons.Search className="w-4 h-4" />
+                                <div className="absolute left-3 top-2.5 text-gray-400">
+                                    <Icons.Search className="w-3.5 h-3.5" />
                                 </div>
                             </div>
-                        )}
+                            <span className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/30 px-3 py-1.5 rounded-lg border border-teal-100 dark:border-teal-950">
+                                Total: {activeZoneDetailsData.length} records
+                            </span>
+                        </div>
 
-                        <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-white/5">
-                            {detailTab === 'cc' ? (
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-slate-50/50 dark:bg-slate-800/30 text-[9px] uppercase tracking-widest font-black text-slate-500 dark:text-slate-400 border-b border-gray-100 dark:border-white/5">
-                                            <th className="p-3 w-12 text-center">Rank</th>
-                                            <th className="p-3">CC/DEF Name</th>
-                                            <th className="p-3 text-center">Schools Covered</th>
-                                            <th className="p-3 text-center">Active Instructors</th>
-                                            <th className="p-3 text-center">CPU Installed/Used</th>
-                                            <th className="p-3 text-center">Mini PC Installed/Used</th>
-                                            <th className="p-3 text-center">Panel Installed/Used</th>
-                                            <th className="p-3 text-center">CPU Hours</th>
-                                            <th className="p-3 text-center">Mini PC Hours</th>
-                                            <th className="p-3 text-center">Panel Hours</th>
-                                            <th className="p-3 text-center">ICT Classes</th>
-                                            <th className="p-3 text-center">Smart Classes</th>
-                                            <th className="p-3 text-center">Visits</th>
-                                            <th className="p-3 text-center">Performance Score</th>
-                                        </tr>
+                        {/* Modal Body / Scrollable Table */}
+                        <div className="overflow-auto flex-1 p-4 bg-slate-50/50 dark:bg-slate-900/30">
+                            <div className="border border-gray-200 dark:border-white/5 rounded-xl shadow-inner overflow-x-auto bg-white dark:bg-slate-950">
+                                <table className="w-full text-left text-xs whitespace-nowrap border-collapse">
+                                    <thead className="bg-teal-800 dark:bg-teal-950 text-white sticky top-0 z-30 font-bold">
+                                        {drilldownViewType === 'coordinators' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">Rank</th>
+                                                <th className="p-3">CC/DEF Name</th>
+                                                <th className="p-3 text-center">Schools Covered</th>
+                                                <th className="p-3 text-center">Active Instructors</th>
+                                                <th className="p-3 text-center bg-teal-900/40">CPU Installed/Used</th>
+                                                <th className="p-3 text-center bg-purple-900/40">Mini PC Installed/Used</th>
+                                                <th className="p-3 text-center bg-indigo-900/40">Panel Installed/Used</th>
+                                                <th className="p-3 text-center bg-orange-900/40">CPU Hours</th>
+                                                <th className="p-3 text-center bg-orange-900/40">Mini PC Hours</th>
+                                                <th className="p-3 text-center bg-orange-900/40">Panel Hours</th>
+                                                <th className="p-3 text-center bg-pink-900/40">ICT Classes</th>
+                                                <th className="p-3 text-center bg-yellow-900/40">Smart Classes</th>
+                                                <th className="p-3 text-center">Visits</th>
+                                                <th className="p-3 text-center bg-indigo-900/80">Local Score</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'devices' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 text-center">UDISE Code</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Serial No of Device</th>
+                                                <th className="p-3 text-center">Device Type</th>
+                                                <th className="p-3 text-center">Device Status</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'instructors' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 text-center">UDISE Code</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Instructor Name</th>
+                                                <th className="p-3 text-center">Instructor Status</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'usage_logs' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 text-center">Date</th>
+                                                <th className="p-3 text-center">UDISE Code</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Serial No of Device</th>
+                                                <th className="p-3 text-center">Device Type</th>
+                                                <th className="p-3 text-center bg-teal-950/30">Hours Used</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'classes' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 text-center">Date</th>
+                                                <th className="p-3 text-center">UDISE Code</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Lab Type</th>
+                                                <th className="p-3 text-center">Subject</th>
+                                                <th className="p-3 text-center">Subject Teacher</th>
+                                                <th className="p-3 min-w-[200px]">Topic/Remarks</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'visits' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 text-center">Date</th>
+                                                <th className="p-3 text-center">UDISE Code</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Visit Type</th>
+                                                <th className="p-3 text-left pl-4">Visitor / CC Name</th>
+                                                <th className="p-3 min-w-[240px]">Remarks / Findings</th>
+                                            </tr>
+                                        )}
+                                        {drilldownViewType === 'schools' && (
+                                            <tr className="divide-x divide-teal-700/30">
+                                                <th className="p-3 text-center w-[50px]">S.No</th>
+                                                <th className="p-3 min-w-[220px]">School Name</th>
+                                                <th className="p-3 text-center">UDISE</th>
+                                                <th className="p-3 text-center">Block</th>
+                                                <th className="p-3 text-center">Instructor Status</th>
+                                                <th className="p-3 text-center bg-blue-900/10">CPU Installed</th>
+                                                <th className="p-3 text-center bg-blue-900/10">CPU Run Hours</th>
+                                                <th className="p-3 text-center bg-purple-900/10">Mini PC Installed</th>
+                                                <th className="p-3 text-center bg-purple-900/10">Mini PC Run Hours</th>
+                                                <th className="p-3 text-center bg-red-950/10 text-red-600 dark:text-red-300">Device Not Installed</th>
+                                                <th className="p-3 text-center bg-pink-900/10">JHPMS ICT Classes</th>
+                                                <th className="p-3 text-center bg-yellow-900/10 font-medium">JHPMS Smart Classes</th>
+                                                <th className="p-3 text-center">Monitoring Visits</th>
+                                                <th className="p-3 text-center">Last Visit Date</th>
+                                            </tr>
+                                        )}
                                     </thead>
-                                    <tbody className="divide-y divide-gray-150 dark:divide-white/5">
-                                        {activeZoneDetailsData.map((cc, i) => (
-                                            <tr key={cc.ccName} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01]">
-                                                <td className="p-3 text-center font-bold text-gray-500">{i + 1}</td>
-                                                <td className="p-3 font-bold text-teal-800 dark:text-teal-400">{cc.ccName}</td>
-                                                <td className="p-3 text-center font-semibold text-gray-700 dark:text-gray-300">{cc.totalSchools}</td>
-                                                <td className="p-3 text-center font-semibold text-emerald-700 dark:text-emerald-400">{cc.instructorWorking}</td>
-                                                <td className="p-3 text-center">
+                                    <tbody className="divide-y divide-gray-150 dark:divide-white/5 text-gray-700 dark:text-gray-300">
+                                        {drilldownViewType === 'coordinators' && activeZoneDetailsData.map((cc, i) => (
+                                            <tr key={cc.ccName} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{i + 1}</td>
+                                                <td className="p-2.5 font-bold text-teal-800 dark:text-teal-400">{cc.ccName}</td>
+                                                <td className="p-2.5 text-center font-semibold text-gray-700 dark:text-gray-300">{cc.totalSchools}</td>
+                                                <td className="p-2.5 text-center font-semibold text-emerald-700 dark:text-emerald-400">{cc.instructorWorking}</td>
+                                                <td className="p-2.5 text-center">
                                                     <span className="font-semibold text-gray-800 dark:text-gray-200">{cc.cpuInstalled}</span>
                                                     <span className="text-gray-400 mx-1">/</span>
                                                     <span className="font-semibold text-emerald-600 dark:text-emerald-400">{cc.cpuUsed}</span>
                                                 </td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-2.5 text-center">
                                                     <span className="font-semibold text-gray-800 dark:text-gray-200">{cc.miniPcInstalled}</span>
                                                     <span className="text-gray-400 mx-1">/</span>
                                                     <span className="font-semibold text-emerald-600 dark:text-emerald-400">{cc.miniPcUsed}</span>
                                                 </td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-2.5 text-center">
                                                     <span className="font-semibold text-gray-800 dark:text-gray-200">{cc.panelInstalled}</span>
                                                     <span className="text-gray-400 mx-1">/</span>
                                                     <span className="font-semibold text-emerald-600 dark:text-emerald-400">{cc.panelUsed}</span>
                                                 </td>
-                                                <td className="p-3 text-center font-medium text-gray-600 dark:text-gray-400">{cc.totalCpuHours} hrs</td>
-                                                <td className="p-3 text-center font-medium text-gray-600 dark:text-gray-400">{cc.totalMiniPcHours} hrs</td>
-                                                <td className="p-3 text-center font-medium text-gray-600 dark:text-gray-400">{cc.totalPanelHours} hrs</td>
-                                                <td className="p-3 text-center font-semibold text-gray-700 dark:text-gray-300">{cc.ictClasses}</td>
-                                                <td className="p-3 text-center font-semibold text-gray-700 dark:text-gray-300">{cc.smartClasses}</td>
-                                                <td className="p-3 text-center font-bold text-teal-600 dark:text-teal-400">{cc.visitsCount}</td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-2.5 text-center font-medium text-gray-600 dark:text-gray-400">{cc.totalCpuHours} hrs</td>
+                                                <td className="p-2.5 text-center font-medium text-gray-600 dark:text-gray-400">{cc.totalMiniPcHours} hrs</td>
+                                                <td className="p-2.5 text-center font-medium text-gray-600 dark:text-gray-400">{cc.totalPanelHours} hrs</td>
+                                                <td className="p-2.5 text-center font-semibold text-gray-700 dark:text-gray-300">{cc.ictClasses}</td>
+                                                <td className="p-2.5 text-center font-semibold text-gray-700 dark:text-gray-300">{cc.smartClasses}</td>
+                                                <td className="p-2.5 text-center font-bold text-teal-600 dark:text-teal-400">{cc.visitsCount}</td>
+                                                <td className="p-2.5 text-center">
                                                     <span className={`px-2 py-1 rounded font-bold text-[11px] ${cc.performanceScore >= 75 ? 'bg-emerald-500/10 text-emerald-500' : cc.performanceScore >= 50 ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-500'}`}>
                                                         {cc.performanceScore}%
                                                     </span>
                                                 </td>
                                             </tr>
                                         ))}
-                                    </tbody>
-                                </table>
-                            ) : (
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-slate-50/50 dark:bg-slate-800/30 text-[9px] uppercase tracking-widest font-black text-slate-500 dark:text-slate-400 border-b border-gray-100 dark:border-white/5">
-                                            <th className="p-3 w-12 text-center">Slno</th>
-                                            <th className="p-3">UDISE</th>
-                                            <th className="p-3">School Name</th>
-                                            <th className="p-3">Project</th>
-                                            <th className="p-3">District</th>
-                                            <th className="p-3">Block</th>
-                                            <th className="p-3">Coordinator</th>
-                                            <th className="p-3 text-center">Instructor Status</th>
-                                            <th className="p-3 text-center">CPU Installed/Hours</th>
-                                            <th className="p-3 text-center">Mini PC Installed/Hours</th>
-                                            <th className="p-3 text-center">Panel Installed/Hours</th>
-                                            <th className="p-3 text-center">Classes Done</th>
-                                            <th className="p-3 text-center">Visits</th>
-                                            <th className="p-3 text-center font-bold">Last Visit</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-150 dark:divide-white/5">
-                                        {activeZoneDetailsData.map((sch, i) => (
-                                            <tr key={sch.udise} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01]">
-                                                <td className="p-3 text-center font-semibold text-gray-500">{i + 1}</td>
-                                                <td className="p-3 font-mono text-[11px] text-gray-600 dark:text-gray-400">{sch.udise}</td>
-                                                <td className="p-3 font-black text-gray-800 dark:text-gray-200">{sch.schoolName}</td>
-                                                <td className="p-3 font-medium text-gray-600 dark:text-gray-400">{sch.project}</td>
-                                                <td className="p-3 font-medium text-gray-600 dark:text-gray-400">{sch.district}</td>
-                                                <td className="p-3 font-medium text-gray-600 dark:text-gray-400">{sch.block}</td>
-                                                <td className="p-3 font-semibold text-teal-800 dark:text-teal-400">{sch.ccName}</td>
-                                                <td className="p-3 text-center">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${sch.instructorStatus === 'Active' ? 'bg-emerald-500/10 text-emerald-500' : sch.instructorStatus === 'Pending' ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                                                        {sch.instructorStatus}
-                                                    </span>
+                                        {drilldownViewType === 'devices' && activeZoneDetailsData.map((m, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{m.slno}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{m.udise}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">{m.schoolName}</td>
+                                                <td className="p-2.5 text-center">{m.block}</td>
+                                                <td className="p-2.5 text-center font-semibold text-teal-700 dark:text-teal-400">{m.serial}</td>
+                                                <td className="p-2.5 text-center font-medium">{m.deviceType}</td>
+                                                <td className="p-2.5 text-center">
+                                                    {m.status === 'Active / Syncing' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm leading-none">Active / Syncing</span>}
+                                                    {m.status === 'Idle / Not Used' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm leading-none">Idle / Not Used</span>}
+                                                    {m.status === 'Not Installed' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-sm leading-none">Not Installed</span>}
                                                 </td>
-                                                <td className="p-3 text-center">
-                                                    <span className="font-semibold text-gray-700 dark:text-gray-300">{sch.cpuInstalled}</span>
-                                                    <span className="text-gray-400 mx-1">|</span>
-                                                    <span className="text-gray-500 text-[11px]">{sch.totalCpuHours}h</span>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'instructors' && activeZoneDetailsData.map((ins, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{ins.slno}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{ins.udise}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">{ins.schoolName}</td>
+                                                <td className="p-2.5 text-center">{ins.block}</td>
+                                                <td className="p-2.5 text-left pl-4 font-semibold text-slate-800 dark:text-slate-200">{ins.instructorName}</td>
+                                                <td className="p-2.5 text-center">
+                                                    {ins.instructorStatus === 'Active' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm leading-none">Active</span>}
+                                                    {ins.instructorStatus === 'Pending' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm leading-none">Pending</span>}
+                                                    {ins.instructorStatus === 'Vacant' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-sm leading-none">Vacant</span>}
                                                 </td>
-                                                <td className="p-3 text-center">
-                                                    <span className="font-semibold text-gray-700 dark:text-gray-300">{sch.miniInstalled}</span>
-                                                    <span className="text-gray-400 mx-1">|</span>
-                                                    <span className="text-gray-500 text-[11px]">{sch.totalMiniPcHours}h</span>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'usage_logs' && activeZoneDetailsData.map((log, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{log.slno}</td>
+                                                <td className="p-2.5 text-center font-semibold text-slate-800 dark:text-slate-200">{log.date}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{log.udise}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[220px] overflow-hidden text-ellipsis whitespace-nowrap">{log.schoolName}</td>
+                                                <td className="p-2.5 text-center">{log.block}</td>
+                                                <td className="p-2.5 text-center font-mono text-teal-700 dark:text-teal-400">{log.serial}</td>
+                                                <td className="p-2.5 text-center font-medium">{log.deviceType}</td>
+                                                <td className="p-2.5 text-center font-bold bg-teal-50/20 text-teal-800 dark:text-teal-400">{log.hours} hrs</td>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'classes' && activeZoneDetailsData.map((rowClass, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{rowClass.slno}</td>
+                                                <td className="p-2.5 text-center font-semibold text-slate-800 dark:text-slate-200">{rowClass.date}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{rowClass.udise}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">{rowClass.schoolName}</td>
+                                                <td className="p-2.5 text-center">{rowClass.block}</td>
+                                                <td className="p-2.5 text-center font-semibold">{rowClass.labType}</td>
+                                                <td className="p-2.5 text-center font-medium text-teal-700 dark:text-teal-400">{rowClass.subject}</td>
+                                                <td className="p-2.5 text-left pl-3 text-slate-700 dark:text-slate-350">{rowClass.teacher}</td>
+                                                <td className="p-2.5 text-left pl-3 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap text-gray-500 dark:text-gray-400" title={rowClass.remarks}>{rowClass.remarks}</td>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'visits' && activeZoneDetailsData.map((v, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{v.slno}</td>
+                                                <td className="p-2.5 text-center font-semibold text-slate-800 dark:text-slate-200">{v.date}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{v.udise}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">{v.schoolName}</td>
+                                                <td className="p-2.5 text-center">{v.block}</td>
+                                                <td className="p-2.5 text-center font-semibold">
+                                                    {v.visitType.toLowerCase().includes('ict') ? (
+                                                        <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-sm leading-none">{v.visitType}</span>
+                                                    ) : (
+                                                        <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 shadow-sm leading-none">{v.visitType}</span>
+                                                    )}
                                                 </td>
-                                                <td className="p-3 text-center">
-                                                    <span className="font-semibold text-gray-700 dark:text-gray-300">{sch.panelInstalled}</span>
-                                                    <span className="text-gray-400 mx-1">|</span>
-                                                    <span className="text-gray-500 text-[11px]">{sch.totalPanelHours}h</span>
+                                                <td className="p-2.5 text-left pl-4 font-semibold text-slate-700 dark:text-slate-350">{v.visitorName}</td>
+                                                <td className="p-2.5 text-left pl-4 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap text-gray-500 dark:text-gray-400" title={v.remarks}>{v.remarks}</td>
+                                            </tr>
+                                        ))}
+                                        {drilldownViewType === 'schools' && activeZoneDetailsData.map((sch, sIdx) => (
+                                            <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors divide-x divide-gray-100 dark:divide-white/5">
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{sch.slno}</td>
+                                                <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200 max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">{sch.schoolName}</td>
+                                                <td className="p-2.5 text-center font-mono text-xs">{sch.udise}</td>
+                                                <td className="p-2.5 text-center">{sch.block}</td>
+                                                <td className="p-2.5 text-center">
+                                                    {sch.instructorStatus === 'Active' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm leading-none">Active</span>}
+                                                    {sch.instructorStatus === 'Pending' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm leading-none">Pending</span>}
+                                                    {sch.instructorStatus === 'Vacant' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-sm leading-none">Vacant</span>}
+                                                    {sch.instructorStatus === 'N/A' && <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500 border border-gray-200 leading-none">N/A</span>}
                                                 </td>
-                                                <td className="p-3 text-center font-medium">
-                                                    <span className="text-indigo-600 dark:text-indigo-400 font-bold" title="ICT Classes">{sch.ictClasses}</span>
-                                                    <span className="text-gray-300 mx-1">/</span>
-                                                    <span className="text-purple-600 dark:text-purple-400 font-bold" title="Smart Classes">{sch.smartClasses}</span>
-                                                </td>
-                                                <td className="p-3 text-center font-bold text-teal-600 dark:text-teal-400">{sch.visitsCount}</td>
-                                                <td className="p-3 text-center font-semibold text-gray-500">{sch.lastVisitDate}</td>
+                                                <td className="p-2.5 text-center bg-blue-50/20 dark:bg-blue-950/10">{sch.cpuInstalled}</td>
+                                                <td className="p-2.5 text-center font-bold bg-blue-50/20 dark:bg-blue-950/10 text-blue-700 dark:text-blue-400">{sch.totalCpuHours}</td>
+                                                <td className="p-2.5 text-center bg-purple-50/20 dark:bg-purple-950/10">{sch.miniInstalled}</td>
+                                                <td className="p-2.5 text-center font-bold bg-purple-50/20 dark:bg-purple-950/10 text-purple-700 dark:text-purple-400">{sch.totalMiniPcHours}</td>
+                                                <td className={`p-2.5 text-center bg-red-50/10 dark:bg-red-950/5 font-bold ${sch.edustatNotInstalled > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-600'}`}>{sch.edustatNotInstalled}</td>
+                                                <td className="p-2.5 text-center font-bold bg-pink-50/20 dark:bg-pink-950/10 text-pink-700 dark:text-pink-400">{sch.ictClasses}</td>
+                                                <td className="p-2.5 text-center font-bold bg-yellow-50/20 dark:bg-yellow-950/10 text-yellow-700 dark:text-yellow-400">{sch.smartClasses}</td>
+                                                <td className="p-2.5 text-center font-semibold text-gray-800 dark:text-gray-200">{sch.visitsCount}</td>
+                                                <td className="p-2.5 text-center font-medium text-gray-500 dark:text-gray-400">{sch.lastVisitDate}</td>
                                             </tr>
                                         ))}
                                         {activeZoneDetailsData.length === 0 && (
                                             <tr>
-                                                <td colSpan="14" className="p-6 text-center text-gray-400">
-                                                    No schools found matching the search query.
+                                                <td colSpan="20" className="p-6 text-center text-gray-400">
+                                                    No records found matching the search query or selected filters.
                                                 </td>
                                             </tr>
                                         )}
                                     </tbody>
                                 </table>
-                            )}
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-3.5 border-t border-gray-150 dark:border-white/5 bg-gray-50 dark:bg-slate-900/60 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                            <span>Showing {activeZoneDetailsData.length} records inside {activeZoneDetail.zoneName}</span>
+                            <button
+                                onClick={() => { setActiveZoneDetail(null); setSearchQuery(''); }}
+                                className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-white/10 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 rounded-lg font-bold transition-colors cursor-pointer"
+                            >
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>
