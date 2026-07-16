@@ -700,7 +700,14 @@ const FieldTeamPerformance = ({
             const udise = cleanUdise(s.udise_code);
 
             // 1. Instructor Status
-            const instructorRec = manpower.find(m => cleanUdise(m.udise || getVal(m, 'udise') || '') === udise);
+            const schoolManpower = manpower.filter(m => cleanUdise(m.udise || getVal(m, 'udise') || '') === udise);
+            let instructorRec = schoolManpower.find(m => {
+                const status = String(getVal(m, 'status') || '').trim().toUpperCase();
+                return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
+            });
+            if (!instructorRec && schoolManpower.length > 0) {
+                instructorRec = schoolManpower[0];
+            }
             const rawStatus = instructorRec ? (instructorRec.status || getVal(instructorRec, 'status') || 'Active') : 'N/A';
             let instructorStatus = 'N/A';
             if (rawStatus) {

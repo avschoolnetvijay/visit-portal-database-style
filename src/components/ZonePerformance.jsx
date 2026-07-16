@@ -823,7 +823,14 @@ const ZonePerformance = ({
                 const udise = cleanUdise(s.udise_code);
 
                 let instructorStatus = 'Vacant';
-                const instructorRec = manpower.find(m => cleanUdise(m.udise || getVal(m, 'udise') || '') === udise);
+                const schoolManpower = manpower.filter(m => cleanUdise(m.udise || getVal(m, 'udise') || '') === udise);
+                let instructorRec = schoolManpower.find(m => {
+                    const status = String(getVal(m, 'status') || '').trim().toUpperCase();
+                    return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
+                });
+                if (!instructorRec && schoolManpower.length > 0) {
+                    instructorRec = schoolManpower[0];
+                }
                 if (instructorRec) {
                     const status = String(getVal(instructorRec, 'status') || '').trim();
                     if (status.toUpperCase().includes('WORKING') || status.toUpperCase().includes('ACTIVE') || status === '') {
