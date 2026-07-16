@@ -96,11 +96,14 @@ const ReviewMeeting = ({
                     if (!map[udise]) {
                         map[udise] = { ict: 0, smart: 0 };
                     }
-                    const lab = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
-                    if (lab.includes('ICT') || lab.includes('COMP')) {
-                        map[udise].ict++;
-                    } else if (lab.includes('SMART') || lab.includes('BOARD') || lab.includes('PANEL')) {
-                        map[udise].smart++;
+                    const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
+                    const labType = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
+                    if (!subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                        if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                            map[udise].ict++;
+                        } else if (labType.includes('SMART')) {
+                            map[udise].smart++;
+                        }
                     }
                 }
             }
@@ -272,9 +275,15 @@ const ReviewMeeting = ({
             if (rDate && startDate && endDate) {
                 const dStr = rDate.toISOString().split('T')[0];
                 if (dStr >= startDate && dStr <= endDate) {
-                    const lab = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
-                    if (lab.includes('ICT') || lab.includes('COMP')) ictClasses++;
-                    else if (lab.includes('SMART') || lab.includes('BOARD') || lab.includes('PANEL')) smartClasses++;
+                    const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
+                    const labType = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
+                    if (!subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                        if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                            ictClasses++;
+                        } else if (labType.includes('SMART')) {
+                            smartClasses++;
+                        }
+                    }
                 }
             }
         });
