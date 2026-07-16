@@ -20,6 +20,7 @@ const Helpdesk = React.lazy(() => import('./components/Helpdesk'));
 const Chatbot = React.lazy(() => import('./components/Chatbot'));
 const CcDefAnalysis = React.lazy(() => import('./components/CcDefAnalysis'));
 const ZonePerformance = React.lazy(() => import('./components/ZonePerformance'));
+const ReviewMeeting = React.lazy(() => import('./components/ReviewMeeting'));
 
 const prefetchTab = (tabId) => {
     switch (tabId) {
@@ -37,6 +38,7 @@ const prefetchTab = (tabId) => {
         case 'user-list':
         case 'user-permissions': import('./components/ProfileCreation'); break;
         case 'overall-analysis': import('./components/OverallAnalysis'); break;
+        case 'review-meeting': import('./components/ReviewMeeting'); break;
         case 'helpdesk': import('./components/Helpdesk'); break;
         case 'chatbot': import('./components/Chatbot'); break;
         case 'cc-analysis': import('./components/CcDefAnalysis'); break;
@@ -459,7 +461,8 @@ const App = () => {
                 icon: Icons.Reports,
                 items: [
                     { id: 'reports', label: 'Reports & Export', icon: Icons.Reports },
-                    { id: 'overall-analysis', label: 'Overall Analysis', icon: Icons.ExecutiveClipboard }
+                    { id: 'overall-analysis', label: 'Overall Analysis', icon: Icons.ExecutiveClipboard },
+                    { id: 'review-meeting', label: 'Review Meeting', icon: Icons.Presentation }
                 ]
             },
             {
@@ -2193,6 +2196,28 @@ const App = () => {
             />
         );
 
+        if (activeTab === 'review-meeting') return (
+            <ReviewMeeting
+                schools={schools}
+                visits={combinedVisits}
+                jhpmsLab={combinedJhpmsLab}
+                edustat={combinedEdustat}
+                edustatMaster={edustatMaster}
+                manpower={manpower}
+                startDate={startDate}
+                endDate={endDate}
+                selZones={selZones}
+                selProjects={selProjects}
+                selDistricts={selDistricts}
+                selBlocks={selBlocks}
+                selCCs={selCCs}
+                workingDays={workingDays}
+                ccNameMapping={ccNameMapping}
+                darkMode={darkMode}
+                userPermissions={userPermissions}
+            />
+        );
+
         if (activeTab === 'chatbot') {
             return (
                 <Chatbot
@@ -2764,7 +2789,7 @@ const App = () => {
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
                                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                                     <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
-                                    {activeTab === 'overall-analysis' ? 'Overall Analysis' : (activeTab.charAt(0).toUpperCase() + activeTab.slice(1))} View
+                                    {activeTab === 'overall-analysis' ? 'Overall Analysis' : activeTab === 'review-meeting' ? 'Review Meeting' : (activeTab.charAt(0).toUpperCase() + activeTab.slice(1))} View
                                 </h2>
                                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                     <button
@@ -2924,7 +2949,7 @@ const App = () => {
                                         />
                                     </div>
                                 </div>
-                                {(activeTab === 'team-performance' || activeTab === 'school-performance' || activeTab === 'overall-analysis' || activeTab === 'zone-performance') && (
+                                {(activeTab === 'team-performance' || activeTab === 'school-performance' || activeTab === 'overall-analysis' || activeTab === 'zone-performance' || activeTab === 'review-meeting') && (
                                     <div className="w-full sm:w-auto flex flex-col text-left bg-transparent p-0 rounded-lg border border-transparent">
                                         <span className="portal-label text-[10px] mb-0.5 ml-1 flex items-center gap-1 text-teal-800 font-bold whitespace-nowrap">
                                             Working Days

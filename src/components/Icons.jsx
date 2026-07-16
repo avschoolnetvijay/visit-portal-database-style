@@ -386,5 +386,17 @@ export const Icons = {
       <circle cx="24" cy="30" r="3" fill="#1c7d7b" />
       <line x1="24" y1="30" x2="34" y2="18" stroke="#1c7d7b" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
+  ),
+  Presentation: (p) => (
+    <svg viewBox="0 0 64 64" className={p.className || "w-5 h-5"} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="8" width="52" height="34" rx="4" fill="#3b5bdb" stroke="#fff" strokeWidth="2" />
+      <rect x="10" y="12" width="44" height="26" fill="#1e1b4b" rx="2" />
+      <polygon points="32,42 22,58 42,58" fill="#495057" stroke="#343a40" strokeWidth="2" strokeLinejoin="round" />
+      <line x1="32" y1="42" x2="32" y2="48" stroke="#343a40" strokeWidth="4" />
+      <rect x="18" y="24" width="6" height="10" fill="#ffd43b" />
+      <rect x="26" y="18" width="6" height="16" fill="#51cf66" />
+      <rect x="34" y="22" width="6" height="12" fill="#ff6b6b" />
+      <circle cx="44" cy="20" r="3.5" fill="#339af0" />
+    </svg>
   )
 };
