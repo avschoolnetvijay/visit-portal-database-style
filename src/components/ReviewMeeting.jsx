@@ -1084,7 +1084,7 @@ const ReviewMeeting = ({
 
             // SLIDE 11: Academic Class Conduction Performance
             const slideClassConduction = pptx.addSlide();
-            addClassConduction.background = { fill: colorBgLight };
+            slideClassConduction.background = { fill: colorBgLight };
             addSlideHeader(slideClassConduction, 'Academic Class Conduction Density', 'Operations & Compliance');
 
             slideClassConduction.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
@@ -1964,6 +1964,11 @@ const ReviewMeeting = ({
                                 >
                                     Next Slide ▶
                                 </button>
+                            </div>
+                            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-left">
+                                <p className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold leading-relaxed font-sans">
+                                    💡 <strong>Slide Deck Notice:</strong> This preview displays the 6 core executive briefing slides. The downloaded PowerPoint presentation (.pptx) will generate the complete 20+ slide document including native editable charts and granular reference tables.
+                                </p>
                             </div>
                         </div>
                     </div>
