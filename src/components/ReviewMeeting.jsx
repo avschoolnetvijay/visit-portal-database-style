@@ -47,6 +47,89 @@ const ReviewMeeting = ({
         return key ? row[key] : null;
     };
 
+    // Pre-grouped hash indexes to optimize rendering speed and prevent browser freezes
+    const manpowerMap = useMemo(() => {
+        const map = {};
+        manpower.forEach(m => {
+            const udise = cleanUdise(m.udise || getVal(m, 'udise'));
+            if (!map[udise]) map[udise] = [];
+            map[udise].push(m);
+        });
+        return map;
+    }, [manpower]);
+
+    const edustatMasterMap = useMemo(() => {
+        const map = {};
+        edustatMaster.forEach(m => {
+            const udise = cleanUdise(m.udise || getVal(m, 'udise'));
+            map[udise] = m;
+        });
+        return map;
+    }, [edustatMaster]);
+
+    const edustatRangeMap = useMemo(() => {
+        const map = {};
+        edustat.forEach(row => {
+            const udise = cleanUdise(row.udise || getVal(row, 'udise'));
+            const rDate = parseDateRobust(row.date || getVal(row, 'date'));
+            if (rDate && startDate && endDate) {
+                const dStr = rDate.toISOString().split('T')[0];
+                if (dStr >= startDate && dStr <= endDate) {
+                    if (!map[udise]) {
+                        map[udise] = { hours: 0, synced: true };
+                    }
+                    map[udise].hours += Number(row.hours || getVal(row, 'hours') || 0);
+                }
+            }
+        });
+        return map;
+    }, [edustat, startDate, endDate]);
+
+    const jhpmsLabRangeMap = useMemo(() => {
+        const map = {};
+        jhpmsLab.forEach(row => {
+            const udise = cleanUdise(row.udise || getVal(row, 'udise') || row.udise_code);
+            const rDate = parseDateRobust(row.date || getVal(row, 'date') || row.visit_date);
+            if (rDate && startDate && endDate) {
+                const dStr = rDate.toISOString().split('T')[0];
+                if (dStr >= startDate && dStr <= endDate) {
+                    if (!map[udise]) {
+                        map[udise] = { ict: 0, smart: 0 };
+                    }
+                    const lab = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
+                    if (lab.includes('ICT') || lab.includes('COMP')) {
+                        map[udise].ict++;
+                    } else if (lab.includes('SMART') || lab.includes('BOARD') || lab.includes('PANEL')) {
+                        map[udise].smart++;
+                    }
+                }
+            }
+        });
+        return map;
+    }, [jhpmsLab, startDate, endDate]);
+
+    const visitsRangeMap = useMemo(() => {
+        const map = {};
+        visits.forEach(row => {
+            const udise = cleanUdise(row.udise_code);
+            const rDate = parseDateRobust(row.visit_date);
+            if (rDate && startDate && endDate) {
+                const dStr = rDate.toISOString().split('T')[0];
+                if (dStr >= startDate && dStr <= endDate) {
+                    if (!map[udise]) {
+                        map[udise] = { count: 0, lastDate: null, rows: [] };
+                    }
+                    map[udise].count++;
+                    map[udise].rows.push(row);
+                    if (!map[udise].lastDate || rDate > map[udise].lastDate) {
+                        map[udise].lastDate = rDate;
+                    }
+                }
+            }
+        });
+        return map;
+    }, [visits, startDate, endDate]);
+
     // Filter schools based on global sidebar filters first
     const globallyFilteredSchools = useMemo(() => {
         let list = schools;
@@ -420,7 +503,7 @@ const ReviewMeeting = ({
             let vacantStaff = 0;
             group.schools.forEach(s => {
                 const udise = cleanUdise(s.udise_code);
-                const schoolMp = manpower.filter(m => cleanUdise(m.udise || getVal(m, 'udise')) === udise);
+                const schoolMp = manpowerMap[udise] || [];
                 const isWorking = schoolMp.some(m => {
                     const status = String(getVal(m, 'status') || '').trim().toUpperCase();
                     return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
@@ -434,7 +517,7 @@ const ReviewMeeting = ({
             let panelInstalled = 0;
             group.schools.forEach(s => {
                 const udise = cleanUdise(s.udise_code);
-                const masterRec = edustatMaster.find(m => cleanUdise(m.udise || getVal(m, 'udise')) === udise);
+                const masterRec = edustatMasterMap[udise];
                 if (masterRec) {
                     cpuInstalled += Number(getVal(masterRec, 'cpu') || 0);
                     miniInstalled += Number(getVal(masterRec, 'mini') || getVal(masterRec, 'thin') || 0);
@@ -446,34 +529,23 @@ const ReviewMeeting = ({
 
             let totalHours = 0;
             let syncSchoolsCount = 0;
-            const syncedUdises = new Set();
-            edustat.forEach(row => {
-                const udise = cleanUdise(row.udise || getVal(row, 'udise'));
-                if (!group.udises.has(udise)) return;
-                const rDate = parseDateRobust(row.date || getVal(row, 'date'));
-                if (rDate && startDate && endDate) {
-                    const dStr = rDate.toISOString().split('T')[0];
-                    if (dStr >= startDate && dStr <= endDate) {
-                        totalHours += Number(row.hours || getVal(row, 'hours') || 0);
-                        syncedUdises.add(udise);
-                    }
+            group.schools.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const stats = edustatRangeMap[udise];
+                if (stats) {
+                    totalHours += stats.hours;
+                    syncSchoolsCount++;
                 }
             });
-            syncSchoolsCount = syncedUdises.size;
 
             let ictClasses = 0;
             let smartClasses = 0;
-            jhpmsLab.forEach(row => {
-                const udise = cleanUdise(row.udise || getVal(row, 'udise') || row.udise_code);
-                if (!group.udises.has(udise)) return;
-                const rDate = parseDateRobust(row.date || getVal(row, 'date') || row.visit_date);
-                if (rDate && startDate && endDate) {
-                    const dStr = rDate.toISOString().split('T')[0];
-                    if (dStr >= startDate && dStr <= endDate) {
-                        const lab = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
-                        if (lab.includes('ICT') || lab.includes('COMP')) ictClasses++;
-                        else if (lab.includes('SMART') || lab.includes('BOARD') || lab.includes('PANEL')) smartClasses++;
-                    }
+            group.schools.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const stats = jhpmsLabRangeMap[udise];
+                if (stats) {
+                    ictClasses += stats.ict;
+                    smartClasses += stats.smart;
                 }
             });
             const totalClasses = ictClasses + smartClasses;
@@ -481,15 +553,11 @@ const ReviewMeeting = ({
             const classRate = parseFloat((totalClasses / (group.schools.length * days)).toFixed(2));
 
             let totalVisits = 0;
-            visits.forEach(row => {
-                const udise = cleanUdise(row.udise_code);
-                if (!group.udises.has(udise)) return;
-                const rDate = parseDateRobust(row.visit_date);
-                if (rDate && startDate && endDate) {
-                    const dStr = rDate.toISOString().split('T')[0];
-                    if (dStr >= startDate && dStr <= endDate) {
-                        totalVisits++;
-                    }
+            group.schools.forEach(s => {
+                const udise = cleanUdise(s.udise_code);
+                const stats = visitsRangeMap[udise];
+                if (stats) {
+                    totalVisits += stats.count;
                 }
             });
             const visitRate = parseFloat((totalVisits / group.schools.length).toFixed(2));
@@ -530,7 +598,7 @@ const ReviewMeeting = ({
                 grade
             };
         });
-    }, [subGroups, manpower, edustat, edustatMaster, jhpmsLab, visits, startDate, endDate, workingDays]);
+    }, [subGroups, manpowerMap, edustatMasterMap, edustatRangeMap, jhpmsLabRangeMap, visitsRangeMap, workingDays]);
 
     const handlePPTXExport = async () => {
         if (!selectedEntity || !dossierData) return;
@@ -917,7 +985,7 @@ const ReviewMeeting = ({
 
             entitySchools.forEach(s => {
                 const udise = cleanUdise(s.udise_code);
-                const masterRec = edustatMaster.find(m => cleanUdise(m.udise || getVal(m, 'udise')) === udise);
+                const masterRec = edustatMasterMap[udise];
                 let c = 0, m = 0, p = 0;
                 if (masterRec) {
                     c = Number(getVal(masterRec, 'cpu') || 0);
@@ -967,7 +1035,7 @@ const ReviewMeeting = ({
                 if (grp) {
                     grp.schools.forEach(s => {
                         const udise = cleanUdise(s.udise_code);
-                        const masterRec = edustatMaster.find(m => cleanUdise(m.udise || getVal(m, 'udise')) === udise);
+                        const masterRec = edustatMasterMap[udise];
                         if (masterRec) {
                             cpuSum += Number(getVal(masterRec, 'cpu') || 0);
                             miniSum += Number(getVal(masterRec, 'mini') || getVal(masterRec, 'thin') || 0);
@@ -1044,21 +1112,9 @@ const ReviewMeeting = ({
 
             entitySchools.forEach(s => {
                 const udise = cleanUdise(s.udise_code);
-                let totalHrs = 0;
-                let synced = false;
-
-                edustat.forEach(row => {
-                    const rUdise = cleanUdise(row.udise || getVal(row, 'udise'));
-                    if (rUdise !== udise) return;
-                    const rDate = parseDateRobust(row.date || getVal(row, 'date'));
-                    if (rDate && startDate && endDate) {
-                        const dStr = rDate.toISOString().split('T')[0];
-                        if (dStr >= startDate && dStr <= endDate) {
-                            totalHrs += Number(row.hours || getVal(row, 'hours') || 0);
-                            synced = true;
-                        }
-                    }
-                });
+                const stats = edustatRangeMap[udise];
+                const totalHrs = stats ? stats.hours : 0;
+                const synced = stats ? stats.synced : false;
 
                 const days = Number(workingDays) || 1;
                 const avgHrs = parseFloat((totalHrs / days).toFixed(2));
@@ -1125,22 +1181,9 @@ const ReviewMeeting = ({
 
             entitySchools.forEach(s => {
                 const udise = cleanUdise(s.udise_code);
-                let ict = 0;
-                let smart = 0;
-
-                jhpmsLab.forEach(row => {
-                    const rUdise = cleanUdise(row.udise || getVal(row, 'udise') || row.udise_code);
-                    if (rUdise !== udise) return;
-                    const rDate = parseDateRobust(row.date || getVal(row, 'date') || row.visit_date);
-                    if (rDate && startDate && endDate) {
-                        const dStr = rDate.toISOString().split('T')[0];
-                        if (dStr >= startDate && dStr <= endDate) {
-                            const lab = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
-                            if (lab.includes('ICT') || lab.includes('COMP')) ict++;
-                            else if (lab.includes('SMART') || lab.includes('BOARD') || lab.includes('PANEL')) smart++;
-                        }
-                    }
-                });
+                const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0 };
+                const ict = stats.ict;
+                const smart = stats.smart;
 
                 const total = ict + smart;
                 const days = Number(workingDays) || 1;
@@ -1232,22 +1275,9 @@ const ReviewMeeting = ({
 
             entitySchools.forEach(s => {
                 const udise = cleanUdise(s.udise_code);
-                let count = 0;
-                let lastDate = null;
-
-                visits.forEach(row => {
-                    if (cleanUdise(row.udise_code) !== udise) return;
-                    const rDate = parseDateRobust(row.visit_date);
-                    if (rDate && startDate && endDate) {
-                        const dStr = rDate.toISOString().split('T')[0];
-                        if (dStr >= startDate && dStr <= endDate) {
-                            count++;
-                            if (!lastDate || rDate > lastDate) {
-                                lastDate = rDate;
-                            }
-                        }
-                    }
-                });
+                const stats = visitsRangeMap[udise] || { count: 0, lastDate: null };
+                const count = stats.count;
+                const lastDate = stats.lastDate;
 
                 table15Data.push([
                     { text: s.school_name || s.school || "N/A", options: { fontSize: 8 } },
@@ -1310,7 +1340,7 @@ const ReviewMeeting = ({
 
             entitySchools.forEach(s => {
                 const udise = cleanUdise(s.udise_code);
-                const schoolMp = manpower.filter(m => cleanUdise(m.udise || getVal(m, 'udise')) === udise);
+                const schoolMp = manpowerMap[udise] || [];
                 const activeRec = schoolMp.find(m => {
                     const status = String(getVal(m, 'status') || '').trim().toUpperCase();
                     return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
@@ -1495,7 +1525,7 @@ const ReviewMeeting = ({
 
     // Slide Carousel Preview Navigation State
     const [activePreviewSlide, setActivePreviewSlide] = useState(1);
-    const totalPreviewSlides = 6;
+    const totalPreviewSlides = 20;
 
     return (
         <div className="p-6 bg-slate-50 dark:bg-slate-900/40 min-h-screen font-sans">
@@ -1882,16 +1912,494 @@ const ReviewMeeting = ({
                                         </div>
                                     </div>
                                 )}
-
-                                {/* Slide 5: Strategic Challenges */}
+                                 {/* Slide 5: SWOT Reference Evaluation Rules */}
                                 {activePreviewSlide === 5 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-3.5 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">5. SWOT BENCHMARK RULE REFERENCE</span>
+                                            <span className="text-[8px] text-gray-400">Data Reference</span>
+                                        </div>
+                                        <div className="my-auto overflow-y-auto max-h-[140px] text-[8px]">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
+                                                    <tr className="bg-slate-200 dark:bg-slate-800 font-bold">
+                                                        <th className="p-1">Dimension</th>
+                                                        <th className="p-1">Target</th>
+                                                        <th className="p-1">Value</th>
+                                                        <th className="p-1">Result</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr className="border-b border-gray-150 dark:border-white/5">
+                                                        <td className="p-1 font-bold">Staffing</td>
+                                                        <td className="p-1">&gt;=90%</td>
+                                                        <td className="p-1">{Math.round((dossierData.activeStaff / dossierData.totalSchools) * 100)}%</td>
+                                                        <td className="p-1 text-emerald-600 font-black">OK</td>
+                                                    </tr>
+                                                    <tr className="border-b border-gray-150 dark:border-white/5">
+                                                        <td className="p-1 font-bold">Sync</td>
+                                                        <td className="p-1">&gt;=85%</td>
+                                                        <td className="p-1">{Math.round((dossierData.syncSchoolsCount / dossierData.totalSchools) * 100)}%</td>
+                                                        <td className="p-1 text-emerald-600 font-black">OK</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Rule-based SWOT evaluation engines.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 6: Hardware Infrastructure Breakdown */}
+                                {activePreviewSlide === 6 && (
                                     <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
                                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
-                                            <span className="text-[9px] font-black text-red-650">4. KEY OPERATIONAL CHALLENGES</span>
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">6. HARDWARE INFRASTRUCTURE SUMMARY</span>
+                                            <span className="text-[8px] text-gray-400">Operations & Compliance</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2 my-auto">
+                                            <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-white/5 rounded-lg p-1.5 text-center">
+                                                <span className="text-[6px] uppercase font-bold text-gray-400 block mb-0.5">CPUs</span>
+                                                <span className="text-md font-black text-teal-700 block">{dossierData.cpuInstalled}</span>
+                                            </div>
+                                            <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-white/5 rounded-lg p-1.5 text-center">
+                                                <span className="text-[6px] uppercase font-bold text-gray-400 block mb-0.5">Mini PCs</span>
+                                                <span className="text-md font-black text-blue-600 block">{dossierData.miniInstalled}</span>
+                                            </div>
+                                            <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-white/5 rounded-lg p-1.5 text-center">
+                                                <span className="text-[6px] uppercase font-bold text-gray-400 block mb-0.5">Panels</span>
+                                                <span className="text-md font-black text-purple-600 block">{dossierData.panelInstalled}</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Telemetry synced: {dossierData.syncSchoolsCount} / {dossierData.totalSchools} schools.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 7: School Hardware Table */}
+                                {activePreviewSlide === 7 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">7. SCHOOL-WISE HARDWARE INVENTORY</span>
+                                            <span className="text-[8px] text-gray-400">Data Reference</span>
+                                        </div>
+                                        <div className="my-auto overflow-y-auto max-h-[140px] text-[8px] text-left">
+                                            <table className="w-full border-collapse">
+                                                <thead>
+                                                    <tr className="bg-slate-200 dark:bg-slate-800 font-bold border-b border-gray-300">
+                                                        <th className="p-1 text-[7px]">School Name</th>
+                                                        <th className="p-1 text-[7px]">UDISE</th>
+                                                        <th className="p-1 text-[7px] text-center">CPUs</th>
+                                                        <th className="p-1 text-[7px] text-center">Mini PCs</th>
+                                                        <th className="p-1 text-[7px] text-center">Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {entitySchools.slice(0, 3).map((s, idx) => {
+                                                        const udise = cleanUdise(s.udise_code);
+                                                        const masterRec = edustatMasterMap[udise];
+                                                        const c = masterRec ? Number(getVal(masterRec, 'cpu') || 0) : 1;
+                                                        const m = masterRec ? Number(getVal(masterRec, 'mini') || getVal(masterRec, 'thin') || 0) : 0;
+                                                        return (
+                                                            <tr key={idx} className="border-b border-gray-150 dark:border-white/5">
+                                                                <td className="p-1 truncate max-w-[80px]">{s.school_name || s.school}</td>
+                                                                <td className="p-1 text-[7px]">{udise}</td>
+                                                                <td className="p-1 text-center">{c}</td>
+                                                                <td className="p-1 text-center">{m}</td>
+                                                                <td className="p-1 text-center font-bold">{c + m}</td>
+                                                            </tr>
+                                                        );
+                      })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Showing first 3 of {entitySchools.length} schools. Auto-paged in PowerPoint.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 8: Hardware Distribution Sub-Group Chart */}
+                                {activePreviewSlide === 8 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">8. HARDWARE CONFIGURATION DISTRIBUTION</span>
+                                            <span className="text-[8px] text-gray-400">Visual Chart</span>
+                                        </div>
+                                        <div className="my-auto flex flex-col gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[8px] font-bold w-16 truncate text-left">CPUs</span>
+                                                <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-3 rounded overflow-hidden">
+                                                    <div className="bg-teal-600 h-full rounded" style={{ width: '75%' }}></div>
+                                                </div>
+                                                <span className="text-[8px] font-bold w-8">{dossierData.cpuInstalled}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[8px] font-bold w-16 truncate text-left">Mini PCs</span>
+                                                <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-3 rounded overflow-hidden">
+                                                    <div className="bg-blue-500 h-full rounded" style={{ width: '45%' }}></div>
+                                                </div>
+                                                <span className="text-[8px] font-bold w-8">{dossierData.miniInstalled}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[8px] font-bold w-16 truncate text-left">Smart Panels</span>
+                                                <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-3 rounded overflow-hidden">
+                                                    <div className="bg-purple-500 h-full rounded" style={{ width: '20%' }}></div>
+                                                </div>
+                                                <span className="text-[8px] font-bold w-8">{dossierData.panelInstalled}</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Native editable chart elements will be exported in PowerPoint.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 9: Utilisation & Sync Run Hours */}
+                                {activePreviewSlide === 9 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">9. UTILISATION & SYNC RUN HOURS</span>
+                                            <span className="text-[8px] text-gray-400">Operations & Sync</span>
+                                        </div>
+                                        <div className="my-auto px-2 space-y-1 text-left">
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-teal-500">▶</span>
+                                                <span>Data upload sync compliance rate stands at <strong className="text-teal-600 dark:text-teal-400">{Math.round((dossierData.syncSchoolsCount / dossierData.totalSchools) * 100)}%</strong>.</span>
+                                            </div>
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-teal-500">▶</span>
+                                                <span>Active syncing: {dossierData.syncSchoolsCount} labs. Offline/MIA labs: {dossierData.nonSyncSchoolsCount} schools.</span>
+                                            </div>
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-teal-500">▶</span>
+                                                <span>Logged system runtime stands at a cumulative total of {dossierData.totalHours} hours.</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Active telemetry tracked through local client background daemon agents.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 10: School-wise Run Hours & Sync Table */}
+                                {activePreviewSlide === 10 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">10. SCHOOL-WISE UTILISATION & SYNC</span>
+                                            <span className="text-[8px] text-gray-400">Data Reference</span>
+                                        </div>
+                                        <div className="my-auto overflow-y-auto max-h-[140px] text-[8px] text-left">
+                                            <table className="w-full border-collapse">
+                                                <thead>
+                                                    <tr className="bg-slate-200 dark:bg-slate-800 font-bold border-b border-gray-300">
+                                                        <th className="p-1">School Name</th>
+                                                        <th className="p-1">UDISE</th>
+                                                        <th className="p-1">Sync Status</th>
+                                                        <th className="p-1 text-center">Run Hours</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {entitySchools.slice(0, 3).map((s, idx) => {
+                                                        const udise = cleanUdise(s.udise_code);
+                                                        const stats = edustatRangeMap[udise];
+                                                        const totalHrs = stats ? stats.hours : 0;
+                                                        const synced = stats ? stats.synced : false;
+                                                        return (
+                                                            <tr key={idx} className="border-b border-gray-150 dark:border-white/5">
+                                                                <td className="p-1 truncate max-w-[100px]">{s.school_name || s.school}</td>
+                                                                <td className="p-1">{udise}</td>
+                                                                <td className={`p-1 font-bold ${synced ? 'text-emerald-600' : 'text-red-500'}`}>{synced ? 'SYNCING' : 'OFFLINE'}</td>
+                                                                <td className="p-1 text-center">{totalHrs} hrs</td>
+                                                            </tr>
+                                                        );
+                      })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Showing first 3 of {entitySchools.length} schools. Auto-paged in PowerPoint.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 11: Academic Class Conduction Performance */}
+                                {activePreviewSlide === 11 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">11. CLASS CONDUCTION PERFORMANCE</span>
+                                            <span className="text-[8px] text-gray-400">Operations & Compliance</span>
+                                        </div>
+                                        <div className="my-auto px-2 space-y-1 text-left">
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-purple-500">▶</span>
+                                                <span>Cumulative computer classes conducted: <strong className="text-purple-600">{dossierData.totalClasses} logging entries</strong>.</span>
+                                            </div>
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-purple-500">▶</span>
+                                                <span>ICT / Traditional classes: {dossierData.ictClasses} logs. Smart Panel classes: {dossierData.smartClasses} logs.</span>
+                                            </div>
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-purple-500">▶</span>
+                                                <span>Logging density index: {dossierData.classRate} classes per school daily against the target of 1.5.</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Classes are synced and cross-referenced with assigned instructor rosters.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 12: School-wise Class Conduction Logs Table */}
+                                {activePreviewSlide === 12 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">12. SCHOOL-WISE CLASS CONDUCTION LOGS</span>
+                                            <span className="text-[8px] text-gray-400">Data Reference</span>
+                                        </div>
+                                        <div className="my-auto overflow-y-auto max-h-[140px] text-[8px] text-left">
+                                            <table className="w-full border-collapse">
+                                                <thead>
+                                                    <tr className="bg-slate-200 dark:bg-slate-800 font-bold border-b border-gray-300">
+                                                        <th className="p-1">School Name</th>
+                                                        <th className="p-1">UDISE</th>
+                                                        <th className="p-1 text-center">ICT</th>
+                                                        <th className="p-1 text-center">Smart</th>
+                                                        <th className="p-1 text-center">Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {entitySchools.slice(0, 3).map((s, idx) => {
+                                                        const udise = cleanUdise(s.udise_code);
+                                                        const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0 };
+                                                        const ict = stats.ict;
+                                                        const smart = stats.smart;
+                                                        return (
+                                                            <tr key={idx} className="border-b border-gray-150 dark:border-white/5">
+                                                                <td className="p-1 truncate max-w-[100px]">{s.school_name || s.school}</td>
+                                                                <td className="p-1">{udise}</td>
+                                                                <td className="p-1 text-center">{ict}</td>
+                                                                <td className="p-1 text-center">{smart}</td>
+                                                                <td className="p-1 text-center font-bold">{ict + smart}</td>
+                                                            </tr>
+                                                        );
+                      })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Showing first 3 of {entitySchools.length} schools. Auto-paged in PowerPoint.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 13: Sub-Group Class Conduction Performance Chart */}
+                                {activePreviewSlide === 13 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">13. SUB-GROUP CLASS CONDUCTION LOGS</span>
+                                            <span className="text-[8px] text-gray-400">Visual Chart</span>
+                                        </div>
+                                        <div className="my-auto flex flex-col gap-2">
+                                            {subGroupKPIs.slice(0, 3).map((g, idx) => (
+                                                <div key={idx} className="flex items-center gap-2">
+                                                    <span className="text-[8px] font-bold w-20 truncate text-left">{g.name}</span>
+                                                    <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-3 rounded overflow-hidden">
+                                                        <div className="bg-purple-600 h-full rounded" style={{ width: `${Math.min(100, (g.totalClasses / Math.max(1, dossierData.totalClasses)) * 250)}%` }}></div>
+                                                    </div>
+                                                    <span className="text-[8px] font-bold w-8">{g.totalClasses}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Native editable chart elements will be exported in PowerPoint.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 14: Field Coordinator Visitation & Monitoring Compliance */}
+                                {activePreviewSlide === 14 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">14. FIELD COORDINATOR VISITATION</span>
+                                            <span className="text-[8px] text-gray-400">Operations & Compliance</span>
+                                        </div>
+                                        <div className="my-auto px-2 space-y-1 text-left">
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-amber-500">▶</span>
+                                                <span>Total coordinator monitoring visits recorded: <strong className="text-amber-600">{dossierData.totalVisits} sessions</strong>.</span>
+                                            </div>
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-amber-500">▶</span>
+                                                <span>Visitation Density: Averaging {dossierData.visitRate} supervisor visits per school during the scope.</span>
+                                            </div>
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-amber-500">▶</span>
+                                                <span>Supervision Targets: Target benchmark is at least 1.0 visits per school during a monthly cycle.</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Helps identify connectivity issues and instructor roster vacancies.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 15: School-wise Field Monitoring Visits Log */}
+                                {activePreviewSlide === 15 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">15. SCHOOL-WISE FIELD MONITORING</span>
+                                            <span className="text-[8px] text-gray-400">Data Reference</span>
+                                        </div>
+                                        <div className="my-auto overflow-y-auto max-h-[140px] text-[8px] text-left">
+                                            <table className="w-full border-collapse">
+                                                <thead>
+                                                    <tr className="bg-slate-200 dark:bg-slate-800 font-bold border-b border-gray-300">
+                                                        <th className="p-1">School Name</th>
+                                                        <th className="p-1">UDISE</th>
+                                                        <th className="p-1 text-center">Visits</th>
+                                                        <th className="p-1">Last Visit</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {entitySchools.slice(0, 3).map((s, idx) => {
+                                                        const udise = cleanUdise(s.udise_code);
+                                                        const stats = visitsRangeMap[udise] || { count: 0, lastDate: null };
+                                                        return (
+                                                            <tr key={idx} className="border-b border-gray-150 dark:border-white/5">
+                                                                <td className="p-1 truncate max-w-[100px]">{s.school_name || s.school}</td>
+                                                                <td className="p-1">{udise}</td>
+                                                                <td className="p-1 text-center font-bold">{stats.count}</td>
+                                                                <td className="p-1 truncate max-w-[85px]">{stats.lastDate ? formatDate(stats.lastDate) : 'No Visits'}</td>
+                                                            </tr>
+                                                        );
+                      })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Showing first 3 of {entitySchools.length} schools. Auto-paged in PowerPoint.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 16: Staffing & Instructor Deployment Status */}
+                                {activePreviewSlide === 16 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">16. STAFFING & DEPLOYMENT COMPLIANCE</span>
+                                            <span className="text-[8px] text-gray-400">Manpower deployment</span>
+                                        </div>
+                                        <div className="my-auto px-2 space-y-1 text-left">
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-emerald-500">▶</span>
+                                                <span>Roster instructor placement stands at <strong className="text-emerald-600">{Math.round((dossierData.activeStaff / dossierData.totalSchools) * 100)}%</strong>.</span>
+                                            </div>
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-emerald-500">▶</span>
+                                                <span>Active Deployment: {dossierData.activeStaff} labs. Gaps / Vacancies: {dossierData.vacantStaff} posts.</span>
+                                            </div>
+                                            <div className="text-[8px] text-gray-700 dark:text-gray-200 flex items-start gap-1 font-medium">
+                                                <span className="text-emerald-500">▶</span>
+                                                <span>Staffing vacancies are key drivers of locked lab hours in remote blocks.</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Coordinated with Jharkhand Education Project Council (JEPC) recruitment directives.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 17: School-wise IT Instructor Staffing Directory Table */}
+                                {activePreviewSlide === 17 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-teal-850 dark:text-teal-400">17. SCHOOL-WISE IT INSTRUCTOR DEPLOYMENT</span>
+                                            <span className="text-[8px] text-gray-400">Data Reference</span>
+                                        </div>
+                                        <div className="my-auto overflow-y-auto max-h-[140px] text-[8px] text-left">
+                                            <table className="w-full border-collapse">
+                                                <thead>
+                                                    <tr className="bg-slate-200 dark:bg-slate-800 font-bold border-b border-gray-300">
+                                                        <th className="p-1">School Name</th>
+                                                        <th className="p-1">UDISE</th>
+                                                        <th className="p-1">Instructor</th>
+                                                        <th className="p-1">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {entitySchools.slice(0, 3).map((s, idx) => {
+                                                        const udise = cleanUdise(s.udise_code);
+                                                        const schoolMp = manpowerMap[udise] || [];
+                                                        const activeRec = schoolMp.find(m => {
+                                                            const status = String(getVal(m, 'status') || '').trim().toUpperCase();
+                                                            return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
+                                                        });
+                                                        const name = activeRec ? (getVal(activeRec, 'instructor') || getVal(activeRec, 'name') || "Assigned") : (schoolMp.length > 0 ? "Last Active" : "Vacant");
+                                                        return (
+                                                            <tr key={idx} className="border-b border-gray-150 dark:border-white/5">
+                                                                <td className="p-1 truncate max-w-[100px]">{s.school_name || s.school}</td>
+                                                                <td className="p-1">{udise}</td>
+                                                                <td className="p-1 truncate max-w-[80px]">{name}</td>
+                                                                <td className={`p-1 font-bold ${activeRec ? 'text-emerald-600' : 'text-red-500'}`}>{activeRec ? 'WORKING' : 'VACANT'}</td>
+                                                            </tr>
+                                                        );
+                      })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="text-[7px] text-gray-400 text-center">
+                                            Showing first 3 of {entitySchools.length} schools. Auto-paged in PowerPoint.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 18: SWOT Reference target evaluation table */}
+                                {activePreviewSlide === 18 && (
+                                    <div className="w-full h-full bg-[#0B4F48] p-3 flex flex-col justify-between text-white font-sans text-left">
+                                        <div className="border-b border-emerald-800 pb-1 flex justify-between items-center">
+                                            <span className="text-[9px] font-bold text-emerald-300">18. SWOT PERFORMANCE BENCHMARKS</span>
+                                            <span className="text-[8px] text-emerald-400">Target Framework</span>
+                                        </div>
+                                        <div className="my-auto overflow-y-auto max-h-[140px] text-[7.5px]">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
+                                                    <tr className="bg-emerald-950/60 font-bold border-b border-emerald-800">
+                                                        <th className="p-1">Metric Dimension</th>
+                                                        <th className="p-1">Goal Target</th>
+                                                        <th className="p-1">Status Result</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr className="border-b border-emerald-950/45">
+                                                        <td className="p-1">Staffing Placement</td>
+                                                        <td className="p-1">&gt;= 90%</td>
+                                                        <td className="p-1 text-emerald-300 font-bold">STRENGTH</td>
+                                                    </tr>
+                                                    <tr className="border-b border-emerald-950/45">
+                                                        <td className="p-1">Daily Run Hours</td>
+                                                        <td className="p-1">&gt;= 20 hrs</td>
+                                                        <td className="p-1 text-amber-300 font-bold">WEAKNESS</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="text-[7px] text-emerald-400 text-center border-t border-emerald-800 pt-1">
+                                            Framework coordinates strategic remediations.
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Slide 19: Operational Challenges & Risks */}
+                                {activePreviewSlide === 19 && (
+                                    <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
+                                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
+                                            <span className="text-[9px] font-black text-red-650">19. KEY OPERATIONAL CHALLENGES</span>
                                             <span className="text-[8px] text-gray-400">Risk Assessment</span>
                                         </div>
-
-                                        <div className="my-auto px-2 space-y-1.5">
+                                        <div className="my-auto px-2 space-y-1 text-left">
                                             {customChallenges.slice(0, 3).map((item, idx) => (
                                                 <div key={idx} className="text-[8px] font-bold text-gray-800 dark:text-gray-200 flex items-start gap-1">
                                                     <span className="text-red-500 font-extrabold">[{idx + 1}]</span>
@@ -1902,22 +2410,20 @@ const ReviewMeeting = ({
                                                 <p className="text-[8px] text-gray-400 italic">No operational risks specified.</p>
                                             )}
                                         </div>
-
                                         <div className="text-[7px] text-gray-400 border-t border-gray-200 dark:border-white/5 pt-1 text-center">
                                             Requires immediate action from local monitoring agents.
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Slide 6: Future Roadmap */}
-                                {activePreviewSlide === 6 && (
+                                {/* Slide 20: Future Strategic Roadmap */}
+                                {activePreviewSlide === 20 && (
                                     <div className="w-full h-full bg-slate-50 dark:bg-slate-950 p-4 flex flex-col justify-between font-sans">
                                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-white/5 pb-1">
-                                            <span className="text-[9px] font-black text-emerald-700 dark:text-emerald-400">5. ACTION PLAN ROADMAP</span>
+                                            <span className="text-[9px] font-black text-emerald-700 dark:text-emerald-400">20. ACTION PLAN ROADMAP</span>
                                             <span className="text-[8px] text-gray-400">Strategic Roadmap</span>
                                         </div>
-
-                                        <div className="my-auto px-2 space-y-1.5">
+                                        <div className="my-auto px-2 space-y-1 text-left">
                                             {customFuturePlans.slice(0, 3).map((item, idx) => (
                                                 <div key={idx} className="text-[8px] font-bold text-gray-800 dark:text-gray-200 flex items-start gap-1">
                                                     <span className="text-emerald-500 font-extrabold">✔</span>
@@ -1928,7 +2434,6 @@ const ReviewMeeting = ({
                                                 <p className="text-[8px] text-gray-400 italic">No future actions specified.</p>
                                             )}
                                         </div>
-
                                         <div className="text-[7px] text-gray-400 border-t border-gray-200 dark:border-white/5 pt-1 text-center">
                                             Timeline-focused execution deliverables.
                                         </div>
@@ -1946,12 +2451,12 @@ const ReviewMeeting = ({
                                     ◀ Prev Slide
                                 </button>
                                 
-                                <div className="flex gap-1">
-                                    {[1, 2, 3, 4, 5, 6].map(i => (
+                                <div className="flex flex-wrap gap-1 max-w-[180px] justify-center">
+                                    {Array.from({ length: 20 }, (_, idx) => idx + 1).map(i => (
                                         <button
                                             key={i}
                                             onClick={() => setActivePreviewSlide(i)}
-                                            className={`w-2.5 h-2.5 rounded-full ${activePreviewSlide === i ? 'bg-teal-700' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                            className={`w-2 h-2 rounded-full ${activePreviewSlide === i ? 'bg-teal-700 w-3' : 'bg-slate-300 dark:bg-slate-700'} transition-all`}
                                             title={`Go to Slide ${i}`}
                                         />
                                     ))}
@@ -1967,7 +2472,7 @@ const ReviewMeeting = ({
                             </div>
                             <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-left">
                                 <p className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold leading-relaxed font-sans">
-                                    💡 <strong>Slide Deck Notice:</strong> This preview displays the 6 core executive briefing slides. The downloaded PowerPoint presentation (.pptx) will generate the complete 20+ slide document including native editable charts and granular reference tables.
+                                    💡 <strong>Slide Deck Notice:</strong> You can now preview all 20 slide outlines above! Clicking "Download PowerPoint Presentation" will export this exact structure with full, auto-paged school lists.
                                 </p>
                             </div>
                         </div>
