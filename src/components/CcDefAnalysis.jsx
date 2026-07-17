@@ -308,6 +308,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         });
 
         // JHPMS classes categorization
+        let ictCount = 0;
         let theoryCount = 0;
         let practicalCount = 0;
         let smartCount = 0;
@@ -320,25 +321,18 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
 
             if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
                 misCount++;
-            } else {
-                if (labType.includes('SMART')) {
-                    smartCount++;
-                }
-
-                if (theoryPractical.includes('THEORY')) {
-                    theoryCount++;
-                } else if (theoryPractical.includes('PRACTICAL')) {
+            } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                ictCount++;
+                if (theoryPractical.includes('PRACTICAL')) {
                     practicalCount++;
                 } else {
-                    if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                        theoryCount++;
-                    } else if (labType.includes('SMART')) {
-                        practicalCount++;
-                    }
+                    theoryCount++;
                 }
+            } else if (labType.includes('SMART')) {
+                smartCount++;
             }
         });
-        const totalJhpmsClasses = theoryCount + practicalCount;
+        const totalJhpmsClasses = ictCount + smartCount;
         const totalEduHours = ccEdustat.reduce((s, e) => s + (parseFloat(e.hours) || 0), 0);
 
         // Previous Period Calculations
@@ -374,6 +368,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             return ccUdises.has(ud) && inPrevRange(e.date);
         });
 
+        let prevIctCount = 0;
         let prevTheoryCount = 0;
         let prevPracticalCount = 0;
         let prevSmartCount = 0;
@@ -386,25 +381,18 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
 
             if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
                 prevMisCount++;
-            } else {
-                if (labType.includes('SMART')) {
-                    prevSmartCount++;
-                }
-
-                if (theoryPractical.includes('THEORY')) {
-                    prevTheoryCount++;
-                } else if (theoryPractical.includes('PRACTICAL')) {
+            } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                prevIctCount++;
+                if (theoryPractical.includes('PRACTICAL')) {
                     prevPracticalCount++;
                 } else {
-                    if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                        prevTheoryCount++;
-                    } else if (labType.includes('SMART')) {
-                        prevPracticalCount++;
-                    }
+                    prevTheoryCount++;
                 }
+            } else if (labType.includes('SMART')) {
+                prevSmartCount++;
             }
         });
-        const prevTotalJhpmsClasses = prevTheoryCount + prevPracticalCount;
+        const prevTotalJhpmsClasses = prevIctCount + prevSmartCount;
         const prevTotalEduHours = prevCcEdustat.reduce((s, e) => s + (parseFloat(e.hours) || 0), 0);
 
         // School-by-school JHPMS and EduStat counts (both periods)

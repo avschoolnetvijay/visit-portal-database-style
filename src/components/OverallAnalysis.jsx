@@ -1535,7 +1535,13 @@ const OverallAnalysis = ({
     const map = {};
     currentJhpms.forEach((row) => {
       if (row._cleanUdise && validUdises.has(row._cleanUdise)) {
-        map[row._cleanUdise] = (map[row._cleanUdise] || 0) + 1;
+        const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
+        const labType = String(row.labType || row.lab_type || getVal(row, 'lab') || '').toUpperCase();
+        if (!subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+          if ((labType.includes('ICT') && subject.includes('COMPUTER')) || labType.includes('SMART')) {
+            map[row._cleanUdise] = (map[row._cleanUdise] || 0) + 1;
+          }
+        }
       }
     });
     return map;
@@ -1549,15 +1555,16 @@ const OverallAnalysis = ({
         if (!map[udise]) {
           map[udise] = { total: 0, ict: 0, smart: 0, mis: 0 };
         }
-        map[udise].total++;
         const labType = String(row.labType || row.lab_type || getVal(row, 'lab') || '').toUpperCase();
         const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
         if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
           map[udise].mis++;
         } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
           map[udise].ict++;
+          map[udise].total++;
         } else if (labType.includes('SMART')) {
           map[udise].smart++;
+          map[udise].total++;
         }
       }
     });

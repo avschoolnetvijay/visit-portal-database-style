@@ -258,6 +258,7 @@ const SchoolWiseSearch = ({
         const jhpmsLoggedDays = uniqueLoggedDays.size;
 
         // Categorize JHPMS classes
+        let ictCount = 0;
         let theoryCount = 0;
         let practicalCount = 0;
         let smartCount = 0;
@@ -270,27 +271,19 @@ const SchoolWiseSearch = ({
 
             if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
                 misCount++;
-            } else {
-                if (labType.includes('SMART')) {
-                    smartCount++;
-                }
-
-                if (theoryPractical.includes('THEORY')) {
-                    theoryCount++;
-                } else if (theoryPractical.includes('PRACTICAL')) {
+            } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                ictCount++;
+                if (theoryPractical.includes('PRACTICAL')) {
                     practicalCount++;
                 } else {
-                    // Fallback classification if theoryPractical is empty/missing
-                    if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                        theoryCount++;
-                    } else if (labType.includes('SMART')) {
-                        practicalCount++;
-                    }
+                    theoryCount++;
                 }
+            } else if (labType.includes('SMART')) {
+                smartCount++;
             }
         });
 
-        const totalJhpmsClasses = theoryCount + practicalCount;
+        const totalJhpmsClasses = ictCount + smartCount;
 
         // Filter EduStat device hours
         const schoolEdustatLogs = filteredEdustatRange.filter(e => {
@@ -626,6 +619,7 @@ const SchoolWiseSearch = ({
 
         return {
             jhpmsLoggedDays,
+            ictCount,
             theoryCount,
             practicalCount,
             smartCount,
@@ -1000,15 +994,23 @@ const SchoolWiseSearch = ({
 
                         </div>
 
-                        {/* Usage & Class Performance breakdown Grid (5 Cards) */}
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        {/* Usage & Class Performance breakdown Grid (6 Cards) */}
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                             <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
                                 <div className="flex items-center justify-center gap-1.5 text-gray-700 dark:text-slate-350 border-b border-gray-150 dark:border-slate-850 pb-1">
                                     <ClipboardIcon className="w-3.5 h-3.5 text-teal-600" />
                                     <span className="text-[11px] uppercase font-extrabold">Total</span>
                                 </div>
                                 <div className="text-2xl font-black text-teal-850 dark:text-teal-400 my-1">{schoolProfile.totalJhpmsClasses}</div>
-                                <span className="text-[9px] text-gray-500 font-semibold block">Classes Logged</span>
+                                <span className="text-[9px] text-gray-500 font-semibold block">ICT + Smart</span>
+                            </div>
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
+                                <div className="flex items-center justify-center gap-1.5 text-gray-700 dark:text-slate-350 border-b border-gray-150 dark:border-slate-850 pb-1">
+                                    <Icons.Visit className="w-3.5 h-3.5 text-cyan-600" />
+                                    <span className="text-[11px] uppercase font-extrabold">Total ICT</span>
+                                </div>
+                                <div className="text-2xl font-black text-cyan-800 dark:text-cyan-400 my-1">{schoolProfile.ictCount}</div>
+                                <span className="text-[9px] text-gray-500 font-semibold block">ICT Classes</span>
                             </div>
                             <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
                                 <div className="flex items-center justify-center gap-1.5 text-gray-700 dark:text-slate-350 border-b border-gray-150 dark:border-slate-850 pb-1">
@@ -1017,7 +1019,7 @@ const SchoolWiseSearch = ({
                                 </div>
                                 <div className="text-2xl font-black text-indigo-800 dark:text-indigo-400 my-1">{schoolProfile.theoryCount}</div>
                                 <span className="text-[9px] text-indigo-750 font-bold bg-indigo-50 dark:bg-indigo-950/20 px-1.5 py-0.5 rounded-full inline-block">
-                                    {schoolProfile.totalJhpmsClasses > 0 ? Math.round((schoolProfile.theoryCount / schoolProfile.totalJhpmsClasses) * 100) : 0}%
+                                    {schoolProfile.ictCount > 0 ? Math.round((schoolProfile.theoryCount / schoolProfile.ictCount) * 100) : 0}%
                                 </span>
                             </div>
                             <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
@@ -1027,7 +1029,7 @@ const SchoolWiseSearch = ({
                                 </div>
                                 <div className="text-2xl font-black text-amber-800 dark:text-amber-400 my-1">{schoolProfile.practicalCount}</div>
                                 <span className="text-[9px] text-amber-750 font-bold bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded-full inline-block">
-                                    {schoolProfile.totalJhpmsClasses > 0 ? Math.round((schoolProfile.practicalCount / schoolProfile.totalJhpmsClasses) * 100) : 0}%
+                                    {schoolProfile.ictCount > 0 ? Math.round((schoolProfile.practicalCount / schoolProfile.ictCount) * 100) : 0}%
                                 </span>
                             </div>
                             <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
@@ -1038,7 +1040,7 @@ const SchoolWiseSearch = ({
                                 <div className="text-2xl font-black text-emerald-850 dark:text-emerald-400 my-1">{schoolProfile.smartCount}</div>
                                 <span className="text-[9px] text-gray-500 font-semibold block">Interactive Board</span>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center col-span-2 md:col-span-1 flex flex-col justify-between min-h-[100px]">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
                                 <div className="flex items-center justify-center gap-1.5 text-gray-700 dark:text-slate-350 border-b border-gray-150 dark:border-slate-850 pb-1">
                                     <DatabaseIcon className="w-3.5 h-3.5 text-rose-600" />
                                     <span className="text-[11px] uppercase font-extrabold">MIS</span>

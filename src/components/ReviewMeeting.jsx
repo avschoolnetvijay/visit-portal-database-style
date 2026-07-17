@@ -95,18 +95,23 @@ const ReviewMeeting = ({
                 const dStr = rDate.toISOString().split('T')[0];
                 if (dStr >= startDate && dStr <= endDate) {
                     if (!map[udise]) {
-                        map[udise] = { ict: 0, smart: 0, mis: 0 };
+                        map[udise] = { ict: 0, smart: 0, mis: 0, theory: 0, practical: 0 };
                     }
                     const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
                     const labType = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
+                    const theoryPractical = String(row.theoryPractical || getVal(row, 'theoryPractical') || getVal(row, 'theory/practical') || getVal(row, 'theorypractical') || '').toUpperCase();
+
                     if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
                         map[udise].mis++;
-                    } else {
-                        if (labType.includes('SMART')) {
-                            map[udise].smart++;
+                    } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                        map[udise].ict++;
+                        if (theoryPractical.includes('PRACTICAL')) {
+                            map[udise].practical++;
                         } else {
-                            map[udise].ict++;
+                            map[udise].theory++;
                         }
+                    } else if (labType.includes('SMART')) {
+                        map[udise].smart++;
                     }
                 }
             }
@@ -283,12 +288,10 @@ const ReviewMeeting = ({
                     const labType = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
                     if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
                         misClasses++;
-                    } else {
-                        if (labType.includes('SMART')) {
-                            smartClasses++;
-                        } else {
-                            ictClasses++;
-                        }
+                    } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                        ictClasses++;
+                    } else if (labType.includes('SMART')) {
+                        smartClasses++;
                     }
                 }
             }
@@ -1188,6 +1191,8 @@ const ReviewMeeting = ({
                     { text: "School Name", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
                     { text: "UDISE Code", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
                     { text: "ICT Classes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Theory", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "Practical", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
                     { text: "Smart Classes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
                     { text: "MIS Classes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
                     { text: "Total Classes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
@@ -1197,8 +1202,10 @@ const ReviewMeeting = ({
 
             entitySchools.forEach(s => {
                 const udise = cleanUdise(s.udise_code);
-                const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0, mis: 0 };
+                const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0, mis: 0, theory: 0, practical: 0 };
                 const ict = stats.ict;
+                const theory = stats.theory || 0;
+                const practical = stats.practical || 0;
                 const smart = stats.smart;
                 const mis = stats.mis || 0;
 
@@ -1210,6 +1217,8 @@ const ReviewMeeting = ({
                     { text: s.school_name || s.school || "N/A", options: { fontSize: 8 } },
                     { text: udise, options: { fontSize: 8 } },
                     { text: String(ict), options: { fontSize: 8 } },
+                    { text: String(theory), options: { fontSize: 8 } },
+                    { text: String(practical), options: { fontSize: 8 } },
                     { text: String(smart), options: { fontSize: 8 } },
                     { text: String(mis), options: { fontSize: 8 } },
                     { text: String(total), options: { fontSize: 8, bold: true } },
@@ -1222,7 +1231,7 @@ const ReviewMeeting = ({
                 autoPage: true,
                 autoPageHeader: true,
                 autoPageLineMultiplier: 0.8,
-                colWidths: [3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                colWidths: [2.6, 0.9, 0.7, 0.7, 0.7, 0.7, 0.7, 0.9, 1.1],
                 border: { type: "solid", color: "E2E8F0", width: 0.5 }
             });
 
@@ -2184,6 +2193,8 @@ const ReviewMeeting = ({
                                                         <th className="p-1">School Name</th>
                                                         <th className="p-1">UDISE</th>
                                                         <th className="p-1 text-center">ICT</th>
+                                                        <th className="p-1 text-center">Theory</th>
+                                                        <th className="p-1 text-center">Practical</th>
                                                         <th className="p-1 text-center">Smart</th>
                                                         <th className="p-1 text-center">MIS</th>
                                                         <th className="p-1 text-center">Total</th>
@@ -2192,8 +2203,10 @@ const ReviewMeeting = ({
                                                 <tbody>
                                                     {entitySchools.slice(0, 3).map((s, idx) => {
                                                         const udise = cleanUdise(s.udise_code);
-                                                        const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0, mis: 0 };
+                                                        const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0, mis: 0, theory: 0, practical: 0 };
                                                         const ict = stats.ict;
+                                                        const theory = stats.theory || 0;
+                                                        const practical = stats.practical || 0;
                                                         const smart = stats.smart;
                                                         const mis = stats.mis || 0;
                                                         return (
@@ -2201,6 +2214,8 @@ const ReviewMeeting = ({
                                                                 <td className="p-1 truncate max-w-[80px]">{s.school_name || s.school}</td>
                                                                 <td className="p-1">{udise}</td>
                                                                 <td className="p-1 text-center">{ict}</td>
+                                                                <td className="p-1 text-center">{theory}</td>
+                                                                <td className="p-1 text-center">{practical}</td>
                                                                 <td className="p-1 text-center">{smart}</td>
                                                                 <td className="p-1 text-center">{mis}</td>
                                                                 <td className="p-1 text-center font-bold">{ict + smart}</td>
