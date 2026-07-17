@@ -1717,13 +1717,17 @@ const ReviewMeeting = ({
                     const mappedSchools = projectSchools.map(s => {
                         const udise = cleanUdise(s.udise_code);
                         const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0, mis: 0, theory: 0, practical: 0 };
+                        const theory = stats.theory || 0;
+                        const practical = stats.practical || 0;
+                        const smart = stats.smart || 0;
+                        const mis = stats.mis || 0;
                         return {
                             ...s,
-                            theory: stats.theory || 0,
-                            practical: stats.practical || 0,
-                            smart: stats.smart || 0,
-                            mis: stats.mis || 0,
-                            total: stats.ict + stats.smart
+                            theory,
+                            practical,
+                            smart,
+                            mis,
+                            total: theory + practical + smart + mis
                         };
                     });
 
@@ -1926,10 +1930,17 @@ const ReviewMeeting = ({
                 const ccStats = {};
                 const schoolUdisesSet = new Set(entitySchools.map(s => cleanUdise(s.udise_code)));
 
-                // Filter visits to only those schools inside the zone
+                // Filter visits to schools inside the zone AND within the selected date range
                 const zoneVisits = visits.filter(v => {
                     const ud = cleanUdise(v.udise_code);
-                    return ud && schoolUdisesSet.has(ud);
+                    if (!ud || !schoolUdisesSet.has(ud)) return false;
+                    if (startDate && endDate) {
+                        const vDate = parseDateRobust(v.visit_date);
+                        if (!vDate) return false;
+                        const vDateStr = formatDateLocal(vDate);
+                        if (vDateStr < startDate || vDateStr > endDate) return false;
+                    }
+                    return true;
                 });
 
                 zoneVisits.forEach(v => {
