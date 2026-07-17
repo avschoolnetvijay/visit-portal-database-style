@@ -78,7 +78,8 @@ const ReviewMeeting = ({
                     if (!map[udise]) {
                         map[udise] = { hours: 0, synced: true };
                     }
-                    map[udise].hours += Number(row.hours || getVal(row, 'hours') || 0);
+                    const hrs = row.hours !== undefined ? Number(row.hours) : parseFloat(getVal(row, 'hours') || 0);
+                    map[udise].hours += hrs;
                 }
             }
         });
@@ -94,15 +95,17 @@ const ReviewMeeting = ({
                 const dStr = rDate.toISOString().split('T')[0];
                 if (dStr >= startDate && dStr <= endDate) {
                     if (!map[udise]) {
-                        map[udise] = { ict: 0, smart: 0 };
+                        map[udise] = { ict: 0, smart: 0, mis: 0 };
                     }
                     const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
                     const labType = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
-                    if (!subject.split(/[^A-Z0-9]+/).includes('MIS')) {
-                        if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                            map[udise].ict++;
-                        } else if (labType.includes('SMART')) {
+                    if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                        map[udise].mis++;
+                    } else {
+                        if (labType.includes('SMART')) {
                             map[udise].smart++;
+                        } else {
+                            map[udise].ict++;
                         }
                     }
                 }
@@ -114,7 +117,7 @@ const ReviewMeeting = ({
     const visitsRangeMap = useMemo(() => {
         const map = {};
         visits.forEach(row => {
-            const udise = cleanUdise(row.udise_code);
+            const udise = cleanUdise(row.udise_code || getVal(row, 'udise'));
             const rDate = parseDateRobust(row.visit_date);
             if (rDate && startDate && endDate) {
                 const dStr = rDate.toISOString().split('T')[0];
@@ -267,6 +270,7 @@ const ReviewMeeting = ({
         // 3. Classes Conduction
         let ictClasses = 0;
         let smartClasses = 0;
+        let misClasses = 0;
         jhpmsLab.forEach(row => {
             const udise = cleanUdise(row.udise || getVal(row, 'udise') || row.udise_code);
             if (!entityUdises.has(udise)) return;
@@ -277,11 +281,13 @@ const ReviewMeeting = ({
                 if (dStr >= startDate && dStr <= endDate) {
                     const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
                     const labType = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
-                    if (!subject.split(/[^A-Z0-9]+/).includes('MIS')) {
-                        if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                            ictClasses++;
-                        } else if (labType.includes('SMART')) {
+                    if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                        misClasses++;
+                    } else {
+                        if (labType.includes('SMART')) {
                             smartClasses++;
+                        } else {
+                            ictClasses++;
                         }
                     }
                 }
@@ -295,7 +301,7 @@ const ReviewMeeting = ({
         // 4. Visits
         let totalVisits = 0;
         visits.forEach(row => {
-            const udise = cleanUdise(row.udise_code);
+            const udise = cleanUdise(row.udise_code || getVal(row, 'udise'));
             if (!entityUdises.has(udise)) return;
 
             const rDate = parseDateRobust(row.visit_date);
@@ -1183,6 +1189,7 @@ const ReviewMeeting = ({
                     { text: "UDISE Code", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
                     { text: "ICT Classes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
                     { text: "Smart Classes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
+                    { text: "MIS Classes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
                     { text: "Total Classes", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } },
                     { text: "Classes/Day", options: { bold: true, color: colorWhite, fill: colorTealDark, fontSize: 8.5 } }
                 ]
@@ -1190,9 +1197,10 @@ const ReviewMeeting = ({
 
             entitySchools.forEach(s => {
                 const udise = cleanUdise(s.udise_code);
-                const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0 };
+                const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0, mis: 0 };
                 const ict = stats.ict;
                 const smart = stats.smart;
+                const mis = stats.mis || 0;
 
                 const total = ict + smart;
                 const days = Number(workingDays) || 1;
@@ -1203,6 +1211,7 @@ const ReviewMeeting = ({
                     { text: udise, options: { fontSize: 8 } },
                     { text: String(ict), options: { fontSize: 8 } },
                     { text: String(smart), options: { fontSize: 8 } },
+                    { text: String(mis), options: { fontSize: 8 } },
                     { text: String(total), options: { fontSize: 8, bold: true } },
                     { text: String(rate), options: { fontSize: 8 } }
                 ]);
@@ -1213,7 +1222,7 @@ const ReviewMeeting = ({
                 autoPage: true,
                 autoPageHeader: true,
                 autoPageLineMultiplier: 0.8,
-                colWidths: [3.5, 1.1, 1.1, 1.1, 1.1, 1.1],
+                colWidths: [3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
                 border: { type: "solid", color: "E2E8F0", width: 0.5 }
             });
 
@@ -2176,21 +2185,24 @@ const ReviewMeeting = ({
                                                         <th className="p-1">UDISE</th>
                                                         <th className="p-1 text-center">ICT</th>
                                                         <th className="p-1 text-center">Smart</th>
+                                                        <th className="p-1 text-center">MIS</th>
                                                         <th className="p-1 text-center">Total</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {entitySchools.slice(0, 3).map((s, idx) => {
                                                         const udise = cleanUdise(s.udise_code);
-                                                        const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0 };
+                                                        const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0, mis: 0 };
                                                         const ict = stats.ict;
                                                         const smart = stats.smart;
+                                                        const mis = stats.mis || 0;
                                                         return (
                                                             <tr key={idx} className="border-b border-gray-150 dark:border-white/5">
-                                                                <td className="p-1 truncate max-w-[100px]">{s.school_name || s.school}</td>
+                                                                <td className="p-1 truncate max-w-[80px]">{s.school_name || s.school}</td>
                                                                 <td className="p-1">{udise}</td>
                                                                 <td className="p-1 text-center">{ict}</td>
                                                                 <td className="p-1 text-center">{smart}</td>
+                                                                <td className="p-1 text-center">{mis}</td>
                                                                 <td className="p-1 text-center font-bold">{ict + smart}</td>
                                                             </tr>
                                                         );
