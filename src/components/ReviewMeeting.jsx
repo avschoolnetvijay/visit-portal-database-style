@@ -1,6 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { parseDateRobust, formatDate, exportToExcel } from '../utils';
 
+const formatDateLocal = (d) => {
+    if (!d || isNaN(d.getTime())) return '';
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
 const ReviewMeeting = ({
     schools = [],
     visits = [],
@@ -73,7 +81,7 @@ const ReviewMeeting = ({
             const udise = cleanUdise(row.udise || getVal(row, 'udise'));
             const rDate = parseDateRobust(row.date || getVal(row, 'date'));
             if (rDate && startDate && endDate) {
-                const dStr = rDate.toISOString().split('T')[0];
+                const dStr = formatDateLocal(rDate);
                 if (dStr >= startDate && dStr <= endDate) {
                     if (!map[udise]) {
                         map[udise] = { hours: 0, synced: true };
@@ -92,7 +100,7 @@ const ReviewMeeting = ({
             const udise = cleanUdise(row.udise || getVal(row, 'udise') || row.udise_code);
             const rDate = parseDateRobust(row.date || getVal(row, 'date') || row.visit_date);
             if (rDate && startDate && endDate) {
-                const dStr = rDate.toISOString().split('T')[0];
+                const dStr = formatDateLocal(rDate);
                 if (dStr >= startDate && dStr <= endDate) {
                     if (!map[udise]) {
                         map[udise] = { ict: 0, smart: 0, mis: 0, theory: 0, practical: 0 };
@@ -125,7 +133,7 @@ const ReviewMeeting = ({
             const udise = cleanUdise(row.udise_code || getVal(row, 'udise'));
             const rDate = parseDateRobust(row.visit_date);
             if (rDate && startDate && endDate) {
-                const dStr = rDate.toISOString().split('T')[0];
+                const dStr = formatDateLocal(rDate);
                 if (dStr >= startDate && dStr <= endDate) {
                     if (!map[udise]) {
                         map[udise] = { count: 0, lastDate: null, rows: [] };
@@ -260,7 +268,7 @@ const ReviewMeeting = ({
 
             const rDate = parseDateRobust(row.date || getVal(row, 'date'));
             if (rDate && startDate && endDate) {
-                const dStr = rDate.toISOString().split('T')[0];
+                const dStr = formatDateLocal(rDate);
                 if (dStr >= startDate && dStr <= endDate) {
                     const hours = Number(row.hours || getVal(row, 'hours') || 0);
                     totalHours += hours;
@@ -282,7 +290,7 @@ const ReviewMeeting = ({
 
             const rDate = parseDateRobust(row.date || getVal(row, 'date') || row.visit_date);
             if (rDate && startDate && endDate) {
-                const dStr = rDate.toISOString().split('T')[0];
+                const dStr = formatDateLocal(rDate);
                 if (dStr >= startDate && dStr <= endDate) {
                     const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
                     const labType = String(row.labType || getVal(row, 'lab') || '').toUpperCase();
@@ -309,7 +317,7 @@ const ReviewMeeting = ({
 
             const rDate = parseDateRobust(row.visit_date);
             if (rDate && startDate && endDate) {
-                const dStr = rDate.toISOString().split('T')[0];
+                const dStr = formatDateLocal(rDate);
                 if (dStr >= startDate && dStr <= endDate) {
                     totalVisits++;
                 }

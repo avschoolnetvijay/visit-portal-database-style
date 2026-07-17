@@ -47,6 +47,14 @@ const parseDateRobust = (input) => {
     return null;
 };
 
+const formatDateLocal = (d) => {
+    if (!d || isNaN(d.getTime())) return '';
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
 // Dynamic Performance Color Indicator
 const getBenchmarkColor = (val, avg) => {
     if (avg <= 0) return 'bg-green-600';
@@ -283,7 +291,7 @@ const SchoolWiseSearch = ({
         // Compute unique logged days
         const uniqueLoggedDays = new Set(schoolJhpms.map(l => {
             const d = parseDateRobust(l.date || getVal(l, 'date'));
-            return d ? d.toISOString().split('T')[0] : '';
+            return d ? formatDateLocal(d) : '';
         }).filter(Boolean));
         const jhpmsLoggedDays = uniqueLoggedDays.size;
 
@@ -358,7 +366,7 @@ const SchoolWiseSearch = ({
             if (vUdise !== udise) return false;
             const d = parseDateRobust(v.visit_date);
             if (!d) return false;
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = formatDateLocal(d);
             return dateStr >= startDate && dateStr <= endDate;
         });
 
@@ -585,7 +593,7 @@ const SchoolWiseSearch = ({
         qprVisits.forEach(v => {
             const d = parseDateRobust(v.visit_date);
             if (d) {
-                qprDates.add(d.toISOString().split('T')[0]);
+                qprDates.add(formatDateLocal(d));
             }
         });
         const qprVisitsUniqueDaysCount = qprDates.size;
@@ -604,7 +612,7 @@ const SchoolWiseSearch = ({
         sortedHistory.forEach(v => {
             const d = parseDateRobust(v.visit_date);
             if (!d) return;
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = formatDateLocal(d);
             const visitor = v.visitor_name || 'Coordinator';
 
             if (seenDates[dateStr] !== undefined) {
