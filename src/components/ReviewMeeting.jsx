@@ -1714,6 +1714,7 @@ const ReviewMeeting = ({
                     const projectSchools = entitySchools.filter(s => s.project_name === projName);
 
                     // Add theory/practical/total class count properties to the schools so we can sort them
+                    // Logic same as SchoolWiseSearch & SchoolPerformance: total = ICT(theory+practical) + Smart, MIS excluded
                     const mappedSchools = projectSchools.map(s => {
                         const udise = cleanUdise(s.udise_code);
                         const stats = jhpmsLabRangeMap[udise] || { ict: 0, smart: 0, mis: 0, theory: 0, practical: 0 };
@@ -1727,7 +1728,7 @@ const ReviewMeeting = ({
                             practical,
                             smart,
                             mis,
-                            total: theory + practical + smart + mis
+                            total: theory + practical + smart  // MIS excluded from total (same as SchoolWiseSearch)
                         };
                     });
 
