@@ -7,6 +7,7 @@ import {
 import { Icons } from './Icons';
 import { parseDateRobust, formatDate, downloadSVG, downloadPNG, downloadCSV, getMonthsInRange, exportToExcel } from '../utils';
 import ReactApexChart from 'react-apexcharts';
+import { schoolnetLogoBase64 } from './logoBase64';
 
 /* ───── Standard Chart Download Toolbar Dropdown ───── */
 const ChartToolbar = ({ chartId, csvData, filename }) => {
@@ -542,15 +543,18 @@ const OverallAnalysis = ({
         });
         
         slide.addText('JHARKHAND PERFORMANCE AUDIT', {
-          x: 7.0, y: 0.35, w: 2.5, h: 0.3,
+          x: 5.6, y: 0.35, w: 2.5, h: 0.3,
           fontSize: 8, bold: true, color: '8BF8E0', align: 'right', tracking: 1
         });
+
+        slide.addImage({ data: schoolnetLogoBase64, x: 8.5, y: 0.2, w: 1.15, h: 0.35 });
       };
 
       // 1. Cover
       if (selectedSlides.cover) {
         let slide = pptx.addSlide();
         slide.background = { fill: primaryColor };
+        slide.addImage({ data: schoolnetLogoBase64, x: 8.5, y: 0.2, w: 1.15, h: 0.35 });
         
         slide.addText('GOVERNMENT OF JHARKHAND — DEPARTMENT OF EDUCATION', {
           x: 0.5, y: 0.6, w: 9.0, h: 0.3,
@@ -619,6 +623,626 @@ const OverallAnalysis = ({
           fontSize: 10, color: lightTeal, align: 'left'
         });
       }
+
+      // ─── START OF NEW REDESIGNED SUMMARY SLIDES ───
+      // [Slide 2] Projects Overview Matrix
+      {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Projects Overview', 'Strategic Summary');
+
+        const activeDistricts = [...new Set(finalEnriched.map(s => s.district).filter(Boolean))].sort();
+        const activeProjects = [...new Set(finalEnriched.map(s => s.project).filter(Boolean))].sort();
+
+        const overviewMatrix = {};
+        activeDistricts.forEach(d => {
+          overviewMatrix[d] = {};
+          activeProjects.forEach(p => {
+            overviewMatrix[d][p] = 0;
+          });
+          overviewMatrix[d].total = 0;
+        });
+
+        const projectTotals = {};
+        activeProjects.forEach(p => {
+          projectTotals[p] = 0;
+        });
+        let grandTotalSchools = 0;
+
+        finalEnriched.forEach(s => {
+          const d = s.district;
+          const p = s.project;
+          if (d && p && overviewMatrix[d] !== undefined && overviewMatrix[d][p] !== undefined) {
+            overviewMatrix[d][p]++;
+            overviewMatrix[d].total++;
+            projectTotals[p]++;
+            grandTotalSchools++;
+          }
+        });
+
+        const overviewHeaders = [
+          { text: 'DISTRICTS', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+          ...activeProjects.map(p => ({
+            text: p,
+            options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 9 }
+          })),
+          { text: 'Total', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } }
+        ];
+
+        const overviewRows = [overviewHeaders];
+        activeDistricts.forEach(d => {
+          const row = [
+            { text: d, options: { bold: true, fontSize: 9, align: 'left' } },
+            ...activeProjects.map(p => ({
+              text: overviewMatrix[d][p] ? String(overviewMatrix[d][p]) : '',
+              options: { align: 'center', fontSize: 9 }
+            })),
+            { text: String(overviewMatrix[d].total), options: { bold: true, align: 'center', fontSize: 9, fill: 'F1F5F9' } }
+          ];
+          overviewRows.push(row);
+        });
+
+        const totalRow = [
+          { text: 'TOTAL', options: { bold: true, color: white, fill: '1E3A8A', align: 'left', fontSize: 9 } },
+          ...activeProjects.map(p => ({
+            text: String(projectTotals[p]),
+            options: { bold: true, color: white, fill: '1E3A8A', align: 'center', fontSize: 9 }
+          })),
+          { text: String(grandTotalSchools), options: { bold: true, color: white, fill: '1E3A8A', align: 'center', fontSize: 10 } }
+        ];
+        overviewRows.push(totalRow);
+
+        slide.addTable(overviewRows, {
+          x: 0.5, y: 1.3, w: 9.0,
+          border: { type: 'solid', color: 'E2E8F0', width: 1 },
+          fill: { color: 'FFFFFF' },
+          fontSize: 9,
+          color: '1E293B'
+        });
+      }
+
+      // [Slide 3] Manpower Status (District-wise)
+      {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Manpower Status', 'Operations & HR');
+
+        const activeDistricts = [...new Set(finalEnriched.map(s => s.district).filter(Boolean))].sort();
+        const manpowerMatrix = {};
+        activeDistricts.forEach(d => {
+          manpowerMatrix[d] = {
+            schoolsCount: 0,
+            required: 0,
+            working: 0,
+            vacant: 0
+          };
+        });
+
+        finalEnriched.forEach(s => {
+          const d = s.district;
+          if (d && manpowerMatrix[d] !== undefined) {
+            manpowerMatrix[d].schoolsCount++;
+            manpowerMatrix[d].required++;
+            if (s.staffStatus === 'Active') {
+              manpowerMatrix[d].working++;
+            } else {
+              manpowerMatrix[d].vacant++;
+            }
+          }
+        });
+
+        const manpowerHeaders = [
+          { text: 'S.N', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+          { text: 'District', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+          { text: 'No Of Schools', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+          { text: 'Required Manpower', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+          { text: 'Working Manpower', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+          { text: 'Vacant', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } }
+        ];
+
+        const manpowerRows = [manpowerHeaders];
+        let totalSchools = 0;
+        let totalRequired = 0;
+        let totalWorking = 0;
+        let totalVacant = 0;
+
+        activeDistricts.forEach((d, idx) => {
+          const m = manpowerMatrix[d];
+          totalSchools += m.schoolsCount;
+          totalRequired += m.required;
+          totalWorking += m.working;
+          totalVacant += m.vacant;
+
+          const vacantBg = m.vacant === 0 ? '10B981' : 'FFFFFF';
+          const vacantTextColor = m.vacant === 0 ? 'FFFFFF' : '1E293B';
+
+          const row = [
+            { text: String(idx + 1), options: { align: 'center', fontSize: 10 } },
+            { text: d, options: { bold: true, fontSize: 10, align: 'left' } },
+            { text: String(m.schoolsCount), options: { align: 'center', fontSize: 10 } },
+            { text: String(m.required), options: { align: 'center', fontSize: 10 } },
+            { text: String(m.working), options: { align: 'center', fontSize: 10 } },
+            { text: String(m.vacant), options: { align: 'center', fontSize: 10, bold: true, fill: vacantBg, color: vacantTextColor } }
+          ];
+          manpowerRows.push(row);
+        });
+
+        const totalRow = [
+          { text: '', options: { fill: 'F1F5F9' } },
+          { text: 'Grand Total', options: { bold: true, fontSize: 10, align: 'left', fill: 'F1F5F9' } },
+          { text: String(totalSchools), options: { bold: true, align: 'center', fontSize: 10, fill: 'F1F5F9' } },
+          { text: String(totalRequired), options: { bold: true, align: 'center', fontSize: 10, fill: 'F1F5F9' } },
+          { text: String(totalWorking), options: { bold: true, align: 'center', fontSize: 10, fill: 'F1F5F9' } },
+          { text: String(totalVacant), options: { bold: true, align: 'center', fontSize: 10, fill: 'F1F5F9' } }
+        ];
+        manpowerRows.push(totalRow);
+
+        slide.addTable(manpowerRows, {
+          x: 0.5, y: 1.3, w: 9.0,
+          colW: [0.6, 2.0, 1.6, 1.6, 1.6, 1.6],
+          border: { type: 'solid', color: 'E2E8F0', width: 1 },
+          fill: { color: 'FFFFFF' },
+          fontSize: 10,
+          color: '1E293B'
+        });
+      }
+
+      // Loop projects for dynamic monthly Lab Utilisation and Top/Bottom 10 schools
+      const schoolLookup = {};
+      finalEnriched.forEach(s => {
+        const ud = cleanUdise(s.udise);
+        schoolLookup[ud] = s;
+      });
+
+      const activeProjects = [...new Set(finalEnriched.map(s => s.project).filter(Boolean))].sort();
+
+      const getWorkingDaysForMonth = (year, monthIdx, startStr, endStr) => {
+        const start = new Date(startStr);
+        const end = new Date(endStr);
+        let count = 0;
+        const date = new Date(year, monthIdx, 1);
+        while (date.getMonth() === monthIdx) {
+          if (date >= start && date <= end) {
+            if (date.getDay() !== 0) { // Exclude Sundays
+              count++;
+            }
+          }
+          date.setDate(date.getDate() + 1);
+        }
+        return count;
+      };
+
+      const getMonthsList = (startStr, endStr) => {
+        const months = [];
+        if (!startStr || !endStr) return months;
+        const start = new Date(startStr);
+        const end = new Date(endStr);
+        const curr = new Date(start.getFullYear(), start.getMonth(), 1);
+        while (curr <= end) {
+          months.push({
+            name: curr.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }).replace(' ', '-'),
+            year: curr.getFullYear(),
+            monthIndex: curr.getMonth()
+          });
+          curr.setMonth(curr.getMonth() + 1);
+        }
+        return months;
+      };
+
+      const monthsList = getMonthsList(startDate, endDate);
+
+      activeProjects.forEach(projName => {
+        const projectSchools = finalEnriched.filter(s => s.project === projName);
+        const projectUdises = new Set(projectSchools.map(s => cleanUdise(s.udise)));
+
+        // Slide A: dynamic monthly Lab Utilisation
+        {
+          let slide = pptx.addSlide();
+          addSlideHeader(slide, `Lab Utilization — ${projName}`, 'Academic Conduction');
+
+          const projectJhpmsRows = currentJhpms.filter(row => {
+            const ud = cleanUdise(row.udise || getVal(row, 'udise'));
+            return ud && projectUdises.has(ud);
+          });
+
+          const monthlyStats = monthsList.map(m => {
+            let theory = 0;
+            let practical = 0;
+            
+            projectJhpmsRows.forEach(row => {
+              const rawDate = row.date || getVal(row, 'date');
+              const d = parseDateRobust(rawDate);
+              if (d && d.getFullYear() === m.year && d.getMonth() === m.monthIndex) {
+                const labType = String(row.labType || row.lab_type || getVal(row, 'lab') || '').toUpperCase();
+                const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
+                const theoryPractical = String(row.theoryPractical || getVal(row, 'theoryPractical') || getVal(row, 'theory/practical') || getVal(row, 'theorypractical') || '').toUpperCase();
+
+                if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                  if (theoryPractical.includes('PRACTICAL')) {
+                    practical++;
+                  } else {
+                    theory++;
+                  }
+                }
+              }
+            });
+
+            const workingDaysCount = getWorkingDaysForMonth(m.year, m.monthIndex, startDate, endDate);
+            
+            return {
+              monthName: m.name,
+              workingDays: workingDaysCount,
+              theory,
+              practical,
+              total: theory + practical
+            };
+          });
+
+          const utilHeaders = [
+            { text: 'PERIOD', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+            { text: 'TOTAL NO. OF WORKING DAYS', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+            { text: 'COMPUTER CLASSES (THEORY)', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+            { text: 'COMPUTER CLASSES (PRACTICAL)', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+            { text: 'TOTAL', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } }
+          ];
+
+          const utilRows = [utilHeaders];
+          let grandWorking = 0;
+          let grandTheory = 0;
+          let grandPractical = 0;
+          let grandTotal = 0;
+
+          monthlyStats.forEach(stat => {
+            grandWorking += stat.workingDays;
+            grandTheory += stat.theory;
+            grandPractical += stat.practical;
+            grandTotal += stat.total;
+
+            utilRows.push([
+              { text: stat.monthName, options: { bold: true, align: 'center', fontSize: 10 } },
+              { text: String(stat.workingDays), options: { align: 'center', fontSize: 10 } },
+              { text: String(stat.theory), options: { align: 'center', fontSize: 10 } },
+              { text: String(stat.practical), options: { align: 'center', fontSize: 10 } },
+              { text: String(stat.total), options: { bold: true, align: 'center', fontSize: 10, fill: 'F1F5F9' } }
+            ]);
+          });
+
+          utilRows.push([
+            { text: 'Total', options: { bold: true, align: 'center', fontSize: 10, fill: 'ECFDF5' } },
+            { text: String(grandWorking), options: { bold: true, align: 'center', fontSize: 10, fill: 'ECFDF5' } },
+            { text: String(grandTheory), options: { bold: true, align: 'center', fontSize: 10, fill: 'ECFDF5' } },
+            { text: String(grandPractical), options: { bold: true, align: 'center', fontSize: 10, fill: 'ECFDF5' } },
+            { text: String(grandTotal), options: { bold: true, align: 'center', fontSize: 10, fill: 'ECFDF5' } }
+          ]);
+
+          slide.addTable(utilRows, {
+            x: 0.5, y: 1.5, w: 9.0,
+            colW: [1.8, 2.0, 1.8, 1.8, 1.6],
+            border: { type: 'solid', color: 'E2E8F0', width: 1 },
+            fill: { color: 'FFFFFF' },
+            fontSize: 10,
+            color: '1E293B'
+          });
+        }
+
+        // Slide B: Top 10 Schools
+        {
+          let slide = pptx.addSlide();
+          addSlideHeader(slide, `Top 10 Schools by ICT Classes — ${projName}`, 'Academic Leaderboard');
+
+          const sortedSchoolsDesc = [...projectSchools].sort((a, b) => (b.ictClasses || 0) - (a.ictClasses || 0)).slice(0, 10);
+
+          const schHeaders = [
+            { text: 'S.N', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+            { text: 'School Name', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+            { text: 'District', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+            { text: 'Block', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+            { text: 'CC/DEF Name', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+            { text: 'ICT Instructor', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+            { text: 'Theory', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+            { text: 'Practical', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+            { text: 'MIS', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+            { text: 'Total', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } }
+          ];
+
+          const schRows = [schHeaders];
+          sortedSchoolsDesc.forEach((s, idx) => {
+            schRows.push([
+              { text: String(idx + 1), options: { align: 'center', fontSize: 8 } },
+              { text: s.schoolName, options: { bold: true, fontSize: 8 } },
+              { text: s.district, options: { fontSize: 8 } },
+              { text: s.block, options: { fontSize: 8 } },
+              { text: s.visitorName || '-', options: { fontSize: 8 } },
+              { text: s.staffName || '-', options: { fontSize: 8 } },
+              { text: String(s.theoryClasses || 0), options: { align: 'center', fontSize: 8 } },
+              { text: String(s.practicalClasses || 0), options: { align: 'center', fontSize: 8 } },
+              { text: String(s.misClasses || 0), options: { align: 'center', fontSize: 8 } },
+              { text: String(s.ictClasses || 0), options: { bold: true, align: 'center', fontSize: 8, fill: 'ECFDF5', color: '047857' } }
+            ]);
+          });
+
+          slide.addTable(schRows, {
+            x: 0.5, y: 1.3, w: 9.0,
+            colW: [0.4, 2.1, 0.9, 0.9, 1.2, 1.2, 0.6, 0.6, 0.5, 0.6],
+            border: { type: 'solid', color: 'E2E8F0', width: 1 },
+            fill: { color: 'FFFFFF' },
+            fontSize: 8,
+            color: '1E293B'
+          });
+        }
+
+        // Slide C: Bottom 10 Schools
+        {
+          let slide = pptx.addSlide();
+          addSlideHeader(slide, `Bottom 10 Schools by ICT Classes — ${projName}`, 'Academic Leaderboard');
+
+          const sortedSchoolsAsc = [...projectSchools].sort((a, b) => (a.ictClasses || 0) - (b.ictClasses || 0)).slice(0, 10);
+
+          const schHeaders = [
+            { text: 'S.N', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+            { text: 'School Name', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+            { text: 'District', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+            { text: 'Block', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+            { text: 'CC/DEF Name', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+            { text: 'ICT Instructor', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+            { text: 'Theory', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+            { text: 'Practical', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+            { text: 'MIS', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+            { text: 'Total', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } }
+          ];
+
+          const schRows = [schHeaders];
+          sortedSchoolsAsc.forEach((s, idx) => {
+            schRows.push([
+              { text: String(idx + 1), options: { align: 'center', fontSize: 8 } },
+              { text: s.schoolName, options: { bold: true, fontSize: 8 } },
+              { text: s.district, options: { fontSize: 8 } },
+              { text: s.block, options: { fontSize: 8 } },
+              { text: s.visitorName || '-', options: { fontSize: 8 } },
+              { text: s.staffName || '-', options: { fontSize: 8 } },
+              { text: String(s.theoryClasses || 0), options: { align: 'center', fontSize: 8 } },
+              { text: String(s.practicalClasses || 0), options: { align: 'center', fontSize: 8 } },
+              { text: String(s.misClasses || 0), options: { align: 'center', fontSize: 8 } },
+              { text: String(s.ictClasses || 0), options: { bold: true, align: 'center', fontSize: 8, fill: 'FEF2F2', color: 'DC2626' } }
+            ]);
+          });
+
+          slide.addTable(schRows, {
+            x: 0.5, y: 1.3, w: 9.0,
+            colW: [0.4, 2.1, 0.9, 0.9, 1.2, 1.2, 0.6, 0.6, 0.5, 0.6],
+            border: { type: 'solid', color: 'E2E8F0', width: 1 },
+            fill: { color: 'FFFFFF' },
+            fontSize: 8,
+            color: '1E293B'
+          });
+        }
+      });
+
+      // Slide D: Edustat Consolidated Summary (District & Project combined)
+      {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Edustat Consolidated Performance', 'Hardware Operations');
+
+        const combStats = {};
+        finalEnriched.forEach(s => {
+          const d = s.district;
+          const p = s.project;
+          if (!d || !p) return;
+          const key = `${d}_${p}`;
+          if (!combStats[key]) {
+            combStats[key] = {
+              district: d,
+              project: p,
+              devices: 0,
+              installed: 0,
+              syncing: 0,
+              hours: 0
+            };
+          }
+        });
+
+        (edustatMaster || []).forEach(m => {
+          const ud = cleanUdise(m.udise);
+          const s = schoolLookup[ud];
+          if (s && s.district && s.project) {
+            const key = `${s.district}_${s.project}`;
+            if (combStats[key]) {
+              combStats[key].devices++;
+              if (String(m.installed || '').toLowerCase() === 'yes') {
+                combStats[key].installed++;
+              }
+            }
+          }
+        });
+
+        const activeSerials = new Set();
+        (currentEdustat || []).forEach(e => {
+          if (e.serial) activeSerials.add(String(e.serial).trim());
+        });
+
+        (edustatMaster || []).forEach(m => {
+          const ud = cleanUdise(m.udise);
+          const s = schoolLookup[ud];
+          if (s && s.district && s.project) {
+            const key = `${s.district}_${s.project}`;
+            if (combStats[key] && String(m.installed || '').toLowerCase() === 'yes' && m.serial && activeSerials.has(String(m.serial).trim())) {
+              combStats[key].syncing++;
+            }
+          }
+        });
+
+        finalEnriched.forEach(s => {
+          const key = `${s.district}_${s.project}`;
+          if (combStats[key]) {
+            combStats[key].hours += s.eduHours || 0;
+          }
+        });
+
+        const eduHeaders = [
+          { text: 'District', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+          { text: 'Project', options: { bold: true, color: white, fill: primaryColor, fontSize: 8.5 } },
+          { text: 'Total Dev', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+          { text: 'Installed', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+          { text: 'Not Installed', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+          { text: 'Syncing', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+          { text: 'Offline', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+          { text: 'Comp %', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+          { text: 'User Hours', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } },
+          { text: 'Avg Daily Use', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 8.5 } }
+        ];
+
+        const eduRows = [eduHeaders];
+        const combKeys = Object.keys(combStats).sort();
+
+        let totalDev = 0, totalInst = 0, totalSync = 0, totalHrs = 0;
+
+        combKeys.forEach(key => {
+          const c = combStats[key];
+          const notInst = Math.max(0, c.devices - c.installed);
+          const offline = Math.max(0, c.installed - c.syncing);
+          const compPct = c.devices > 0 ? (c.installed / c.devices) * 100 : 0;
+          const avgDaily = c.installed > 0 ? (c.hours / (c.installed * (workingDays || 75))) : 0;
+
+          totalDev += c.devices;
+          totalInst += c.installed;
+          totalSync += c.syncing;
+          totalHrs += c.hours;
+
+          eduRows.push([
+            { text: c.district, options: { bold: true, fontSize: 8 } },
+            { text: c.project, options: { fontSize: 8 } },
+            { text: String(c.devices), options: { align: 'center', fontSize: 8 } },
+            { text: String(c.installed), options: { align: 'center', fontSize: 8 } },
+            { text: String(notInst), options: { align: 'center', fontSize: 8, color: notInst > 0 ? 'DC2626' : '1E293B' } },
+            { text: String(c.syncing), options: { align: 'center', fontSize: 8, color: '047857', bold: true } },
+            { text: String(offline), options: { align: 'center', fontSize: 8, color: offline > 0 ? 'DC2626' : '1E293B' } },
+            { text: `${Math.round(compPct)}%`, options: { align: 'center', fontSize: 8, bold: true } },
+            { text: `${Math.round(c.hours).toLocaleString('en-IN')} hr`, options: { align: 'center', fontSize: 8 } },
+            { text: `${avgDaily.toFixed(1)} hr/d`, options: { align: 'center', fontSize: 8, fill: 'F8FAFC' } }
+          ]);
+        });
+
+        const totalNotInst = Math.max(0, totalDev - totalInst);
+        const totalOffline = Math.max(0, totalInst - totalSync);
+        const avgTotalComp = totalDev > 0 ? (totalInst / totalDev) * 100 : 0;
+        const avgTotalDaily = totalInst > 0 ? (totalHrs / (totalInst * (workingDays || 75))) : 0;
+
+        eduRows.push([
+          { text: 'Grand Total', options: { bold: true, fontSize: 8.5, fill: 'ECFDF5' } },
+          { text: '', options: { fill: 'ECFDF5' } },
+          { text: String(totalDev), options: { bold: true, align: 'center', fontSize: 8.5, fill: 'ECFDF5' } },
+          { text: String(totalInst), options: { bold: true, align: 'center', fontSize: 8.5, fill: 'ECFDF5' } },
+          { text: String(totalNotInst), options: { bold: true, align: 'center', fontSize: 8.5, fill: 'ECFDF5', color: totalNotInst > 0 ? 'DC2626' : '047857' } },
+          { text: String(totalSync), options: { bold: true, align: 'center', fontSize: 8.5, fill: 'ECFDF5', color: '047857' } },
+          { text: String(totalOffline), options: { bold: true, align: 'center', fontSize: 8.5, fill: 'ECFDF5', color: totalOffline > 0 ? 'DC2626' : '047857' } },
+          { text: `${Math.round(avgTotalComp)}%`, options: { bold: true, align: 'center', fontSize: 8.5, fill: 'ECFDF5' } },
+          { text: `${Math.round(totalHrs).toLocaleString('en-IN')} hr`, options: { bold: true, align: 'center', fontSize: 8.5, fill: 'ECFDF5' } },
+          { text: `${avgTotalDaily.toFixed(1)} hr/d`, options: { bold: true, align: 'center', fontSize: 8.5, fill: 'ECFDF5' } }
+        ]);
+
+        slide.addTable(eduRows, {
+          x: 0.5, y: 1.3, w: 9.0,
+          colW: [1.2, 1.2, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 1.2, 1.2],
+          border: { type: 'solid', color: 'E2E8F0', width: 1 },
+          fill: { color: 'FFFFFF' },
+          fontSize: 8,
+          color: '1E293B'
+        });
+      }
+
+      // Slide G: CC/DEF Visit Report (Team-wise)
+      {
+        let slide = pptx.addSlide();
+        addSlideHeader(slide, 'Visit Report of Cluster Coordinators', 'Field Operations');
+
+        const ccStats = {};
+        currentVisits.forEach(v => {
+          const visitor = v.visitor_name || 'Coordinator';
+          const resolved = ccNameMapping[visitor] || visitor;
+          if (!ccStats[resolved]) {
+            ccStats[resolved] = {
+              name: resolved,
+              ict: 0,
+              smart: 0,
+              total: 0
+            };
+          }
+
+          const type = (v.visit_type || '').toLowerCase();
+          if (type.includes('ict')) {
+            ccStats[resolved].ict++;
+            ccStats[resolved].total++;
+          } else if (type.includes('smart')) {
+            ccStats[resolved].smart++;
+            ccStats[resolved].total++;
+          }
+        });
+
+        const formatPptDate = (dateInput) => {
+          if (!dateInput) return '-';
+          const d = parseDateRobust(dateInput);
+          if (!d || isNaN(d.getTime())) return '-';
+          const day = d.getDate();
+          const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+          const month = monthNames[d.getMonth()];
+          const year = String(d.getFullYear()).slice(-2);
+          return `${day}-${month}-${year}`;
+        };
+
+        const ccHeaders = [
+          { text: 'SN', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+          { text: 'Name of CC', options: { bold: true, color: white, fill: primaryColor, fontSize: 10 } },
+          { text: 'ICT', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+          { text: 'Smart', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+          { text: 'Grand Total', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+          { text: 'Avg Monthly Visit', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } },
+          { text: 'Visit date', options: { bold: true, color: white, fill: primaryColor, align: 'center', fontSize: 10 } }
+        ];
+
+        const ccRows = [ccHeaders];
+        const sortedCcs = Object.values(ccStats).sort((a, b) => b.total - a.total);
+        const dateRangeStr = `${formatPptDate(startDate)} To ${formatPptDate(endDate)}`;
+
+        let totalIctVisits = 0;
+        let totalSmartVisits = 0;
+        let grandTotalVisits = 0;
+
+        sortedCcs.forEach((cc, idx) => {
+          totalIctVisits += cc.ict;
+          totalSmartVisits += cc.smart;
+          grandTotalVisits += cc.total;
+
+          const avgMonthly = cc.total / (durationMonths || 3);
+
+          ccRows.push([
+            { text: String(idx + 1), options: { align: 'center', fontSize: 9 } },
+            { text: cc.name, options: { bold: true, fontSize: 9 } },
+            { text: String(cc.ict), options: { align: 'center', fontSize: 9 } },
+            { text: String(cc.smart), options: { align: 'center', fontSize: 9 } },
+            { text: String(cc.total), options: { bold: true, align: 'center', fontSize: 9, fill: 'F8FAFC' } },
+            { text: avgMonthly.toFixed(1), options: { align: 'center', fontSize: 9 } },
+            { text: dateRangeStr, options: { align: 'center', fontSize: 9 } }
+          ]);
+        });
+
+        ccRows.push([
+          { text: '', options: { fill: 'ECFDF5' } },
+          { text: 'Total', options: { bold: true, fontSize: 10, fill: 'ECFDF5' } },
+          { text: String(totalIctVisits), options: { bold: true, align: 'center', fontSize: 10, fill: 'ECFDF5' } },
+          { text: String(totalSmartVisits), options: { bold: true, align: 'center', fontSize: 10, fill: 'ECFDF5' } },
+          { text: String(grandTotalVisits), options: { bold: true, align: 'center', fontSize: 10, fill: 'ECFDF5' } },
+          { text: (grandTotalVisits / (durationMonths || 3)).toFixed(1), options: { bold: true, align: 'center', fontSize: 10, fill: 'ECFDF5' } },
+          { text: '', options: { fill: 'ECFDF5' } }
+        ]);
+
+        slide.addTable(ccRows, {
+          x: 0.5, y: 1.3, w: 9.0,
+          colW: [0.5, 2.5, 0.8, 0.8, 1.2, 1.4, 1.8],
+          border: { type: 'solid', color: 'E2E8F0', width: 1 },
+          fill: { color: 'FFFFFF' },
+          fontSize: 9,
+          color: '1E293B'
+        });
+      }
+      // ─── END OF NEW REDESIGNED SUMMARY SLIDES ───
 
       // 2. Key Numbers (KPIs)
       if (selectedSlides.kpis) {
@@ -1242,6 +1866,7 @@ const OverallAnalysis = ({
       // 14. Closing Slide
       let closeSlide = pptx.addSlide();
       closeSlide.background = { fill: primaryColor };
+      closeSlide.addImage({ data: schoolnetLogoBase64, x: 8.5, y: 0.2, w: 1.15, h: 0.35 });
       
       closeSlide.addText('Jharkhand ICT & Smart Class Project', {
         x: 0.5, y: 1.8, w: 9.0, h: 0.8,
@@ -1553,15 +2178,22 @@ const OverallAnalysis = ({
       if (row._cleanUdise && validUdises.has(row._cleanUdise)) {
         const udise = row._cleanUdise;
         if (!map[udise]) {
-          map[udise] = { total: 0, ict: 0, smart: 0, mis: 0 };
+          map[udise] = { total: 0, ict: 0, smart: 0, mis: 0, theory: 0, practical: 0 };
         }
         const labType = String(row.labType || row.lab_type || getVal(row, 'lab') || '').toUpperCase();
         const subject = String(row.subject || getVal(row, 'sub') || '').toUpperCase();
+        const theoryPractical = String(row.theoryPractical || getVal(row, 'theoryPractical') || getVal(row, 'theory/practical') || getVal(row, 'theorypractical') || '').toUpperCase();
+
         if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
           map[udise].mis++;
         } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
           map[udise].ict++;
           map[udise].total++;
+          if (theoryPractical.includes('PRACTICAL')) {
+            map[udise].practical++;
+          } else {
+            map[udise].theory++;
+          }
         } else if (labType.includes('SMART')) {
           map[udise].smart++;
           map[udise].total++;
@@ -1706,6 +2338,8 @@ const OverallAnalysis = ({
       const ictClasses = jhpmsSplitMap[udise]?.ict || 0;
       const smartClasses = jhpmsSplitMap[udise]?.smart || 0;
       const misClasses = jhpmsSplitMap[udise]?.mis || 0;
+      const theoryClasses = jhpmsSplitMap[udise]?.theory || 0;
+      const practicalClasses = jhpmsSplitMap[udise]?.practical || 0;
       const eduHours = edustatMap[udise] || 0;
       
       const syncInfo = edustatSyncMap[udise] || { installed: 0, syncing: 0 };
@@ -1802,6 +2436,8 @@ const OverallAnalysis = ({
         ictClasses,
         smartClasses,
         misClasses,
+        theoryClasses,
+        practicalClasses,
         eduHours,
         installedDevices,
         syncingDevices,
