@@ -2300,11 +2300,17 @@ const OverallAnalysis = ({
     const currentMap = calculateSchoolScoresMap(fSchools, currentJhpms, currentEdustat, manpower, currentVisits);
     const prevMap = calculateSchoolScoresMap(fSchools, prevJhpms, prevEdustat, manpower, prevVisits);
 
+    const fSchoolsMap = {};
+    fSchools.forEach(s => {
+      const uKey = String(s.udise_code || s.udise || '').trim();
+      if (uKey) fSchoolsMap[uKey] = s;
+    });
+
     const deltas = [];
     Object.keys(currentMap).forEach(udise => {
       const cScore = currentMap[udise].score;
       const pScore = prevMap[udise]?.score || 0;
-      const schoolInfo = fSchools.find(s => String(s.udise_code || s.udise) === String(udise)) || {};
+      const schoolInfo = fSchoolsMap[String(udise).trim()] || {};
       const rawCC = schoolInfo.visitor_name || schoolInfo.visitorName || '';
       const resolvedCC = ccNameMapping[rawCC] || rawCC || 'Unassigned';
       deltas.push({
@@ -2480,10 +2486,16 @@ const OverallAnalysis = ({
     
     // Apply name-mapping correction BEFORE flagging mismatch!
     let mismatches = 0;
+    const cleanUdiseSchoolMap = {};
+    fSchools.forEach(s => {
+      const cu = cleanUdise(s.udise_code);
+      if (cu) cleanUdiseSchoolMap[cu] = s;
+    });
+
     preprocessedVisits.forEach(v => {
       if (v._cleanUdise && validUdises.has(v._cleanUdise)) {
         const u = v._cleanUdise;
-        const school = fSchools.find(s => cleanUdise(s.udise_code) === u);
+        const school = cleanUdiseSchoolMap[u];
         if (school) {
           const assignedCC = String(school.visitor_name || school.visitorName || '').trim();
           const visitor = String(v.visitor_name || '').trim();
@@ -3524,6 +3536,14 @@ const OverallAnalysis = ({
   // EduStat Outlier Sanitizer (Usage > 12h/24h, Sundays) for Tab 3
   const edustatAnomalies = useMemo(() => {
     if (!activeSources.includes('edustat') || !currentEdustat || currentEdustat.length === 0) return [];
+    
+    // Build O(1) schools lookup map
+    const schoolsMap = {};
+    schools.forEach(s => {
+      const cu = cleanUdise(s.udise_code);
+      if (cu) schoolsMap[cu] = s;
+    });
+
     const anomalies = [];
     
     currentEdustat.forEach(row => {
@@ -3536,7 +3556,7 @@ const OverallAnalysis = ({
       if (hours > 12 || (isSunday && hours > 0)) {
         const udise = row._cleanUdise;
         if (!udise || !validUdises.has(udise)) return;
-        const school = schools.find(s => cleanUdise(s.udise_code) === udise);
+        const school = schoolsMap[udise];
         if (!school) return;
         
         let anomalyType = '';

@@ -717,15 +717,7 @@ const App = () => {
 
     // Dynamic Working Days auto-calculation based on maximum unique JHPMS dates per active school matching active filters
     const autoWorkingDays = useMemo(() => {
-        if (!jhpmsLab.length) return 0;
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-
-        const getVal = (row, keyMatch) => {
-            const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
-            return key ? row[key] : null;
-        };
+        if (!parsedJhpmsDates.length) return 0;
 
         // 1. Gather UDISE codes for schools matching the currently selected active filters
         let fSchools = schools;
@@ -746,27 +738,15 @@ const App = () => {
 
         // 2. Group unique JHPMS date strings across all active schools matching active filters
         const uniqueDates = new Set();
-        jhpmsLab.forEach(l => {
-            const udise = String(l.udise || getVal(l, 'udise') || '').trim();
-            
-            // Only include data for schools that match the active project/district/block/school filters
-            if (allowedUdises.size > 0 && !allowedUdises.has(udise)) return;
-
-            const rawDate = l.date || getVal(l, 'date');
-            const d = parseDateRobust(rawDate);
-            if (d && !isNaN(d.getTime())) {
-                const yyyy = d.getFullYear();
-                const mm = String(d.getMonth() + 1).padStart(2, '0');
-                const dd = String(d.getDate()).padStart(2, '0');
-                const dateStr = `${yyyy}-${mm}-${dd}`;
-                if (dateStr >= startDate && dateStr <= endDate) {
-                    uniqueDates.add(dateStr);
-                }
+        parsedJhpmsDates.forEach(l => {
+            if (allowedUdises.size > 0 && !allowedUdises.has(l.udise)) return;
+            if (l.dateStr >= startDate && l.dateStr <= endDate) {
+                uniqueDates.add(l.dateStr);
             }
         });
 
         return uniqueDates.size;
-    }, [jhpmsLab, startDate, endDate, schools, selZones, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, selSchools]);
+    }, [parsedJhpmsDates, startDate, endDate, schools, selZones, selProjects, selDistricts, selBlocks, selCCs, ccNameMapping, selSchools]);
 
     // Synchronize workingDays state with auto-calculated value if not overridden
     useEffect(() => {

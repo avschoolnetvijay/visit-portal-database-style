@@ -56,8 +56,15 @@ const ZonePerformance = ({
         return `${dd}-${mm}-${yyyy}`;
     };
 
+    const keyCache = {};
     const getVal = (row, keyMatch) => {
+        if (!row) return null;
+        if (keyCache[keyMatch] !== undefined) {
+            const cachedKey = keyCache[keyMatch];
+            return cachedKey ? row[cachedKey] : null;
+        }
         const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
+        keyCache[keyMatch] = key || null;
         return key ? row[key] : null;
     };
 
@@ -118,6 +125,14 @@ const ZonePerformance = ({
             zoneMap[zone].udises.add(cleanUdise(s.udise_code));
         });
 
+        // Build reverse index map of UDISE to zoneKey for O(1) lookups
+        const udiseToZoneKey = {};
+        Object.entries(zoneMap).forEach(([key, data]) => {
+            data.udises.forEach(u => {
+                udiseToZoneKey[u] = key;
+            });
+        });
+
         // Add Manpower
         manpower.forEach(m => {
             const udise = cleanUdise(m.udise || getVal(m, 'udise'));
@@ -126,11 +141,10 @@ const ZonePerformance = ({
             const isWorking = sUpper.includes('WORKING') || sUpper.includes('ACTIVE') || status === '';
 
             if (isWorking) {
-                Object.values(zoneMap).forEach(zData => {
-                    if (zData.udises.has(udise)) {
-                        zData.instructorWorking++;
-                    }
-                });
+                const zoneKey = udiseToZoneKey[udise];
+                if (zoneKey) {
+                    zoneMap[zoneKey].instructorWorking++;
+                }
             }
         });
 
@@ -140,24 +154,19 @@ const ZonePerformance = ({
             const device = String(m.device || '').toUpperCase();
             const installed = String(m.installed || '').toUpperCase();
 
-            if (installed === 'YES') {
-                Object.values(zoneMap).forEach(zData => {
-                    if (zData.udises.has(udise)) {
-                        if (device === 'CPU') {
-                            zData.cpuInstalled++;
-                        } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
-                            zData.miniPcInstalled++;
-                        } else if (device === 'INTERACTIVE FLAT PANEL') {
-                            zData.panelInstalled++;
-                        }
+            const zoneKey = udiseToZoneKey[udise];
+            if (zoneKey) {
+                if (installed === 'YES') {
+                    if (device === 'CPU') {
+                        zoneMap[zoneKey].cpuInstalled++;
+                    } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
+                        zoneMap[zoneKey].miniPcInstalled++;
+                    } else if (device === 'INTERACTIVE FLAT PANEL') {
+                        zoneMap[zoneKey].panelInstalled++;
                     }
-                });
-            } else if (installed === 'NO') {
-                Object.values(zoneMap).forEach(zData => {
-                    if (zData.udises.has(udise)) {
-                        zData.edustatNotInstalled++;
-                    }
-                });
+                } else if (installed === 'NO') {
+                    zoneMap[zoneKey].edustatNotInstalled++;
+                }
             }
         });
 
@@ -188,17 +197,16 @@ const ZonePerformance = ({
             const hours = Number(e.hours) || 0;
             const deviceType = serialMap[serial] || 'CPU';
 
-            Object.values(zoneMap).forEach(zData => {
-                if (zData.udises.has(udise)) {
-                    if (deviceType === 'CPU') {
-                        zData.totalCpuHours += hours;
-                    } else if (deviceType === 'MINI PC' || deviceType === 'THIN CLIENT') {
-                        zData.totalMiniPcHours += hours;
-                    } else if (deviceType === 'INTERACTIVE FLAT PANEL') {
-                        zData.totalPanelHours += hours;
-                    }
+            const zoneKey = udiseToZoneKey[udise];
+            if (zoneKey) {
+                if (deviceType === 'CPU') {
+                    zoneMap[zoneKey].totalCpuHours += hours;
+                } else if (deviceType === 'MINI PC' || deviceType === 'THIN CLIENT') {
+                    zoneMap[zoneKey].totalMiniPcHours += hours;
+                } else if (deviceType === 'INTERACTIVE FLAT PANEL') {
+                    zoneMap[zoneKey].totalPanelHours += hours;
                 }
-            });
+            }
         });
 
         // Calculate Used counts
@@ -209,17 +217,16 @@ const ZonePerformance = ({
             const installed = String(m.installed || '').toUpperCase();
 
             if (installed === 'YES' && activeSerials.has(serial)) {
-                Object.values(zoneMap).forEach(zData => {
-                    if (zData.udises.has(udise)) {
-                        if (device === 'CPU') {
-                            zData.cpuUsed++;
-                        } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
-                            zData.miniPcUsed++;
-                        } else if (device === 'INTERACTIVE FLAT PANEL') {
-                            zData.panelUsed++;
-                        }
+                const zoneKey = udiseToZoneKey[udise];
+                if (zoneKey) {
+                    if (device === 'CPU') {
+                        zoneMap[zoneKey].cpuUsed++;
+                    } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
+                        zoneMap[zoneKey].miniPcUsed++;
+                    } else if (device === 'INTERACTIVE FLAT PANEL') {
+                        zoneMap[zoneKey].panelUsed++;
                     }
-                });
+                }
             }
         });
 
@@ -231,17 +238,16 @@ const ZonePerformance = ({
             const dateStr = formatDateStr(l.date || getVal(l, 'date'));
 
             if (dateStr && dateStr >= startDate && dateStr <= endDate) {
-                Object.values(zoneMap).forEach(zData => {
-                    if (zData.udises.has(udise)) {
-                        if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
-                            // Ignore MIS
-                        } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                            zData.ictClasses++;
-                        } else if (labType.includes('SMART')) {
-                            zData.smartClasses++;
-                        }
+                const zoneKey = udiseToZoneKey[udise];
+                if (zoneKey) {
+                    if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                        // Ignore MIS
+                    } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                        zoneMap[zoneKey].ictClasses++;
+                    } else if (labType.includes('SMART')) {
+                        zoneMap[zoneKey].smartClasses++;
                     }
-                });
+                }
             }
         });
 
@@ -252,12 +258,11 @@ const ZonePerformance = ({
             const type = (v.visit_type || '').toLowerCase();
 
             if (dateStr && dateStr >= startDate && dateStr <= endDate) {
-                Object.values(zoneMap).forEach(zData => {
-                    if (zData.udises.has(udise)) {
-                        if (type.includes('ict')) zData.totalIctVisits++;
-                        if (type.includes('smart')) zData.totalSmartVisits++;
-                    }
-                });
+                const zoneKey = udiseToZoneKey[udise];
+                if (zoneKey) {
+                    if (type.includes('ict')) zoneMap[zoneKey].totalIctVisits++;
+                    if (type.includes('smart')) zoneMap[zoneKey].totalSmartVisits++;
+                }
             }
         });
 
@@ -634,6 +639,14 @@ const ZonePerformance = ({
 
         const zoneUdises = activeZoneDetail.udises;
         const zoneCCs = activeZoneDetail.ccNames;
+
+        // Build schools by UDISE map once for O(1) lookup
+        const schoolsMap = {};
+        schools.forEach(s => {
+            if (s.udise_code) {
+                schoolsMap[cleanUdise(s.udise_code)] = s;
+            }
+        });
 
         const start = new Date(startDate);
         const end = new Date(endDate);
@@ -1076,7 +1089,7 @@ const ZonePerformance = ({
 
             const list = filteredDevices.map(m => {
                 const udise = cleanUdise(m.udise || getVal(m, 'udise'));
-                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+                const schoolRec = schoolsMap[udise];
                 
                 let status = 'Idle / Not Used';
                 if (String(m.installed || '').toUpperCase() === 'NO') status = 'Not Installed';
@@ -1110,7 +1123,7 @@ const ZonePerformance = ({
             
             const listData = ccManpower.map(m => {
                 const udise = cleanUdise(m.udise || getVal(m, 'udise'));
-                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+                const schoolRec = schoolsMap[udise];
                 const rawStatus = m.status || getVal(m, 'status') || 'Active';
                 
                 let instructorStatus = 'N/A';

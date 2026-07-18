@@ -72,10 +72,15 @@ const ChartToolbar = ({ chartId, csvData, filename }) => {
 };
 
 
-// Robust helper to extract cell value from a row regardless of exact key casing or spacing
+const keyCache = {};
 const getVal = (row, keyMatch) => {
     if (!row) return null;
+    if (keyCache[keyMatch] !== undefined) {
+        const cachedKey = keyCache[keyMatch];
+        return cachedKey ? row[cachedKey] : null;
+    }
     const key = Object.keys(row).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(keyMatch.toLowerCase().replace(/[^a-z0-9]/g, '')));
+    keyCache[keyMatch] = key || null;
     return key ? row[key] : null;
 };
 

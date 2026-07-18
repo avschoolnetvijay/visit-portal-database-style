@@ -57,9 +57,16 @@ const FieldTeamPerformance = ({
         // Map CC names to their aggregated data
         const ccMap = {};
 
-        // Helper to get normalized keys from row
+        // Helper to get normalized keys from row with caching
+        const keyCache = {};
         const getVal = (row, keyMatch) => {
+            if (!row) return null;
+            if (keyCache[keyMatch] !== undefined) {
+                const cachedKey = keyCache[keyMatch];
+                return cachedKey ? row[cachedKey] : null;
+            }
             const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
+            keyCache[keyMatch] = key || null;
             return key ? row[key] : null;
         };
 
@@ -96,6 +103,14 @@ const FieldTeamPerformance = ({
             ccMap[ccKey].udises.add(cleanUdise(s.udise_code));
         });
 
+        // Build reverse index map of UDISE to ccKey for O(1) lookups
+        const udiseToCcKey = {};
+        Object.entries(ccMap).forEach(([key, data]) => {
+            data.udises.forEach(u => {
+                udiseToCcKey[u] = key;
+            });
+        });
+
         // 2. Process Manpower (Count working instructors)
         manpower.forEach(m => {
             const udise = cleanUdise(m.udise || getVal(m, 'udise'));
@@ -106,12 +121,10 @@ const FieldTeamPerformance = ({
             const isWorking = sUpper.includes('WORKING') || sUpper.includes('ACTIVE') || status === '';
             
             if (isWorking) {
-                // Find which CC owns this UDISE
-                Object.values(ccMap).forEach(ccData => {
-                    if (ccData.udises.has(udise)) {
-                        ccData.instructorWorking++;
-                    }
-                });
+                const ccKey = udiseToCcKey[udise];
+                if (ccKey) {
+                    ccMap[ccKey].instructorWorking++;
+                }
             }
         });
 
@@ -149,24 +162,19 @@ const FieldTeamPerformance = ({
             const device = String(m.device || '').toUpperCase();
             const installed = String(m.installed || '').toUpperCase();
             
-            if (installed === 'YES') {
-                Object.values(ccMap).forEach(ccData => {
-                    if (ccData.udises.has(udise)) {
-                        if (device === 'CPU') {
-                            ccData.cpuInstalled++;
-                        } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
-                            ccData.miniPcInstalled++;
-                        } else if (device === 'INTERACTIVE FLAT PANEL') {
-                            ccData.panelInstalled++;
-                        }
+            const ccKey = udiseToCcKey[udise];
+            if (ccKey) {
+                if (installed === 'YES') {
+                    if (device === 'CPU') {
+                        ccMap[ccKey].cpuInstalled++;
+                    } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
+                        ccMap[ccKey].miniPcInstalled++;
+                    } else if (device === 'INTERACTIVE FLAT PANEL') {
+                        ccMap[ccKey].panelInstalled++;
                     }
-                });
-            } else if (installed === 'NO') {
-                Object.values(ccMap).forEach(ccData => {
-                    if (ccData.udises.has(udise)) {
-                        ccData.edustatNotInstalled++;
-                    }
-                });
+                } else if (installed === 'NO') {
+                    ccMap[ccKey].edustatNotInstalled++;
+                }
             }
         });
 
@@ -187,17 +195,16 @@ const FieldTeamPerformance = ({
             const devInfo = serialMap[serial] || { device: 'CPU' };
             const deviceType = devInfo.device;
             
-            Object.values(ccMap).forEach(ccData => {
-                if (ccData.udises.has(udise)) {
-                    if (deviceType === 'CPU') {
-                        ccData.totalCpuHours += hours;
-                    } else if (deviceType === 'MINI PC' || deviceType === 'THIN CLIENT') {
-                        ccData.totalMiniPcHours += hours;
-                    } else if (deviceType === 'INTERACTIVE FLAT PANEL') {
-                        ccData.totalPanelHours += hours;
-                    }
+            const ccKey = udiseToCcKey[udise];
+            if (ccKey) {
+                if (deviceType === 'CPU') {
+                    ccMap[ccKey].totalCpuHours += hours;
+                } else if (deviceType === 'MINI PC' || deviceType === 'THIN CLIENT') {
+                    ccMap[ccKey].totalMiniPcHours += hours;
+                } else if (deviceType === 'INTERACTIVE FLAT PANEL') {
+                    ccMap[ccKey].totalPanelHours += hours;
                 }
-            });
+            }
         });
 
         // Calculate cpuUsed and miniPcUsed counts
@@ -208,17 +215,16 @@ const FieldTeamPerformance = ({
             const installed = String(m.installed || '').toUpperCase();
 
             if (installed === 'YES' && activeSerials.has(serial)) {
-                Object.values(ccMap).forEach(ccData => {
-                    if (ccData.udises.has(udise)) {
-                        if (device === 'CPU') {
-                            ccData.cpuUsed++;
-                        } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
-                            ccData.miniPcUsed++;
-                        } else if (device === 'INTERACTIVE FLAT PANEL') {
-                            ccData.panelUsed++;
-                        }
+                const ccKey = udiseToCcKey[udise];
+                if (ccKey) {
+                    if (device === 'CPU') {
+                        ccMap[ccKey].cpuUsed++;
+                    } else if (device === 'MINI PC' || device === 'THIN CLIENT') {
+                        ccMap[ccKey].miniPcUsed++;
+                    } else if (device === 'INTERACTIVE FLAT PANEL') {
+                        ccMap[ccKey].panelUsed++;
                     }
-                });
+                }
             }
         });
 
@@ -231,33 +237,28 @@ const FieldTeamPerformance = ({
             // Parse date and filter by range to ensure dynamically updated ICT / Smart Class counts
             const dateStr = formatDateStr(l.date || getVal(l, 'date'));
             
-            if (dateStr) {
-                if (dateStr >= startDate && dateStr <= endDate) {
-                    Object.values(ccMap).forEach(ccData => {
-                        if (ccData.udises.has(udise)) {
-                            if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
-                                // Ignore MIS
-                            } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                                ccData.ictClasses++;
-                            } else if (labType.includes('SMART')) {
-                                ccData.smartClasses++;
-                            }
-                        }
-                    });
-                }
-            } else {
-                // Fallback: If date is invalid or missing, count it by default
-                Object.values(ccMap).forEach(ccData => {
-                    if (ccData.udises.has(udise)) {
+            const ccKey = udiseToCcKey[udise];
+            if (ccKey) {
+                if (dateStr) {
+                    if (dateStr >= startDate && dateStr <= endDate) {
                         if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
                             // Ignore MIS
                         } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
-                            ccData.ictClasses++;
+                            ccMap[ccKey].ictClasses++;
                         } else if (labType.includes('SMART')) {
-                            ccData.smartClasses++;
+                            ccMap[ccKey].smartClasses++;
                         }
                     }
-                });
+                } else {
+                    // Fallback: If date is invalid or missing, count it by default
+                    if (subject.split(/[^A-Z0-9]+/).includes('MIS')) {
+                        // Ignore MIS
+                    } else if (labType.includes('ICT') && subject.includes('COMPUTER')) {
+                        ccMap[ccKey].ictClasses++;
+                    } else if (labType.includes('SMART')) {
+                        ccMap[ccKey].smartClasses++;
+                    }
+                }
             }
         });
 
@@ -269,12 +270,11 @@ const FieldTeamPerformance = ({
             
             if (dateStr) {
                 if (dateStr >= startDate && dateStr <= endDate) {
-                    Object.values(ccMap).forEach(ccData => {
-                        if (ccData.udises.has(udise)) {
-                            if (type.includes('ict')) ccData.totalIctVisits++;
-                            if (type.includes('smart')) ccData.totalSmartVisits++;
-                        }
-                    });
+                    const ccKey = udiseToCcKey[udise];
+                    if (ccKey) {
+                        if (type.includes('ict')) ccMap[ccKey].totalIctVisits++;
+                        if (type.includes('smart')) ccMap[ccKey].totalSmartVisits++;
+                    }
                 }
             }
         });
@@ -403,6 +403,14 @@ const FieldTeamPerformance = ({
         const ccName = activeCCDetail.ccName;
         const ccUdises = activeCCDetail.udises; // Set of UDISE strings
 
+        // Build schools by UDISE map once for O(1) lookup
+        const schoolsMap = {};
+        schools.forEach(s => {
+            if (s.udise_code) {
+                schoolsMap[cleanUdise(s.udise_code)] = s;
+            }
+        });
+
         // Helper to parse and format dates
         const formatDateStr = (dateInput) => {
             if (!dateInput) return null;
@@ -424,9 +432,16 @@ const FieldTeamPerformance = ({
             return `${dd}-${mm}-${yyyy}`;
         };
 
-        // Helper to get normalized keys from row
+        // Helper to get normalized keys from row with caching
+        const keyCache = {};
         const getVal = (row, keyMatch) => {
+            if (!row) return null;
+            if (keyCache[keyMatch] !== undefined) {
+                const cachedKey = keyCache[keyMatch];
+                return cachedKey ? row[cachedKey] : null;
+            }
             const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
+            keyCache[keyMatch] = key || null;
             return key ? row[key] : null;
         };
 
@@ -490,7 +505,7 @@ const FieldTeamPerformance = ({
 
             return filteredDevices.map((m, idx) => {
                 const udise = cleanUdise(m.udise || getVal(m, 'udise'));
-                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+                const schoolRec = schoolsMap[udise];
                 
                 let status = 'Idle / Not Used';
                 if (String(m.installed || '').toUpperCase() === 'NO') status = 'Not Installed';
@@ -513,7 +528,7 @@ const FieldTeamPerformance = ({
             
             const listData = ccManpower.map((m, idx) => {
                 const udise = cleanUdise(m.udise || getVal(m, 'udise'));
-                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+                const schoolRec = schoolsMap[udise];
                 const rawStatus = m.status || getVal(m, 'status') || 'Active';
                 
                 let instructorStatus = 'N/A';
@@ -560,7 +575,7 @@ const FieldTeamPerformance = ({
                 const udise = String(e.udise || '').trim();
                 const serial = String(e.serial || '').trim();
                 const devType = serialMap[serial] || 'CPU';
-                const schoolRec = schools.find(s => String(s.udise_code || '').trim() === udise);
+                const schoolRec = schoolsMap[udise];
 
                 return {
                     date: formatDateClean(e.date || getVal(e, 'date')),
@@ -610,7 +625,7 @@ const FieldTeamPerformance = ({
                 const subject = subjectKey ? String(l[subjectKey] || '').trim().toUpperCase() : '';
                 
                 const remarks = l.remarks || getVal(l, 'remarks') || getVal(l, 'topic') || '-';
-                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+                const schoolRec = schoolsMap[udise];
 
                 const isIct = !subject.split(/[^A-Z0-9]+/).includes('MIS') && (labType.includes('ICT') && subject.includes('COMPUTER'));
                 const isSmart = !subject.split(/[^A-Z0-9]+/).includes('MIS') && !(labType.includes('ICT') && subject.includes('COMPUTER')) && labType.includes('SMART');
@@ -647,7 +662,7 @@ const FieldTeamPerformance = ({
 
             let visitRows = ccVisits.map(v => {
                 const udise = cleanUdise(v.udise_code);
-                const schoolRec = schools.find(s => cleanUdise(s.udise_code) === udise);
+                const schoolRec = schoolsMap[udise];
 
                 return {
                     date: formatDateClean(v.visit_date || getVal(v, 'date')),

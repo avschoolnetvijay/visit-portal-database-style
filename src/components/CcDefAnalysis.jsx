@@ -112,6 +112,18 @@ const getRatingBadge = (pct) => {
     return { label: 'Critical', color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800' };
 };
 
+const keyCache = {};
+const getVal = (row, keyMatch) => {
+    if (!row) return null;
+    if (keyCache[keyMatch] !== undefined) {
+        const cachedKey = keyCache[keyMatch];
+        return cachedKey ? row[cachedKey] : null;
+    }
+    const key = Object.keys(row).find(k => k.toLowerCase().includes(keyMatch.toLowerCase()));
+    keyCache[keyMatch] = key || null;
+    return key ? row[key] : null;
+};
+
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 const KpiCard = ({ icon: Icon, iconColor, value, label, sub, highlight, onClick }) => (
     <div 
@@ -140,6 +152,21 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
     const [searchTerm, setSearchTerm] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isMatrixExpanded, setIsMatrixExpanded] = useState(false);
+
+    // Build schools map once for O(1) lookups
+    const schoolsMap = useMemo(() => {
+        const map = {};
+        schools.forEach(s => {
+            const ud = String(s.udise_code || s.udise || '').trim();
+            if (ud) {
+                map[ud] = s;
+                let clean = ud;
+                if (clean.endsWith('.0')) clean = clean.substring(0, clean.length - 2);
+                map[clean] = s;
+            }
+        });
+        return map;
+    }, [schools]);
 
     // ── Build unique CC list ──────────────────────────────────────────────────
     const ccList = useMemo(() => {
@@ -496,25 +523,53 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             return proj ? s.project_name === proj : true;
         }).map(s => (s.visitor_name || '').trim()).filter(Boolean))];
 
+        // Build mapping of CC -> Set of UDISE codes for schools
+        const ccToSchoolUdises = {};
+        schools.forEach(s => {
+            const cc = (s.visitor_name || '').trim();
+            if (!cc) return;
+            if (!ccToSchoolUdises[cc]) ccToSchoolUdises[cc] = new Set();
+            ccToSchoolUdises[cc].add(String(s.udise_code || s.udise || '').trim());
+        });
+
+        // Build mapping of CC -> Set of school-date signatures (to count unique day visits)
+        const ccToUniqueVisits = {};
+        // Build mapping of CC -> Set of visited school UDISEs (to calculate coverage pct)
+        const ccToVisitedSchoolUdises = {};
+
+        visits.forEach(v => {
+            const cc = (v.visitor_name || v.cc_name || '').trim();
+            if (!cc) return;
+            if (!inRange(v.visit_date)) return;
+
+            const ud = String(v.udise_code || v.udise || '').trim();
+            const d = parseDateLocal(v.visit_date);
+            if (ud && d) {
+                const dateStr = d.toISOString().split('T')[0];
+                if (!ccToUniqueVisits[cc]) ccToUniqueVisits[cc] = new Set();
+                ccToUniqueVisits[cc].add(`${ud}_${dateStr}`);
+
+                if (!ccToVisitedSchoolUdises[cc]) ccToVisitedSchoolUdises[cc] = new Set();
+                ccToVisitedSchoolUdises[cc].add(ud);
+            }
+        });
+
         const ccRankData = allProjectCCs.map(cc => {
-            const ccVisitsForCC = visits.filter(v => (v.visitor_name || v.cc_name || '').trim() === cc && inRange(v.visit_date));
-            const ccSchoolDateSet = new Set();
-            ccVisitsForCC.forEach(v => {
-                const ud = String(v.udise_code || v.udise || '').trim();
-                const d = parseDateLocal(v.visit_date);
-                if (ud && d) {
-                    ccSchoolDateSet.add(`${ud}_${d.toISOString().split('T')[0]}`);
-                }
+            const uniqueVisitsSet = ccToUniqueVisits[cc] || new Set();
+            const ccV = uniqueVisitsSet.size;
+
+            const ccSchoolUdises = ccToSchoolUdises[cc] || new Set();
+            const ccSchoolsCount = ccSchoolUdises.size;
+
+            // Coverage percentage (visited assigned schools / total assigned schools)
+            const visitedUdisesSet = ccToVisitedSchoolUdises[cc] || new Set();
+            let visitedAssignedCount = 0;
+            ccSchoolUdises.forEach(ud => {
+                if (visitedUdisesSet.has(ud)) visitedAssignedCount++;
             });
-            const ccV = ccSchoolDateSet.size;
-            const ccSchools = schools.filter(s => (s.visitor_name || '').trim() === cc).length;
-            const ccAssignedSchools = schools.filter(s => (s.visitor_name || '').trim() === cc);
-            const ccVisitedSchools = ccAssignedSchools.filter(s => {
-                const ud = String(s.udise_code || s.udise || '').trim();
-                return ccVisitsForCC.some(v => String(v.udise_code || v.udise || '').trim() === ud);
-            });
-            const pct = ccSchools > 0 ? (ccVisitedSchools.length / ccSchools) * 100 : 0;
-            return { cc, visits: ccV, assigned: ccSchools, pct: Math.min(100, pct) };
+
+            const pct = ccSchoolsCount > 0 ? (visitedAssignedCount / ccSchoolsCount) * 100 : 0;
+            return { cc, visits: ccV, assigned: ccSchoolsCount, pct: Math.min(100, pct) };
         }).sort((a, b) => b.pct - a.pct || b.visits - a.visits);
 
         const rankIndex = ccRankData.findIndex(r => r.cc === selectedCC);
@@ -685,7 +740,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         const otherProjectUniqueVisits = new Set();
         const otherProjectVisits = ccVisits.filter(v => {
             const ud = String(v.udise_code || v.udise || '').trim();
-            const matchedSchool = schools.find(s => String(s.udise_code || s.udise || '').trim() === ud);
+            const matchedSchool = schoolsMap[ud];
             if (!matchedSchool) return false;
             const primaryProj = assignedSchools[0]?.project_name;
             const isOtherProj = primaryProj && matchedSchool.project_name && matchedSchool.project_name.toLowerCase() !== primaryProj.toLowerCase();
@@ -704,7 +759,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         if (otherProjectVisitsCount > 0) {
             const projects = Array.from(new Set(otherProjectVisits.map(v => {
                 const ud = String(v.udise_code || v.udise || '').trim();
-                return schools.find(s => String(s.udise_code || s.udise || '').trim() === ud)?.project_name || 'Other';
+                return schoolsMap[ud]?.project_name || 'Other';
             })));
             insight5Text = `Cross-project collaboration: CC performed ${otherProjectVisitsCount} visits to schools in external projects (${projects.join(', ')}), demonstrating support beyond primary assigned zone.`;
             insight5Type = 'info';
@@ -720,7 +775,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             const currHours = serialHoursMap[serial] || 0;
             const prevHours = prevCcEdustat.filter(e => String(e.serial).trim() === serial).reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
             if (prevHours > 10 && currHours === 0) {
-                const sch = schools.find(s => String(s.udise_code || s.udise || '').trim() === String(d.udise).trim());
+                const sch = schoolsMap[String(d.udise).trim()];
                 deviceSlumps.push(sch ? sch.school_name : d.udise);
             }
         });
@@ -946,7 +1001,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         const sortedGroups = Object.values(grouped).sort((a, b) => b.dateObj - a.dateObj);
 
         const drillData = sortedGroups.map((g, idx) => {
-            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === g.udise);
+            const school = schoolsMap[g.udise];
             const isAssigned = profile.assignedSchoolUdises.has(g.udise);
             const combinedType = getCombinedVisitType(g.logs);
             const remarksList = g.logs.map(l => String(l.remarks || '').trim()).filter(Boolean);
@@ -994,7 +1049,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         const sortedGroups = Object.values(grouped).sort((a, b) => b.dateObj - a.dateObj);
 
         const drillData = sortedGroups.map((g, idx) => {
-            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === g.udise);
+            const school = schoolsMap[g.udise];
             const combinedType = getCombinedVisitType(g.logs);
             const remarksList = g.logs.map(l => String(l.remarks || '').trim()).filter(Boolean);
             const combinedRemarks = remarksList.join(' | ') || '—';
@@ -1028,7 +1083,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
 
         const drillData = profile.ccSchoolDevices.map((d, idx) => {
             const ud = String(d.udise || d.udise_code || '').trim();
-            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === ud);
+            const school = schoolsMap[ud];
             const serial = String(d.serial || '').trim();
             const inst = String(d.installed || '').toUpperCase().trim() === 'YES';
             const hours = serialHoursMap[serial] || 0;
@@ -1077,7 +1132,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
 
         const drillData = syncedDevices.map((d, idx) => {
             const ud = String(d.udise || d.udise_code || '').trim();
-            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === ud);
+            const school = schoolsMap[ud];
             const serial = String(d.serial || '').trim();
             const hours = serialHoursMap[serial] || 0;
 
@@ -1117,7 +1172,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
 
         const drillData = unsyncedDevices.map((d, idx) => {
             const ud = String(d.udise || d.udise_code || '').trim();
-            const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === ud);
+            const school = schoolsMap[ud];
             const serial = String(d.serial || '').trim();
 
             return {
@@ -1612,7 +1667,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                 )}
                                 <div className="space-y-0">
                                     {profile.ccVisits.slice(0, 25).map((v, i) => {
-                                        const school = schools.find(s => String(s.udise_code || s.udise || '').trim() === String(v.udise_code || v.udise || '').trim());
+                                        const school = schoolsMap[String(v.udise_code || v.udise || '').trim()];
                                         const daysSince = getDaysSince(v.visit_date);
                                         return (
                                             <div key={i} className="flex gap-3 items-start pb-3 relative">
