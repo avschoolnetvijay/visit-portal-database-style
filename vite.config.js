@@ -10,7 +10,9 @@ export default defineConfig({
         return deps.filter(dep => {
           return !dep.includes('vendor-apexcharts') &&
                  !dep.includes('vendor-xlsx') &&
-                 !dep.includes('vendor-pptx');
+                 !dep.includes('vendor-pptx') &&
+                 !dep.includes('vendor-recharts') &&
+                 !dep.includes('vendor-utils');
         });
       }
     },
@@ -24,14 +26,17 @@ export default defineConfig({
             if (id.includes('apexcharts')) {
               return 'vendor-apexcharts';
             }
-            if (id.includes('supabase')) {
+            if (id.includes('supabase') || id.includes('postgrest') || id.includes('websocket')) {
               return 'vendor-supabase';
             }
-            if (id.includes('xlsx') || id.includes('xlsx-js-style') || id.includes('file-saver') || id.includes('jszip')) {
+            if (id.includes('xlsx') || id.includes('xlsx-js-style')) {
               return 'vendor-xlsx';
             }
             if (id.includes('pptxgenjs')) {
               return 'vendor-pptx';
+            }
+            if (id.includes('file-saver') || id.includes('jszip')) {
+              return 'vendor-utils';
             }
             return 'vendor';
           }
