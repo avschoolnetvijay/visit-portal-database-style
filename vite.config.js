@@ -5,6 +5,15 @@ export default defineConfig({
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 1000,
+    modulePreload: {
+      resolveDependencies(filename, deps, { hostId }) {
+        return deps.filter(dep => {
+          return !dep.includes('vendor-apexcharts') &&
+                 !dep.includes('vendor-xlsx') &&
+                 !dep.includes('vendor-pptx');
+        });
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -17,6 +26,12 @@ export default defineConfig({
             }
             if (id.includes('supabase')) {
               return 'vendor-supabase';
+            }
+            if (id.includes('xlsx') || id.includes('xlsx-js-style') || id.includes('file-saver') || id.includes('jszip')) {
+              return 'vendor-xlsx';
+            }
+            if (id.includes('pptxgenjs')) {
+              return 'vendor-pptx';
             }
             return 'vendor';
           }

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import * as XLSX from 'xlsx';
 import { get, set, clearIDB, hashPassword, supabase } from './supabaseClient';
 import ExcelWorker from './excelWorker.js?worker';
 import { Icons } from './components/Icons';
@@ -46,7 +45,6 @@ const prefetchTab = (tabId) => {
     }
 };
 import MultiSelect from './components/MultiSelect';
-import signatureLogo from './vijay_ray_signature.png';
 import {
     parseDateRobust,
     formatDate,
@@ -200,48 +198,53 @@ const App = () => {
     const [transparentSignature, setTransparentSignature] = useState(null);
 
     useEffect(() => {
-        const img = new Image();
-        img.src = signatureLogo;
-        img.onload = () => {
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-                const threshold = 55;
-                
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i+1];
-                    const b = data[i+2];
-                    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        import('./vijay_ray_signature.png').then((module) => {
+            const logoUrl = module.default;
+            const img = new Image();
+            img.src = logoUrl;
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
                     
-                    if (luminance < threshold) {
-                        data[i+3] = 0;
-                    } else {
-                        const factor = (luminance - threshold) / (255 - threshold);
-                        data[i+3] = Math.round(factor * 255);
-                        data[i] = 255;
-                        data[i+1] = 255;
-                        data[i+2] = 255;
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    const threshold = 55;
+                    
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = data[i];
+                        const g = data[i+1];
+                        const b = data[i+2];
+                        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+                        
+                        if (luminance < threshold) {
+                            data[i+3] = 0;
+                        } else {
+                            const factor = (luminance - threshold) / (255 - threshold);
+                            data[i+3] = Math.round(factor * 255);
+                            data[i] = 255;
+                            data[i+1] = 255;
+                            data[i+2] = 255;
+                        }
                     }
+                    
+                    ctx.putImageData(imageData, 0, 0);
+                    setTransparentSignature(canvas.toDataURL("image/png"));
+                } catch (err) {
+                    console.warn("Canvas transparency processing failed, falling back to static asset:", err);
+                    setTransparentSignature(logoUrl);
                 }
-                
-                ctx.putImageData(imageData, 0, 0);
-                setTransparentSignature(canvas.toDataURL("image/png"));
-            } catch (err) {
-                console.warn("Canvas transparency processing failed, falling back to static asset:", err);
-                setTransparentSignature(signatureLogo);
-            }
-        };
-        img.onerror = (e) => {
-            console.warn("Error loading signature logo image, falling back to static asset:", e);
-            setTransparentSignature(signatureLogo);
-        };
+            };
+            img.onerror = (e) => {
+                console.warn("Error loading signature logo image, falling back to static asset:", e);
+                setTransparentSignature(logoUrl);
+            };
+        }).catch(err => {
+            console.error("Failed to dynamically import signature image:", err);
+        });
     }, []);
 
     const [activeTab, setActiveTab] = useState('setup');
@@ -259,9 +262,36 @@ const App = () => {
     const [manpower, setManpower] = useState([]);
     
     // Temporary Session states (Hybrid Sandbox)
-    const [tempVisits, setTempVisits] = useState(() => JSON.parse(sessionStorage.getItem('snet_temp_visits') || '[]'));
-    const [tempJhpmsLab, setTempJhpmsLab] = useState(() => JSON.parse(sessionStorage.getItem('snet_temp_jhpms_lab') || '[]'));
-    const [tempEdustat, setTempEdustat] = useState(() => JSON.parse(sessionStorage.getItem('snet_temp_edustat') || '[]'));
+    const [tempVisits, setTempVisits] = useState([]);
+    const [tempJhpmsLab, setTempJhpmsLab] = useState([]);
+    const [tempEdustat, setTempEdustat] = useState([]);
+
+    useEffect(() => {
+        try {
+            const v = sessionStorage.getItem('snet_temp_visits');
+            if (v) setTempVisits(JSON.parse(v));
+        } catch (e) {
+            console.warn("Failed to parse snet_temp_visits from sessionStorage", e);
+        }
+        try {
+            const j = sessionStorage.getItem('snet_temp_jhpms_lab');
+            if (j) setTempJhpmsLab(JSON.parse(j));
+        } catch (e) {
+            console.warn("Failed to parse snet_temp_jhpms_lab from sessionStorage", e);
+        }
+        try {
+            const e = sessionStorage.getItem('snet_temp_edustat');
+            if (e) setTempEdustat(JSON.parse(e));
+        } catch (err) {
+            console.warn("Failed to parse snet_temp_edustat from sessionStorage", err);
+        }
+        try {
+            const photo = localStorage.getItem('snet_profile_photo');
+            if (photo) setProfilePhoto(photo);
+        } catch (e) {
+            console.warn("Failed to read snet_profile_photo from localStorage", e);
+        }
+    }, []);
 
     // Combined states (Supabase + Session)
     const combinedVisits = useMemo(() => mergeVisits(visits, tempVisits), [visits, tempVisits]);
@@ -353,7 +383,7 @@ const App = () => {
     const [selCCs, setSelCCs] = useState([]);
     const [selSchools, setSelSchools] = useState([]);
 
-    const [profilePhoto, setProfilePhoto] = useState(() => localStorage.getItem('snet_profile_photo') || null);
+    const [profilePhoto, setProfilePhoto] = useState(null);
     const [uploadAsSession, setUploadAsSession] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const fileInputRef = useRef(null);
@@ -1369,6 +1399,7 @@ const App = () => {
 
             const arrayBuffer = await response.arrayBuffer();
             const data = new Uint8Array(arrayBuffer);
+            const XLSX = await import('xlsx');
             const wb = XLSX.read(data, { type: 'array' });
             const sheetJson = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
 
@@ -2771,11 +2802,13 @@ const App = () => {
                     <div className="mt-2 flex flex-col items-center justify-center select-none group py-1">
                         <div className="text-[9px] uppercase tracking-[0.25em] font-black text-teal-200/50 group-hover:text-teal-200/70 transition-colors duration-200">Made By</div>
                         <div className="relative mt-2 flex items-center justify-center">
-                            <img 
-                                src={transparentSignature || signatureLogo} 
-                                alt="Vijay Ray" 
-                                className="h-14 w-auto object-contain signature-animated hover:scale-110 transition-transform duration-300"
-                            />
+                            {transparentSignature && (
+                                <img 
+                                    src={transparentSignature} 
+                                    alt="Vijay Ray" 
+                                    className="h-14 w-auto object-contain signature-animated hover:scale-110 transition-transform duration-300"
+                                />
+                            )}
                         </div>
                     </div>
                 </div>
