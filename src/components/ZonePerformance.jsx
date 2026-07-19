@@ -2235,7 +2235,7 @@ const ZonePerformance = ({
                             <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-white/10 shadow-md">
                                 <table className="w-full text-left border-collapse border border-gray-200 dark:border-white/10">
                                     <thead>
-                                        <tr className="bg-teal-850 dark:bg-teal-950 text-white text-[10px] uppercase tracking-wider font-bold divide-x divide-teal-700/30">
+                                        <tr className="bg-teal-800 dark:bg-teal-950 text-white text-[10px] uppercase tracking-wider font-bold divide-x divide-teal-700/30">
                                             <th className="p-2.5">Project</th>
                                             <th className="p-2.5 text-center">Schools</th>
                                             <th className="p-2.5 text-center">Instructors</th>
