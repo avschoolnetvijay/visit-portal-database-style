@@ -1661,6 +1661,9 @@ const ZonePerformance = ({
             viewType = 'projects';
         }
 
+        const entityName = activeZoneDetail.projectName || activeZoneDetail.zoneName || 'Report';
+        const safeName = entityName.replace(/\s+/g, '_');
+
         if (viewType === 'coordinators') {
             exportFormat = activeZoneDetailsData.map(c => ({
                 'Slno': c.slno,
@@ -1681,7 +1684,7 @@ const ZonePerformance = ({
                 'Total Visits': c.visitsCount,
                 'Local Performance Score': c.performanceScore
             }));
-            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Coordinators_Performance`;
+            label = `${safeName}_Coordinators_Performance`;
         } else if (viewType === 'projects') {
             exportFormat = activeZoneDetailsData.map(p => ({
                 'Slno': p.slno,
@@ -1702,7 +1705,7 @@ const ZonePerformance = ({
                 'Total Visits': p.visitsCount,
                 'Local Performance Score': p.performanceScore
             }));
-            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Projects_Performance`;
+            label = `${safeName}_Projects_Performance`;
         } else if (viewType === 'devices') {
             exportFormat = activeZoneDetailsData.map(d => ({
                 'Slno': d.slno,
@@ -1713,7 +1716,7 @@ const ZonePerformance = ({
                 'Device Type': d.deviceType,
                 'Device Status': d.status
             }));
-            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Devices_Report`;
+            label = `${safeName}_Devices_Report`;
         } else if (viewType === 'instructors') {
             exportFormat = activeZoneDetailsData.map(ins => ({
                 'Slno': ins.slno,
@@ -1723,7 +1726,7 @@ const ZonePerformance = ({
                 'Instructor Name': ins.instructorName,
                 'Instructor Status': ins.instructorStatus
             }));
-            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Active_Instructors`;
+            label = `${safeName}_Active_Instructors`;
         } else if (viewType === 'vacant_instructors') {
             exportFormat = activeZoneDetailsData.map(ins => ({
                 'Slno': ins.slno,
@@ -1733,7 +1736,7 @@ const ZonePerformance = ({
                 'Last Working Instructor Name': ins.lastInstructorName,
                 'Last Working Date': ins.lastWorkingDate
             }));
-            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Vacant_Schools_Report`;
+            label = `${safeName}_Vacant_Schools_Report`;
         } else if (viewType === 'usage_logs') {
             exportFormat = activeZoneDetailsData.map(l => ({
                 'Slno': l.slno,
@@ -1745,7 +1748,7 @@ const ZonePerformance = ({
                 'Device Type': l.deviceType,
                 'Hours Used': l.hours
             }));
-            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Usage_Logs`;
+            label = `${safeName}_Usage_Logs`;
         } else if (viewType === 'classes') {
             exportFormat = activeZoneDetailsData.map(r => ({
                 'Slno': r.slno,
@@ -1758,7 +1761,7 @@ const ZonePerformance = ({
                 'Subject Teacher': r.teacher,
                 'Topic/Remarks': r.remarks
             }));
-            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Classes_Logs`;
+            label = `${safeName}_Classes_Logs`;
         } else if (viewType === 'visits') {
             exportFormat = activeZoneDetailsData.map(v => ({
                 'Slno': v.slno,
@@ -1770,7 +1773,7 @@ const ZonePerformance = ({
                 'Visitor / CC Name': v.visitorName,
                 'Remarks / Findings': v.remarks
             }));
-            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Visits_Report`;
+            label = `${safeName}_Visits_Report`;
         } else {
             exportFormat = activeZoneDetailsData.map(s => ({
                 'Slno': s.slno,
@@ -1790,7 +1793,7 @@ const ZonePerformance = ({
                 'Monitoring Visits': s.visitsCount,
                 'Last Visit Date': s.lastVisitDate
             }));
-            label = `${activeZoneDetail.zoneName.replace(/\s+/g, '_')}_Schools_Detailed_Report`;
+            label = `${safeName}_Schools_Detailed_Report`;
         }
 
         exportToExcel(exportFormat, label);
@@ -2426,37 +2429,192 @@ const ZonePerformance = ({
                                     <tbody className="divide-y divide-gray-100 dark:divide-white/5 text-gray-700 dark:text-gray-300 whitespace-nowrap">
                                         {projectBreakdownData.map((p, idx) => (
                                             <tr key={p.projectName} className="hover:bg-teal-50/50 transition-all group">
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-medium sticky left-0 z-20 bg-white dark:bg-slate-900 group-hover:bg-teal-50/80 dark:group-hover:bg-slate-800 w-[60px] min-w-[60px] max-w-[60px] overflow-hidden text-ellipsis">{idx + 1}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 sticky left-[60px] z-20 bg-white dark:bg-slate-900 group-hover:bg-teal-50/80 dark:group-hover:bg-slate-800 w-[120px] min-w-[120px] max-w-[120px] overflow-hidden text-ellipsis font-bold text-teal-800 dark:text-teal-500">{p.projectName}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-semibold text-gray-700 dark:text-gray-300">{p.totalDistricts}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400">{p.totalCCs}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400">{p.totalSchools}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400">{p.instructorWorking}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-red-50/20 dark:bg-red-950/10 font-bold text-red-650 dark:text-red-400">{p.totalSchools - p.instructorWorking}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold text-teal-700 dark:text-teal-400">{p.cpuInstalled}</td>
-                                                <td className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-red-50/20 dark:bg-red-950/10 font-bold ${p.edustatNotInstalled > 0 ? 'text-red-650 dark:text-red-400' : 'text-gray-400'}`}>{p.edustatNotInstalled}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold text-teal-700 dark:text-teal-400">{p.cpuUsed}</td>
-                                                <td className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold ${p.cpuNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}>{p.cpuNotUsed}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold text-teal-700 dark:text-teal-400">{p.miniPcInstalled}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold text-teal-700 dark:text-teal-400">{p.miniPcUsed}</td>
-                                                <td className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold ${p.miniPcNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}>{p.miniPcNotUsed}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold text-teal-700 dark:text-teal-400">{p.panelInstalled}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold text-teal-700 dark:text-teal-400">{p.panelUsed}</td>
-                                                <td className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold ${p.panelNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}>{p.panelNotUsed}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400">{p.totalCpuHours}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400">{p.totalMiniPcHours}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400">{p.totalPanelHours}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold">{p.avgCpu}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold">{p.avgMini}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold">{p.avgPanel}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-pink-50/30 dark:bg-pink-950/10 text-pink-700 dark:text-pink-400 font-bold">{p.ictClasses}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-pink-50/30 dark:bg-pink-950/10 font-bold text-teal-700 dark:text-teal-400">{p.avgClasses}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-yellow-50/30 dark:bg-yellow-950/10 text-yellow-700 dark:text-yellow-400 font-bold">{p.smartClasses}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-yellow-50/30 dark:bg-yellow-950/10 font-bold text-teal-700 dark:text-teal-400">{p.avgSmartClasses}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400">{p.totalIctVisits}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400">{p.totalSmartVisits}</td>
-                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-extrabold text-teal-800 dark:text-teal-400 bg-teal-50/50 dark:bg-slate-800">{p.grandTotal}</td>
-                                                <td className="p-3 text-center font-extrabold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 border-l border-indigo-100 dark:border-white/5 text-sm shadow-[inset_1px_0_0_rgba(0,0,0,0.05)]">{p.performanceScore}%</td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('all'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-medium sticky left-0 z-20 bg-white dark:bg-slate-900 group-hover:bg-teal-50/80 dark:group-hover:bg-slate-800 w-[60px] min-w-[60px] max-w-[60px] overflow-hidden text-ellipsis cursor-pointer hover:text-teal-900 dark:hover:text-teal-400 transition-all"
+                                                >
+                                                    {idx + 1}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('all'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 sticky left-[60px] z-20 bg-white dark:bg-slate-900 group-hover:bg-teal-50/80 dark:group-hover:bg-slate-800 w-[120px] min-w-[120px] max-w-[120px] overflow-hidden text-ellipsis font-bold text-teal-800 dark:text-teal-500 cursor-pointer hover:text-teal-900 dark:hover:text-teal-400 transition-all"
+                                                >
+                                                    {p.projectName}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('all'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-semibold text-gray-700 dark:text-gray-300 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer transition-all"
+                                                >
+                                                    {p.totalDistricts}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('coordinators'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.totalCCs}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('all'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.totalSchools}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('working_instructors'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.instructorWorking}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('vacant_instructors'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-red-50/20 dark:bg-red-950/10 font-bold text-red-650 dark:text-red-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-red-900 dark:hover:text-red-300 transition-all"
+                                                >
+                                                    {p.totalSchools - p.instructorWorking}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('cpu_installed'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.cpuInstalled}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('edustat_not_installed'); setSearchQuery(''); }}
+                                                    className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-red-50/20 dark:bg-red-950/10 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all ${p.edustatNotInstalled > 0 ? 'text-red-650 dark:text-red-400' : 'text-gray-400'}`}
+                                                >
+                                                    {p.edustatNotInstalled}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('cpu_used'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.cpuUsed}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('cpu_not_used'); setSearchQuery(''); }}
+                                                    className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all ${p.cpuNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}
+                                                >
+                                                    {p.cpuNotUsed}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('mini_installed'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.miniPcInstalled}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('mini_used'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.miniPcUsed}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('mini_not_used'); setSearchQuery(''); }}
+                                                    className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all ${p.miniPcNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}
+                                                >
+                                                    {p.miniPcNotUsed}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('panel_installed'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.panelInstalled}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('panel_used'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.panelUsed}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('panel_not_used'); setSearchQuery(''); }}
+                                                    className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all ${p.panelNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}
+                                                >
+                                                    {p.panelNotUsed}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('cpu_hours_logs'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.totalCpuHours}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('mini_hours_logs'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.totalMiniPcHours}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('panel_hours_logs'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.totalPanelHours}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('cpu_hours_logs'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.avgCpu}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('mini_hours_logs'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.avgMini}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('panel_hours_logs'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.avgPanel}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('ict_classes'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-pink-50/30 dark:bg-pink-950/10 text-pink-700 dark:text-pink-400 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.ictClasses}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('ict_classes'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-pink-50/30 dark:bg-pink-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.avgClasses}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('smart_classes'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-yellow-50/30 dark:bg-yellow-950/10 text-yellow-700 dark:text-yellow-400 font-bold hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.smartClasses}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('smart_classes'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-yellow-50/30 dark:bg-yellow-950/10 font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.avgSmartClasses}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('ict_visits'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.totalIctVisits}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('smart_visits'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400 hover:bg-teal-100/50 dark:hover:bg-slate-800 cursor-pointer underline decoration-teal-400/30 hover:text-teal-900 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.totalSmartVisits}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('all_visits'); setSearchQuery(''); }}
+                                                    className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-extrabold text-teal-800 dark:text-teal-400 bg-teal-50/50 dark:bg-slate-800 hover:bg-teal-100/50 dark:hover:bg-slate-700 cursor-pointer underline decoration-teal-400/30 hover:text-teal-955 dark:hover:text-teal-300 transition-all"
+                                                >
+                                                    {p.grandTotal}
+                                                </td>
+                                                <td
+                                                    onClick={() => { setActiveZoneDetail(p); setDrilldownFilter('all'); setSearchQuery(''); }}
+                                                    className="p-3 text-center font-extrabold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 border-l border-indigo-100 dark:border-white/5 text-sm shadow-[inset_1px_0_0_rgba(0,0,0,0.05)] cursor-pointer hover:bg-teal-100/50 dark:hover:bg-slate-850 hover:text-indigo-955 dark:hover:text-indigo-300 transition-all"
+                                                >
+                                                    {p.performanceScore}%
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -2521,19 +2679,19 @@ const ZonePerformance = ({
                         <div className="p-4 border-b border-gray-150 dark:border-white/5 flex items-center justify-between bg-gradient-to-r from-teal-50 to-teal-50/20 dark:from-teal-950/20 dark:to-transparent">
                             <div className="text-left">
                                 <h3 className="font-extrabold text-teal-800 dark:text-teal-400 text-base leading-tight">
-                                    {drilldownFilter === 'all' && "Zone Schools Performance Breakdown"}
-                                    {drilldownFilter === 'coordinators' && "Zone Coordinators Performance Summary"}
-                                    {drilldownFilter === 'working_instructors' && "Zone Schools with Active Instructors"}
-                                    {drilldownFilter === 'cpu_installed' && "Zone Schools with CPU Devices Installed"}
-                                    {drilldownFilter === 'edustat_not_installed' && "Zone Schools with Devices Not Installed (EduStat Master)"}
-                                    {drilldownFilter === 'cpu_used' && "Zone Schools with Active CPU Devices"}
-                                    {drilldownFilter === 'cpu_not_used' && "Zone Schools with CPU Devices Installed but Not Used"}
-                                    {drilldownFilter === 'mini_installed' && "Zone Schools with Mini PC Installed"}
-                                    {drilldownFilter === 'mini_used' && "Zone Schools with Active Mini PC Devices"}
-                                    {drilldownFilter === 'mini_not_used' && "Zone Schools with Mini PC Installed but Not Used"}
-                                    {drilldownFilter === 'panel_installed' && "Zone Schools with Interactive Flat Panel Installed"}
-                                    {drilldownFilter === 'panel_used' && "Zone Schools with Active Panel (IFP) Devices"}
-                                    {drilldownFilter === 'panel_not_used' && "Zone Schools with Panel (IFP) Installed but Not Used"}
+                                    {drilldownFilter === 'all' && (activeZoneDetail.projectName ? "Project Schools Performance Breakdown" : "Zone Schools Performance Breakdown")}
+                                    {drilldownFilter === 'coordinators' && (activeZoneDetail.projectName ? "Project Coordinators Performance Summary" : "Zone Coordinators Performance Summary")}
+                                    {drilldownFilter === 'working_instructors' && (activeZoneDetail.projectName ? "Project Schools with Active Instructors" : "Zone Schools with Active Instructors")}
+                                    {drilldownFilter === 'cpu_installed' && (activeZoneDetail.projectName ? "Project Schools with CPU Devices Installed" : "Zone Schools with CPU Devices Installed")}
+                                    {drilldownFilter === 'edustat_not_installed' && (activeZoneDetail.projectName ? "Project Schools with Devices Not Installed" : "Zone Schools with Devices Not Installed (EduStat Master)")}
+                                    {drilldownFilter === 'cpu_used' && (activeZoneDetail.projectName ? "Project Schools with Active CPU Devices" : "Zone Schools with Active CPU Devices")}
+                                    {drilldownFilter === 'cpu_not_used' && (activeZoneDetail.projectName ? "Project Schools with CPU Devices Installed but Not Used" : "Zone Schools with CPU Devices Installed but Not Used")}
+                                    {drilldownFilter === 'mini_installed' && (activeZoneDetail.projectName ? "Project Schools with Mini PC Installed" : "Zone Schools with Mini PC Installed")}
+                                    {drilldownFilter === 'mini_used' && (activeZoneDetail.projectName ? "Project Schools with Active Mini PC Devices" : "Zone Schools with Active Mini PC Devices")}
+                                    {drilldownFilter === 'mini_not_used' && (activeZoneDetail.projectName ? "Project Schools with Mini PC Installed but Not Used" : "Zone Schools with Mini PC Installed but Not Used")}
+                                    {drilldownFilter === 'panel_installed' && (activeZoneDetail.projectName ? "Project Schools with Interactive Flat Panel Installed" : "Zone Schools with Interactive Flat Panel Installed")}
+                                    {drilldownFilter === 'panel_used' && (activeZoneDetail.projectName ? "Project Schools with Active Panel (IFP) Devices" : "Zone Schools with Active Panel (IFP) Devices")}
+                                    {drilldownFilter === 'panel_not_used' && (activeZoneDetail.projectName ? "Project Schools with Panel (IFP) Installed but Not Used" : "Zone Schools with Panel (IFP) Installed but Not Used")}
                                     {drilldownFilter === 'cpu_hours_logs' && "CPU Daily Run Hours Detail (Active Logs)"}
                                     {drilldownFilter === 'mini_hours_logs' && "Mini PC Daily Run Hours Detail (Active Logs)"}
                                     {drilldownFilter === 'panel_hours_logs' && "Panel (IFP) Daily Run Hours Detail (Active Logs)"}
@@ -2543,10 +2701,18 @@ const ZonePerformance = ({
                                     {drilldownFilter === 'smart_visits' && "Field Smart Board Visits Logging Details"}
                                     {drilldownFilter === 'all_visits' && "Field Team All Visits Logging Details"}
                                     {drilldownFilter === 'projects' && "Zone Projects-Wise Breakdown & Comparative Metrics"}
-                                    {drilldownFilter === 'vacant_instructors' && "Zone Schools with Vacant Instructor Posts"}
+                                    {drilldownFilter === 'vacant_instructors' && (activeZoneDetail.projectName ? "Project Schools with Vacant Instructor Posts" : "Zone Schools with Vacant Instructor Posts")}
                                 </h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
-                                    Zone: <span className="font-bold text-gray-800 dark:text-gray-200">{activeZoneDetail.zoneName}</span> — Projects: {activeZoneDetail.totalProjects}
+                                    {activeZoneDetail.projectName ? (
+                                        <>
+                                            Project: <span className="font-bold text-gray-800 dark:text-gray-200">{activeZoneDetail.projectName}</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            Zone: <span className="font-bold text-gray-800 dark:text-gray-200">{activeZoneDetail.zoneName}</span> — Projects: {activeZoneDetail.totalProjects}
+                                        </>
+                                    )}
                                 </p>
                             </div>
                             <div className="flex items-center gap-3">
@@ -2921,7 +3087,7 @@ const ZonePerformance = ({
 
                         {/* Modal Footer */}
                         <div className="p-3.5 border-t border-gray-150 dark:border-white/5 bg-gray-50 dark:bg-slate-900/60 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 font-medium">
-                            <span>Showing {activeZoneDetailsData.length} records inside {activeZoneDetail.zoneName}</span>
+                            <span>Showing {activeZoneDetailsData.length} records inside {activeZoneDetail.projectName || activeZoneDetail.zoneName}</span>
                             <button
                                 onClick={() => { setActiveZoneDetail(null); setSearchQuery(''); }}
                                 className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-white/10 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 rounded-lg font-bold transition-colors cursor-pointer"
