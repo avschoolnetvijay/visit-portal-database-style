@@ -439,18 +439,24 @@ const ZonePerformance = ({
             if (!projMap[proj]) {
                 projMap[proj] = {
                     projectName: proj,
-                    totalSchools: 0, instructorWorking: 0,
+                    totalSchools: 0,
+                    instructorWorking: 0,
                     cpuInstalled: 0, cpuUsed: 0,
                     miniPcInstalled: 0, miniPcUsed: 0,
                     panelInstalled: 0, panelUsed: 0,
                     totalCpuHours: 0, totalMiniPcHours: 0, totalPanelHours: 0,
                     ictClasses: 0, smartClasses: 0,
                     ictVisits: 0, smartVisits: 0,
-                    udises: new Set()
+                    edustatNotInstalled: 0,
+                    udises: new Set(),
+                    districts: new Set(),
+                    ccNames: new Set()
                 };
             }
             projMap[proj].totalSchools++;
             projMap[proj].udises.add(cleanUdise(s.udise_code));
+            if (s.district) projMap[proj].districts.add(s.district);
+            if (s.visitor_name) projMap[proj].ccNames.add(s.visitor_name);
         });
 
         manpower.forEach(m => {
@@ -472,6 +478,12 @@ const ZonePerformance = ({
                         if (device === 'CPU') p.cpuInstalled++;
                         else if (device === 'MINI PC' || device === 'THIN CLIENT') p.miniPcInstalled++;
                         else if (device === 'INTERACTIVE FLAT PANEL') p.panelInstalled++;
+                    }
+                });
+            } else if (installed === 'NO') {
+                Object.values(projMap).forEach(p => {
+                    if (p.udises.has(udise)) {
+                        p.edustatNotInstalled++;
                     }
                 });
             }
@@ -547,20 +559,103 @@ const ZonePerformance = ({
             }
         });
 
-        return Object.values(projMap).map(p => {
-            const totalInstalled = p.cpuInstalled + p.miniPcInstalled + p.panelInstalled;
-            const totalUsed = p.cpuUsed + p.miniPcUsed + p.panelUsed;
-            const deviceUtil = totalInstalled > 0 ? ((totalUsed / totalInstalled) * 100).toFixed(1) : '0.0';
-            const totalVisits = p.ictVisits + p.smartVisits;
-            const classRate = p.totalSchools > 0 && days > 0 ? ((p.ictClasses + p.smartClasses) / (days * p.totalSchools)).toFixed(3) : '0.000';
-            const monitoring = p.totalSchools > 0 ? (totalVisits / p.totalSchools).toFixed(2) : '0.00';
-            const instRate = p.totalSchools > 0 ? ((p.instructorWorking / p.totalSchools) * 100).toFixed(1) : '0.0';
+        let maxAvgCpu = 0, maxAvgMini = 0, maxAvgPanel = 0;
+        let maxAcademic = 0, maxSmart = 0;
+        let maxMonitoring = 0, maxAvailability = 0;
+
+        let pass1Data = Object.values(projMap).map(p => {
+            const cpuNotUsed = Math.max(0, p.cpuInstalled - p.cpuUsed);
+            const miniPcNotUsed = Math.max(0, p.miniPcInstalled - p.miniPcUsed);
+            const panelNotUsed = Math.max(0, p.panelInstalled - p.panelUsed);
+
+            const avgCpu = p.cpuInstalled > 0 ? (p.totalCpuHours / days / p.cpuInstalled) : 0;
+            const avgMini = p.miniPcInstalled > 0 ? (p.totalMiniPcHours / days / p.miniPcInstalled) : 0;
+            const avgPanel = p.panelInstalled > 0 ? (p.totalPanelHours / days / p.panelInstalled) : 0;
+            const academic = p.totalSchools > 0 ? (p.ictClasses / p.totalSchools) : 0;
+            const smart = p.totalSchools > 0 ? (p.smartClasses / p.totalSchools) : 0;
+            const monitoring = p.totalSchools > 0 ? ((p.ictVisits + p.smartVisits) / p.totalSchools) : 0;
+            const availability = p.totalSchools > 0 ? (p.instructorWorking / p.totalSchools) : 0;
+
+            const avgClasses = p.totalSchools > 0 ? (p.ictClasses / (days * p.totalSchools)) : 0;
+            const avgSmartClasses = p.totalSchools > 0 ? (p.smartClasses / (days * p.totalSchools)) : 0;
+
+            maxAvgCpu = Math.max(maxAvgCpu, avgCpu);
+            maxAvgMini = Math.max(maxAvgMini, avgMini);
+            maxAvgPanel = Math.max(maxAvgPanel, avgPanel);
+            maxAcademic = Math.max(maxAcademic, academic);
+            maxSmart = Math.max(maxSmart, smart);
+            maxMonitoring = Math.max(maxMonitoring, monitoring);
+            maxAvailability = Math.max(maxAvailability, availability);
+
+            return {
+                projectName: p.projectName,
+                totalSchools: p.totalSchools,
+                totalDistricts: p.districts.size,
+                totalCCs: p.ccNames.size,
+                instructorWorking: p.instructorWorking,
+                cpuInstalled: p.cpuInstalled,
+                cpuUsed: p.cpuUsed,
+                cpuNotUsed,
+                miniPcInstalled: p.miniPcInstalled,
+                miniPcUsed: p.miniPcUsed,
+                miniPcNotUsed,
+                panelInstalled: p.panelInstalled,
+                panelUsed: p.panelUsed,
+                panelNotUsed,
+                edustatNotInstalled: p.edustatNotInstalled,
+                totalCpuHours: parseFloat(p.totalCpuHours.toFixed(2)),
+                totalMiniPcHours: parseFloat(p.totalMiniPcHours.toFixed(2)),
+                totalPanelHours: parseFloat(p.totalPanelHours.toFixed(2)),
+                avgCpuRaw: avgCpu,
+                avgMiniRaw: avgMini,
+                avgPanelRaw: avgPanel,
+                avgCpu: avgCpu.toFixed(5),
+                avgMini: avgMini.toFixed(5),
+                avgPanel: avgPanel.toFixed(5),
+                ictClasses: p.ictClasses,
+                avgClasses: avgClasses.toFixed(5),
+                smartClasses: p.smartClasses,
+                avgSmartClasses: avgSmartClasses.toFixed(5),
+                totalIctVisits: p.ictVisits,
+                totalSmartVisits: p.smartVisits,
+                grandTotal: p.ictVisits + p.smartVisits,
+                academicRaw: academic,
+                smartRaw: smart,
+                monitoringRaw: monitoring,
+                availabilityRaw: availability
+            };
+        });
+
+        let finalData = pass1Data.map(p => {
+            const cpuUtil = p.cpuInstalled > 0 ? (p.cpuUsed / p.cpuInstalled) : 0;
+            const miniUtil = p.miniPcInstalled > 0 ? (p.miniPcUsed / p.miniPcInstalled) : 0;
+            const panelUtil = p.panelInstalled > 0 ? (p.panelUsed / p.panelInstalled) : 0;
+            const activeDeviceTypes = [cpuUtil, miniUtil, panelUtil].filter((_, i) => [p.cpuInstalled, p.miniPcInstalled, p.panelInstalled][i] > 0);
+            const infraScore = (activeDeviceTypes.length > 0 ? activeDeviceTypes.reduce((a, b) => a + b, 0) / activeDeviceTypes.length : 0) * 25;
+
+            const normCpu = maxAvgCpu > 0 ? (p.avgCpuRaw / maxAvgCpu) : 0;
+            const normMini = maxAvgMini > 0 ? (p.avgMiniRaw / maxAvgMini) : 0;
+            const normPanel = maxAvgPanel > 0 ? (p.avgPanelRaw / maxAvgPanel) : 0;
+            const activeUsageTypes = [normCpu, normMini, normPanel].filter((_, i) => [p.cpuInstalled, p.miniPcInstalled, p.panelInstalled][i] > 0);
+            const usageScore = (activeUsageTypes.length > 0 ? activeUsageTypes.reduce((a, b) => a + b, 0) / activeUsageTypes.length : 0) * 20;
+
+            const academicScore = maxAcademic > 0 ? (p.academicRaw / maxAcademic) * 20 : 0;
+            const smartScore = maxSmart > 0 ? (p.smartRaw / maxSmart) * 10 : 0;
+            const monitoringScore = maxMonitoring > 0 ? (p.monitoringRaw / maxMonitoring) * 15 : 0;
+            const availabilityScore = maxAvailability > 0 ? (p.availabilityRaw / maxAvailability) * 10 : 0;
+
+            const performanceScore = infraScore + usageScore + academicScore + smartScore + monitoringScore + availabilityScore;
+
             return {
                 ...p,
-                totalHours: parseFloat((p.totalCpuHours + p.totalMiniPcHours + p.totalPanelHours).toFixed(1)),
-                totalVisits, deviceUtil, classRate, monitoring, instRate
+                performanceScore: parseFloat(performanceScore.toFixed(2))
             };
-        }).sort((a, b) => b.totalSchools - a.totalSchools);
+        });
+
+        finalData.sort((a, b) => b.performanceScore - a.performanceScore);
+        finalData.forEach((row, idx) => row.slno = idx + 1);
+
+        return finalData;
     }, [auditComparativeData, schools, manpower, edustatMaster, edustat, jhpmsLab, visits, startDate, endDate]);
 
     // ============================
@@ -1495,6 +1590,48 @@ const ZonePerformance = ({
         exportToExcel(exportFormat, 'Zone_Performance_Report');
     };
 
+    // Handle Exporting project breakdown performance data
+    const handleExportProjectSummary = () => {
+        if (!projectBreakdownData || !projectBreakdownData.length) return;
+        const exportFormat = projectBreakdownData.map(p => ({
+            'Slno': p.slno,
+            'Project Name': p.projectName,
+            'Districts': p.totalDistricts,
+            'Coordinators': p.totalCCs,
+            'No.of Schools': p.totalSchools,
+            'No. of Instructor Working': p.instructorWorking,
+            'Vacant Instructor': p.totalSchools - p.instructorWorking,
+            'No.Of CPU Installed': p.cpuInstalled,
+            'EduStat Not Installed': p.edustatNotInstalled,
+            'No.Of CPU Used': p.cpuUsed,
+            'No. Of CPU Not Used': p.cpuNotUsed,
+            'No.Of Mini PC / Thin Client Installed': p.miniPcInstalled,
+            'No. Of Mini PC / Thin Client Used': p.miniPcUsed,
+            'No. Of Mini PC / Thin Client Not Used': p.miniPcNotUsed,
+            'No.Of Panel (IFP) Installed': p.panelInstalled,
+            'No. Of Panel (IFP) Used': p.panelUsed,
+            'No. Of Panel (IFP) Not Used': p.panelNotUsed,
+            'Total Hours Used (CPU)': p.totalCpuHours,
+            'Total Hours Used (Mini PC / Thin Client)': p.totalMiniPcHours,
+            'Total Hours Used (Panel / IFP)': p.totalPanelHours,
+            'Avg Hrs/Day/Sch/CPU': Number(p.avgCpu) || 0,
+            'Avg Hrs/Day/Sch/Mini PC': Number(p.avgMini) || 0,
+            'Avg Hrs/Day/Sch/Panel': Number(p.avgPanel) || 0,
+            'ICT Classes': p.ictClasses,
+            'Avg Classes/per school/Day': Number(p.avgClasses) || 0,
+            'Smart Classes': p.smartClasses,
+            'Avg Smart Classes/per school/Day': Number(p.avgSmartClasses) || 0,
+            'Total ICT Visit': p.totalIctVisits,
+            'Total Smart Visit': p.totalSmartVisits,
+            'GrandTotal': p.grandTotal,
+            'Performance Score': p.performanceScore + '%'
+        }));
+        const label = auditComparativeData?.selZoneName
+            ? `${auditComparativeData.selZoneName.replace(/\s+/g, '_')}_Project_Performance_Report`
+            : 'Project_Performance_Report';
+        exportToExcel(exportFormat, label);
+    };
+
     // Handle Detail Export
     const handleExportDetail = () => {
         if (!activeZoneDetail || !activeZoneDetailsData.length) return;
@@ -2238,66 +2375,88 @@ const ZonePerformance = ({
                     {/* Project-wise Breakdown within selected zone */}
                     {projectBreakdownData.length > 0 && (
                         <div className="px-5 pb-5">
-                            <h3 className="text-[10px] uppercase tracking-widest font-black text-gray-500 dark:text-gray-400 mb-3">
-                                Project-wise Breakdown within {auditComparativeData.selZoneName}
-                            </h3>
-                            <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-white/10 shadow-md">
-                                <table className="w-full text-left border-collapse border border-gray-200 dark:border-white/10">
-                                    <thead>
-                                        <tr className="bg-teal-800 dark:bg-teal-950 text-white text-[10px] uppercase tracking-wider font-bold divide-x divide-teal-700/30">
-                                            <th className="p-2.5">Project</th>
-                                            <th className="p-2.5 text-center">Schools</th>
-                                            <th className="p-2.5 text-center">Instructors</th>
-                                            <th className="p-2.5 text-center">CPU I/U</th>
-                                            <th className="p-2.5 text-center">Mini PC I/U</th>
-                                            <th className="p-2.5 text-center">Panel I/U</th>
-                                            <th className="p-2.5 text-center">Total Hours</th>
-                                            <th className="p-2.5 text-center">Device Util%</th>
-                                            <th className="p-2.5 text-center">ICT Classes</th>
-                                            <th className="p-2.5 text-center">Smart Classes</th>
-                                            <th className="p-2.5 text-center">Class Rate</th>
-                                            <th className="p-2.5 text-center">Visits</th>
-                                            <th className="p-2.5 text-center">Visit/Sch</th>
-                                            <th className="p-2.5 text-center">Instr.%</th>
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-3">
+                                <h3 className="text-[10px] uppercase tracking-widest font-black text-gray-500 dark:text-gray-400">
+                                    Project-wise Breakdown within {auditComparativeData.selZoneName}
+                                </h3>
+                                <button
+                                    onClick={handleExportProjectSummary}
+                                    className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-extrabold text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
+                                >
+                                    <Icons.Export className="w-3.5 h-3.5 text-white" /> Export Project Summary
+                                </button>
+                            </div>
+                            <div className="overflow-x-auto overflow-y-auto max-h-[400px] rounded-xl border border-gray-200 dark:border-white/10 shadow-md bg-slate-50/50">
+                                <table className="w-full text-left border-collapse border border-gray-200 dark:border-white/10 text-xs select-none">
+                                    <thead className="bg-teal-800 dark:bg-teal-950 text-white text-[10px] uppercase tracking-wider font-bold divide-x divide-teal-700/30 sticky top-0 z-30 shadow-md">
+                                        <tr>
+                                            <th className="p-3 align-top sticky top-0 left-0 z-40 bg-teal-800 w-[60px] min-w-[60px] max-w-[60px]">Slno</th>
+                                            <th className="p-3 align-top sticky top-0 left-[60px] z-40 bg-teal-800 w-[120px] min-w-[120px] max-w-[120px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">Project Name</th>
+                                            <th className="p-3 text-center align-top min-w-[70px]">Districts</th>
+                                            <th className="p-3 text-center align-top min-w-[80px]">Coordinators</th>
+                                            <th className="p-3 text-center align-top min-w-[80px]">No.of Schools</th>
+                                            <th className="p-3 text-center align-top min-w-[90px]">No. of Instructor Working</th>
+                                            <th className="p-3 text-center align-top bg-red-950/40 text-red-200 min-w-[90px]">Vacant Instructor</th>
+                                            <th className="p-3 text-center align-top bg-blue-900/40 min-w-[90px]">No.Of CPU Installed</th>
+                                            <th className="p-3 text-center align-top bg-red-950/40 text-red-200 min-w-[100px]">EduStat Not Installed</th>
+                                            <th className="p-3 text-center align-top bg-blue-900/40 min-w-[80px]">No.Of CPU Used</th>
+                                            <th className="p-3 text-center align-top bg-blue-900/40 text-red-200 min-w-[90px]">No. Of CPU Not Used</th>
+                                            <th className="p-3 text-center align-top bg-purple-900/40 min-w-[110px]">No.Of Mini PC / Thin Client Installed</th>
+                                            <th className="p-3 text-center align-top bg-purple-900/40 min-w-[100px]">No. Of Mini PC / Thin Client Used</th>
+                                            <th className="p-3 text-center align-top bg-purple-900/40 text-red-200 min-w-[110px]">No. Of Mini PC / Thin Client Not Used</th>
+                                            <th className="p-3 text-center align-top bg-indigo-900/40 min-w-[100px]">No.Of Panel (IFP) Installed</th>
+                                            <th className="p-3 text-center align-top bg-indigo-900/40 min-w-[90px]">No. Of Panel (IFP) Used</th>
+                                            <th className="p-3 text-center align-top bg-indigo-900/40 text-red-200 min-w-[100px]">No. Of Panel (IFP) Not Used</th>
+                                            <th className="p-3 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (CPU)</th>
+                                            <th className="p-3 text-center align-top bg-orange-900/40 min-w-[110px]">Total Hours Used (Mini PC / Thin Client)</th>
+                                            <th className="p-3 text-center align-top bg-orange-900/40 min-w-[100px]">Total Hours Used (Panel / IFP)</th>
+                                            <th className="p-3 text-center align-top bg-emerald-900/40 min-w-[110px]">Avg Hrs/Day/Sch/CPU</th>
+                                            <th className="p-3 text-center align-top bg-emerald-900/40 min-w-[115px]">Avg Hrs/Day/Sch/Mini PC</th>
+                                            <th className="p-3 text-center align-top bg-emerald-900/40 min-w-[110px]">Avg Hrs/Day/Sch/Panel</th>
+                                            <th className="p-3 text-center align-top bg-pink-900/40 min-w-[80px]">ICT Classes</th>
+                                            <th className="p-3 text-center align-top bg-pink-900/40 min-w-[110px]">Avg Classes/per school/Day</th>
+                                            <th className="p-3 text-center align-top bg-yellow-900/40 min-w-[80px]">Smart Classes</th>
+                                            <th className="p-3 text-center align-top bg-yellow-900/40 min-w-[110px]">Avg Smart Classes/per school/Day</th>
+                                            <th className="p-3 text-center align-top min-w-[80px]">Total ICT Visit</th>
+                                            <th className="p-3 text-center align-top min-w-[80px]">Total Smart Visit</th>
+                                            <th className="p-3 text-center align-top min-w-[90px]">GrandTotal</th>
+                                            <th className="p-3 text-center align-top bg-gradient-to-b from-indigo-700 to-indigo-800 text-white min-w-[120px] shadow-md border-l border-indigo-600">Performance Score</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-200 dark:divide-white/5 text-xs text-gray-700 dark:text-gray-300">
-                                        {projectBreakdownData.map((p) => (
-                                            <tr key={p.projectName} className="hover:bg-teal-50/40 dark:hover:bg-white/[0.02] even:bg-slate-50/70 dark:even:bg-slate-800/10 transition-colors divide-x divide-gray-200 dark:divide-white/5">
-                                                <td className="p-2.5 font-bold text-indigo-700 dark:text-indigo-400">{p.projectName}</td>
-                                                <td className="p-2.5 text-center font-semibold">{p.totalSchools}</td>
-                                                <td className="p-2.5 text-center font-semibold text-emerald-700 dark:text-emerald-400">{p.instructorWorking}</td>
-                                                <td className="p-2.5 text-center">
-                                                    <span className="font-bold text-gray-800 dark:text-gray-200">{p.cpuInstalled}</span>
-                                                    <span className="text-gray-400 mx-0.5">/</span>
-                                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{p.cpuUsed}</span>
-                                                </td>
-                                                <td className="p-2.5 text-center">
-                                                    <span className="font-bold text-gray-800 dark:text-gray-200">{p.miniPcInstalled}</span>
-                                                    <span className="text-gray-400 mx-0.5">/</span>
-                                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{p.miniPcUsed}</span>
-                                                </td>
-                                                <td className="p-2.5 text-center">
-                                                    <span className="font-bold text-gray-800 dark:text-gray-200">{p.panelInstalled}</span>
-                                                    <span className="text-gray-400 mx-0.5">/</span>
-                                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{p.panelUsed}</span>
-                                                </td>
-                                                <td className="p-2.5 text-center font-bold text-slate-700 dark:text-slate-350">{p.totalHours}h</td>
-                                                <td className="p-2.5 text-center">
-                                                    <span className={`px-2 py-0.5 rounded font-black text-[10px] ${parseFloat(p.deviceUtil) >= 60 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : parseFloat(p.deviceUtil) >= 30 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
-                                                        {p.deviceUtil}%
-                                                    </span>
-                                                </td>
-                                                <td className="p-2.5 text-center font-semibold text-indigo-600 dark:text-indigo-400">{p.ictClasses}</td>
-                                                <td className="p-2.5 text-center font-semibold text-purple-600 dark:text-purple-400">{p.smartClasses}</td>
-                                                <td className="p-2.5 text-center font-semibold text-gray-600 dark:text-gray-400">{p.classRate}</td>
-                                                <td className="p-2.5 text-center font-bold text-teal-600 dark:text-teal-400">{p.totalVisits}</td>
-                                                <td className="p-2.5 text-center font-semibold text-gray-600 dark:text-gray-400">{p.monitoring}</td>
-                                                <td className="p-2.5 text-center">
-                                                    <span className={`px-2 py-0.5 rounded font-black text-[10px] ${parseFloat(p.instRate) >= 80 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : parseFloat(p.instRate) >= 50 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
-                                                        {p.instRate}%
-                                                    </span>
-                                                </td>
+                                    <tbody className="divide-y divide-gray-100 dark:divide-white/5 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                        {projectBreakdownData.map((p, idx) => (
+                                            <tr key={p.projectName} className="hover:bg-teal-50/50 transition-all group">
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-medium sticky left-0 z-20 bg-white dark:bg-slate-900 group-hover:bg-teal-50/80 dark:group-hover:bg-slate-800 w-[60px] min-w-[60px] max-w-[60px] overflow-hidden text-ellipsis">{idx + 1}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 sticky left-[60px] z-20 bg-white dark:bg-slate-900 group-hover:bg-teal-50/80 dark:group-hover:bg-slate-800 w-[120px] min-w-[120px] max-w-[120px] overflow-hidden text-ellipsis font-bold text-teal-800 dark:text-teal-500">{p.projectName}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-semibold text-gray-700 dark:text-gray-300">{p.totalDistricts}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400">{p.totalCCs}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400">{p.totalSchools}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400">{p.instructorWorking}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-red-50/20 dark:bg-red-950/10 font-bold text-red-650 dark:text-red-400">{p.totalSchools - p.instructorWorking}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold text-teal-700 dark:text-teal-400">{p.cpuInstalled}</td>
+                                                <td className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-red-50/20 dark:bg-red-950/10 font-bold ${p.edustatNotInstalled > 0 ? 'text-red-650 dark:text-red-400' : 'text-gray-400'}`}>{p.edustatNotInstalled}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold text-teal-700 dark:text-teal-400">{p.cpuUsed}</td>
+                                                <td className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-blue-50/30 dark:bg-blue-950/10 font-bold ${p.cpuNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}>{p.cpuNotUsed}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold text-teal-700 dark:text-teal-400">{p.miniPcInstalled}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold text-teal-700 dark:text-teal-400">{p.miniPcUsed}</td>
+                                                <td className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-purple-50/30 dark:bg-purple-950/10 font-bold ${p.miniPcNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}>{p.miniPcNotUsed}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold text-teal-700 dark:text-teal-400">{p.panelInstalled}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold text-teal-700 dark:text-teal-400">{p.panelUsed}</td>
+                                                <td className={`p-3 border-r border-gray-100 dark:border-white/5 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-bold ${p.panelNotUsed > 0 ? 'text-red-500' : 'text-gray-400'}`}>{p.panelNotUsed}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400">{p.totalCpuHours}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400">{p.totalMiniPcHours}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-orange-50/30 dark:bg-orange-950/10 font-bold text-teal-700 dark:text-teal-400">{p.totalPanelHours}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold">{p.avgCpu}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold">{p.avgMini}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 font-bold">{p.avgPanel}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-pink-50/30 dark:bg-pink-950/10 text-pink-700 dark:text-pink-400 font-bold">{p.ictClasses}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-pink-50/30 dark:bg-pink-950/10 font-bold text-teal-700 dark:text-teal-400">{p.avgClasses}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-yellow-50/30 dark:bg-yellow-950/10 text-yellow-700 dark:text-yellow-400 font-bold">{p.smartClasses}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center bg-yellow-50/30 dark:bg-yellow-950/10 font-bold text-teal-700 dark:text-teal-400">{p.avgSmartClasses}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400">{p.totalIctVisits}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-bold text-teal-700 dark:text-teal-400">{p.totalSmartVisits}</td>
+                                                <td className="p-3 border-r border-gray-100 dark:border-white/5 text-center font-extrabold text-teal-800 dark:text-teal-400 bg-teal-50/50 dark:bg-slate-800">{p.grandTotal}</td>
+                                                <td className="p-3 text-center font-extrabold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 border-l border-indigo-100 dark:border-white/5 text-sm shadow-[inset_1px_0_0_rgba(0,0,0,0.05)]">{p.performanceScore}%</td>
                                             </tr>
                                         ))}
                                     </tbody>
