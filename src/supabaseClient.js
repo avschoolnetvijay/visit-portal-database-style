@@ -87,25 +87,70 @@ async function setCachedItem(cacheKey, data, lastModified) {
   }
 }
 
+// --- Bandwidth Optimization: TTL-based metadata cache ---
+// Supabase Free Tier allows only 5 GB egress/month.
+// Without this cache, every page load calls storage.list() and re-downloads stale files.
+// With this cache, metadata is checked only once every METADATA_TTL_MS (10 min).
+// Within the TTL window, ALL data is served from local IndexedDB = ZERO Supabase egress.
+const METADATA_CACHE_KEY = '__snet_metadata_map__';
+const METADATA_TTL_MS = 10 * 60 * 1000; // 10 minutes — adjust if needed
+
 let fileMetadataPromise = null;
 function getFileMetadataMap() {
   if (!fileMetadataPromise) {
     fileMetadataPromise = (async () => {
+      // 1. Check IndexedDB for a recently-cached metadata map (within TTL)
+      try {
+        const cached = await getCachedItem(METADATA_CACHE_KEY);
+        if (cached && cached.data && cached.lastModified) {
+          const ageMs = Date.now() - cached.lastModified;
+          if (ageMs < METADATA_TTL_MS) {
+            console.log(`Metadata cache HIT (age: ${Math.round(ageMs / 1000)}s, TTL: ${METADATA_TTL_MS / 1000}s)`);
+            return cached.data;
+          }
+        }
+      } catch (_) {
+        // Ignore cache read errors, proceed to fetch from Supabase
+      }
+
+      // 2. TTL expired or no cache — fetch fresh metadata from Supabase Storage
       try {
         const { data, error } = await supabase.storage
           .from('app-data')
           .list();
         if (error) {
           console.warn("Error listing Supabase Storage metadata:", error);
+          // Fallback to stale cache if any exists (e.g. rate-limited or offline)
+          try {
+            const stale = await getCachedItem(METADATA_CACHE_KEY);
+            if (stale && stale.data) {
+              console.log('Using stale metadata cache as fallback after list error');
+              return stale.data;
+            }
+          } catch (_) {}
           return {};
         }
         const map = {};
         data.forEach(item => {
           map[item.name] = item.updated_at || item.created_at || '';
         });
+
+        // 3. Persist metadata map to IndexedDB with current timestamp as TTL anchor
+        try {
+          await setCachedItem(METADATA_CACHE_KEY, map, Date.now());
+        } catch (_) {}
+
         return map;
       } catch (err) {
         console.warn("Unexpected error listing Supabase Storage metadata:", err);
+        // Fallback to stale cache
+        try {
+          const stale = await getCachedItem(METADATA_CACHE_KEY);
+          if (stale && stale.data) {
+            console.log('Using stale metadata cache as fallback after unexpected error');
+            return stale.data;
+          }
+        } catch (_) {}
         return {};
       }
     })();
@@ -193,14 +238,16 @@ export async function set(key, val) {
       throw error;
     }
 
-    // Invalidate list cache promise
+    // Invalidate list cache promise (in-memory)
     fileMetadataPromise = null;
 
-    // Clear local cached item to force fresh fetch on next read
+    // Clear local cached item AND metadata cache to force fresh fetch on next read
     try {
       const db = await openDB();
       const transaction = db.transaction(STORE_NAME, 'readwrite');
-      transaction.objectStore(STORE_NAME).delete(fileName);
+      const store = transaction.objectStore(STORE_NAME);
+      store.delete(fileName);           // Clear stale file cache
+      store.delete(METADATA_CACHE_KEY); // Invalidate metadata TTL so next get() re-checks
     } catch (e) {
       console.warn("Failed to clear local cache item on set:", e);
     }
