@@ -589,6 +589,8 @@ const ZonePerformance = ({
 
             return {
                 projectName: p.projectName,
+                udises: p.udises,
+                ccNames: p.ccNames,
                 totalSchools: p.totalSchools,
                 totalDistricts: p.districts.size,
                 totalCCs: p.ccNames.size,
