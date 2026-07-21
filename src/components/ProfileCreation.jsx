@@ -53,11 +53,35 @@ const permissionMenus = [
         ]
     },
     { 
+        id: 'zone-performance', 
+        label: 'Zone Performance', 
+        under: 'Performance Analysis',
+        subFeatures: [
+            { id: 'excel-export-zone', label: 'Excel Export' }
+        ]
+    },
+    { 
         id: 'school-performance', 
         label: 'School Performance', 
         under: 'Performance Analysis',
         subFeatures: [
             { id: 'excel-export-school', label: 'Excel Export' }
+        ]
+    },
+    { 
+        id: 'school-search', 
+        label: 'School Wise Search', 
+        under: 'Performance Analysis',
+        subFeatures: [
+            { id: 'excel-export-school-search', label: 'Excel Export' }
+        ]
+    },
+    { 
+        id: 'cc-analysis', 
+        label: 'CC/DEF Analysis', 
+        under: 'Performance Analysis',
+        subFeatures: [
+            { id: 'excel-export-cc', label: 'Excel Export' }
         ]
     },
     { id: 'reports', label: 'Reports & Export', under: 'Reports' },
@@ -69,6 +93,14 @@ const permissionMenus = [
             { id: 'ppt-export', label: 'PPT Export' },
             { id: 'print-deck', label: 'Print Slide Deck' },
             { id: 'excel-export-analysis', label: 'Excel Export' }
+        ]
+    },
+    { 
+        id: 'review-meeting', 
+        label: 'Review Meeting', 
+        under: 'Reports',
+        subFeatures: [
+            { id: 'ppt-export-review', label: 'PPT Export' }
         ]
     },
     { id: 'setup', label: 'Data Upload', under: 'System Setup' },
