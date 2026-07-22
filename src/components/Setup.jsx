@@ -16,6 +16,7 @@ const Setup = ({
     jhpmsLab = [],
     edustat = [],
     manpower = [],
+    visit360 = [],
     ccNameMapping = {},
     onUpdateNameMapping,
     uploadAsSession,
@@ -23,9 +24,11 @@ const Setup = ({
     visitsMeta,
     jhpmsLabMeta,
     edustatMeta,
+    visit360Meta,
     activeVisits = null,
     activeJhpmsLab = null,
     activeEdustat = null,
+    activeVisit360 = null,
     onDeleteRange
 }) => {
     const [deleteTarget, setDeleteTarget] = React.useState('all');
@@ -51,6 +54,7 @@ const Setup = ({
     const timelineVisits = activeVisits || visits;
     const timelineJhpms = activeJhpmsLab || jhpmsLab;
     const timelineEdustat = activeEdustat || edustat;
+    const timelineVisit360 = activeVisit360 || visit360;
 
     const mismatchList = React.useMemo(() => {
         const mismatchListLocal = [];
@@ -206,7 +210,7 @@ const Setup = ({
                         <h3>Field Team Performance Data</h3>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="border border-dashed border-gray-300 rounded p-6 hover:border-amber-500 bg-gray-50 transition relative">
                             <div className="font-bold text-amber-700 mb-2 text-xs uppercase">3. JHPMS Lab Data</div>
                             <input type="file" onChange={(e) => onUpload(e, 'jhpms_lab')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
@@ -246,6 +250,22 @@ const Setup = ({
                                 <div className="text-[10px] text-gray-500 mt-2 leading-relaxed">Read-Only baseline managed by Admin. Syncs automatically.</div>
                             </div>
                         )}
+                        {userRole === 'admin' ? (
+                            <div className="border border-dashed border-gray-300 rounded p-6 hover:border-emerald-600 bg-gray-50 transition relative">
+                                <div className="font-bold text-emerald-800 mb-2 text-xs uppercase flex items-center justify-between">
+                                    <span>6. Visit 360 Logs</span>
+                                </div>
+                                <input type="file" onChange={(e) => onUpload(e, 'visit360')} accept=".xlsx" className="text-xs w-full cursor-pointer" />
+                            </div>
+                        ) : (
+                            <div className="border border-dashed border-gray-300 rounded p-6 bg-gray-100/70 transition relative opacity-70">
+                                <div className="font-bold text-emerald-850 mb-2 text-xs uppercase flex items-center justify-between">
+                                    <span>6. Visit 360 Logs</span>
+                                    <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-black">ADMIN-ONLY</span>
+                                </div>
+                                <div className="text-[10px] text-gray-500 mt-2 leading-relaxed">Read-Only baseline managed by Admin. Syncs automatically.</div>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="bg-gray-50 p-3 border-t border-gray-200 flex justify-between items-center">
@@ -261,6 +281,8 @@ const Setup = ({
                         <span className={status.edustat ? "text-green-600" : "text-gray-400"}>● Daily Logs: {status.edustat || 0}</span>
                         <span className="text-gray-300">|</span>
                         <span className={status.manpower ? "text-green-600" : "text-gray-400"}>● Manpower: {status.manpower || 0}</span>
+                        <span className="text-gray-300">|</span>
+                        <span className={status.visit360 ? "text-green-600" : "text-gray-400"}>● Visit 360 Logs: {status.visit360 || 0}</span>
                     </div>
                     {userRole === 'admin' ? (
                         <button onClick={onReset} className="text-red-600 text-xs font-bold hover:bg-red-50 px-3 py-1 rounded border border-red-200 transition">CLEAR CLOUD DATA</button>
@@ -438,6 +460,18 @@ const Setup = ({
                                 <td className="py-3 px-2 text-right font-mono font-bold text-teal-700">{manpower.length.toLocaleString('en-IN')}</td>
                                 <td className="py-3 px-2 text-gray-400 italic">N/A (Manpower profile list)</td>
                                 <td className="py-3 px-2 text-gray-500 font-medium">Synced from cloud roster</td>
+                            </tr>
+                            {/* Visit 360 Logs */}
+                            <tr>
+                                <td className="py-3 px-2 font-semibold">6. Visit 360 Tracking Logs</td>
+                                <td className="py-3 px-2 text-center">
+                                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase">Cloud</span>
+                                </td>
+                                <td className="py-3 px-2 text-right font-mono font-bold text-teal-700">{visit360.length.toLocaleString('en-IN')}</td>
+                                <td className="py-3 px-2 text-slate-800 font-semibold tracking-wide">
+                                    {calculateDateRanges(timelineVisit360, 'visit_date')}
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 font-medium">{getMetaString(visit360Meta)}</td>
                             </tr>
                         </tbody>
                     </table>

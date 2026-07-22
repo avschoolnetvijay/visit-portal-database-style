@@ -147,11 +147,12 @@ const KpiCard = ({ icon: Icon, iconColor, value, label, sub, highlight, onClick 
 );
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = [], edustat = [], startDate, endDate, ccNameMapping = {}, darkMode = false, onNavigateToSchool, manpower = [], edustatMaster = [], onDrillDown }) {
+export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = [], edustat = [], startDate, endDate, ccNameMapping = {}, darkMode = false, onNavigateToSchool, manpower = [], edustatMaster = [], onDrillDown, visit360 = [] }) {
     const [selectedCC, setSelectedCC] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isMatrixExpanded, setIsMatrixExpanded] = useState(false);
+    const [selectedAnalysisTab, setSelectedAnalysisTab] = useState('performance');
 
     // Build schools map once for O(1) lookups
     const schoolsMap = useMemo(() => {
@@ -194,6 +195,127 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         if (startD && d < startD) return false;
         if (endD && d > endD) return false;
         return true;
+    };
+
+    // Helper to normalize CC names for comparison
+    const cleanName = (n) => String(n || '').trim().toLowerCase();
+
+    // Group Visit 360 records by date
+    const cc360RecordsByDate = useMemo(() => {
+        const map = {};
+        if (!selectedCC || !visit360 || visit360.length === 0) return map;
+        
+        const filtered = visit360.filter(row => {
+            const matchName = cleanName(row.staff_name) === cleanName(selectedCC);
+            const matchDate = row.visit_date && row.visit_date >= startDate && row.visit_date <= endDate;
+            return matchName && matchDate;
+        });
+
+        filtered.forEach(row => {
+            const d = row.visit_date;
+            if (!map[d]) map[d] = [];
+            map[d].push(row);
+        });
+        return map;
+    }, [visit360, selectedCC, startDate, endDate]);
+
+    // Group portal visits by date
+    const portalVisitsByDate = useMemo(() => {
+        const map = {};
+        if (!profile || !profile.ccVisits) return map;
+        profile.ccVisits.forEach(v => {
+            const d = String(v.visit_date || '').split('T')[0];
+            if (d) {
+                if (!map[d]) map[d] = [];
+                map[d].push(v);
+            }
+        });
+        return map;
+    }, [profile]);
+
+    // Sorted activity dates
+    const sortedActivityDates = useMemo(() => {
+        const dates = new Set([
+            ...Object.keys(cc360RecordsByDate),
+            ...Object.keys(portalVisitsByDate)
+        ]);
+        return Array.from(dates).sort().reverse();
+    }, [cc360RecordsByDate, portalVisitsByDate]);
+
+    // Summary statistics for Visit 360 tracking
+    const trackingStats = useMemo(() => {
+        let totalShiftHours = 0;
+        let activeDaysCount = 0;
+        let schoolVisitsCount360 = 0;
+        let schoolVisitsDuration360 = 0;
+        let discrepancyCount = 0;
+
+        Object.entries(cc360RecordsByDate).forEach(([date, records]) => {
+            const dayInOut = records.find(r => String(r.visit_type).toLowerCase().includes('day'));
+            if (dayInOut) {
+                activeDaysCount++;
+                totalShiftHours += parseFloat(dayInOut.duration) || 0;
+            }
+
+            const schoolRecs = records.filter(r => String(r.visit_type).toLowerCase().includes('school'));
+            schoolVisitsCount360 += schoolRecs.length;
+            schoolRecs.forEach(r => {
+                schoolVisitsDuration360 += parseFloat(r.duration) || 0;
+            });
+        });
+
+        // Count mismatches
+        sortedActivityDates.forEach(date => {
+            const recs360 = cc360RecordsByDate[date] || [];
+            const recsPortal = portalVisitsByDate[date] || [];
+            
+            const schoolUdises360 = new Set(
+                recs360
+                    .filter(r => String(r.visit_type).toLowerCase().includes('school'))
+                    .map(r => String(r.udise_code || '').trim())
+                    .filter(Boolean)
+            );
+
+            const schoolUdisesPortal = new Set(
+                recsPortal
+                    .map(v => String(v.udise_code || '').trim())
+                    .filter(Boolean)
+            );
+
+            // Mismatch: portal has school but 360 doesn't
+            schoolUdisesPortal.forEach(u => {
+                if (!schoolUdises360.has(u)) discrepancyCount++;
+            });
+
+            // Mismatch: 360 has school but portal doesn't
+            schoolUdises360.forEach(u => {
+                if (!schoolUdisesPortal.has(u)) discrepancyCount++;
+            });
+        });
+
+        const avgShift = activeDaysCount > 0 ? (totalShiftHours / activeDaysCount).toFixed(1) : 0;
+        const avgSchoolTime = schoolVisitsCount360 > 0 ? ((schoolVisitsDuration360 * 60) / schoolVisitsCount360).toFixed(0) : 0;
+
+        return {
+            totalShiftHours: totalShiftHours.toFixed(1),
+            activeDaysCount,
+            avgShift,
+            avgSchoolTime,
+            discrepancyCount
+        };
+    }, [cc360RecordsByDate, portalVisitsByDate, sortedActivityDates]);
+
+    // Simple helper to format HH:MM:SS to HH:MM AM/PM
+    const formatTimeAMPM = (timeStr) => {
+        if (!timeStr) return '-';
+        const parts = timeStr.split(':');
+        if (parts.length < 2) return timeStr;
+        let hrs = parseInt(parts[0], 10);
+        const mins = String(parts[1]).padStart(2, '0');
+        const ampm = hrs >= 12 ? 'PM' : 'AM';
+        hrs = hrs % 12;
+        hrs = hrs ? hrs : 12;
+        return `${String(hrs).padStart(2, '0')}:${mins} ${ampm}`;
     };
 
     // ── Profile computation ──────────────────────────────────────────────────
@@ -1442,8 +1564,34 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                         </div>
                     </div>
 
-                    {/* ── Visits & Coverage KPI Grid ─────────────────── */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {/* ── Tab Toggle ───────────────────────────────── */}
+                    <div className="flex bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/40 w-fit gap-1 mb-4 select-none">
+                        <button
+                            onClick={() => setSelectedAnalysisTab('performance')}
+                            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                                selectedAnalysisTab === 'performance'
+                                    ? 'bg-teal-600 text-white shadow-sm font-black'
+                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-slate-200'
+                            }`}
+                        >
+                            <TrophyIcon className="w-3.5 h-3.5" /> Performance Summary
+                        </button>
+                        <button
+                            onClick={() => setSelectedAnalysisTab('visit360')}
+                            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                                selectedAnalysisTab === 'visit360'
+                                    ? 'bg-teal-600 text-white shadow-sm font-black'
+                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-slate-200'
+                            }`}
+                        >
+                            <ClockIcon className="w-3.5 h-3.5" /> Visit 360 & Timeline Audit
+                        </button>
+                    </div>
+
+                    {selectedAnalysisTab === 'performance' && (
+                        <>
+                            {/* ── Visits & Coverage KPI Grid ─────────────────── */}
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                         <KpiCard icon={CalendarIcon} iconColor="bg-teal-50 dark:bg-teal-900/20 text-teal-600"
                             value={<span className="flex items-center">{profile.totalVisits} {renderGrowthPill(profile.totalVisits, profile.prevTotalVisits)}</span>} label="Total Visits" 
                             sub={
@@ -2029,7 +2177,6 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                     iconColor = "text-sky-600 dark:text-sky-400";
                                     Icon = AlertIcon;
                                 }
-                                
                                 return (
                                     <div key={insight.id} className={`flex items-start gap-3 p-3.5 rounded-xl border ${bgClass} transition hover:scale-[1.01] duration-150`}>
                                         <div className={`p-1.5 rounded-lg bg-white dark:bg-slate-900 shadow-sm ${iconColor} flex-shrink-0`}>
@@ -2048,6 +2195,226 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                             })}
                         </div>
                     </div>
+                        </>
+                    )}
+
+                    {selectedAnalysisTab === 'visit360' && (
+                        <div className="space-y-4 animate-fade-in">
+                            {/* Summary Card Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-4 rounded-2xl shadow-sm">
+                                    <div className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Tracked Shift Days</div>
+                                    <div className="text-2xl font-black text-teal-700 dark:text-teal-400 mt-1">{trackingStats.activeDaysCount} Days</div>
+                                    <div className="text-[10px] text-gray-500 mt-0.5">With Day In/Out logged</div>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-4 rounded-2xl shadow-sm">
+                                    <div className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Total Shift Hours</div>
+                                    <div className="text-2xl font-black text-cyan-700 dark:text-cyan-400 mt-1">{trackingStats.totalShiftHours} Hrs</div>
+                                    <div className="text-[10px] text-gray-500 mt-0.5">Accumulated duty time</div>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-4 rounded-2xl shadow-sm">
+                                    <div className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Avg Shift Duration</div>
+                                    <div className="text-2xl font-black text-indigo-700 dark:text-indigo-400 mt-1">{trackingStats.avgShift} Hrs/Day</div>
+                                    <div className="text-[10px] text-gray-500 mt-0.5">Average time on field</div>
+                                </div>
+                                <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-4 rounded-2xl shadow-sm">
+                                    <div className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Sync Mismatches</div>
+                                    <div className={`text-2xl font-black mt-1 ${trackingStats.discrepancyCount > 0 ? 'text-rose-600 dark:text-rose-450' : 'text-emerald-600'}`}>{trackingStats.discrepancyCount} Alerts</div>
+                                    <div className="text-[10px] text-gray-500 mt-0.5">Log vs Portal discrepancies</div>
+                                </div>
+                            </div>
+
+                            {/* Daily timeline list */}
+                            <div className="space-y-4">
+                                {sortedActivityDates.length === 0 ? (
+                                    <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-10 text-center text-gray-400 dark:text-slate-500">
+                                        <ClockIcon className="w-10 h-10 mx-auto mb-2 opacity-35" />
+                                        <p className="text-sm font-bold">No Visit 360 Logs or Portal Visits found in this range.</p>
+                                        <p className="text-xs mt-1">Please check range or upload logs in Setup.</p>
+                                    </div>
+                                ) : (
+                                    sortedActivityDates.map(date => {
+                                        const recs360 = cc360RecordsByDate[date] || [];
+                                        const recsPortal = portalVisitsByDate[date] || [];
+                                        
+                                        const dayInOut = recs360.find(r => String(r.visit_type).toLowerCase().includes('day'));
+                                        const schools360 = recs360.filter(r => String(r.visit_type).toLowerCase().includes('school'));
+                                        
+                                        // Match school visits by UDISE
+                                        const matchedVisits = [];
+                                        const portalOnlyVisits = [];
+                                        const trackingOnlyVisits = [];
+                                        
+                                        const udisesIn360 = new Set();
+                                        schools360.forEach(s360 => {
+                                            const u360 = String(s360.udise_code || '').trim();
+                                            udisesIn360.add(u360);
+                                            
+                                            // Find match in portal
+                                            const matchPortal = recsPortal.find(vp => String(vp.udise_code || '').trim() === u360);
+                                            if (matchPortal) {
+                                                matchedVisits.push({ tracking: s360, portal: matchPortal });
+                                            } else {
+                                                trackingOnlyVisits.push(s360);
+                                            }
+                                        });
+                                        
+                                        recsPortal.forEach(vp => {
+                                            const up = String(vp.udise_code || '').trim();
+                                            if (!udisesIn360.has(up)) {
+                                                portalOnlyVisits.push(vp);
+                                            }
+                                        });
+
+                                        return (
+                                            <div key={date} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition">
+                                                {/* Day Header */}
+                                                <div className="bg-slate-50 dark:bg-slate-800/40 px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-wrap justify-between items-center gap-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-2.5 h-2.5 rounded-full bg-teal-600 animate-pulse"></div>
+                                                        <span className="text-sm font-black text-gray-900 dark:text-white">{formatDate(date)}</span>
+                                                        <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-2 py-0.5 rounded font-bold">{new Date(date).toLocaleDateString('en-IN', { weekday: 'long' })}</span>
+                                                    </div>
+                                                    <div className="text-xs font-semibold text-gray-600 dark:text-slate-300">
+                                                        {dayInOut ? (
+                                                            <span className="flex items-center gap-1.5">
+                                                                <ClockIcon className="w-3.5 h-3.5 text-teal-600" />
+                                                                Shift: <strong className="text-teal-700 dark:text-teal-400">{formatTimeAMPM(dayInOut.in_time)} - {formatTimeAMPM(dayInOut.out_time)}</strong> ({dayInOut.duration.toFixed(1)} Hrs)
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                                                ⚠️ Shift Log Missing (No Day In/Out)
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Day Timeline Details */}
+                                                <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-5 divide-y lg:divide-y-0 lg:divide-x divide-slate-150 dark:divide-slate-800">
+                                                    {/* Left Side: 360 Tracking Logs */}
+                                                    <div className="space-y-4 pr-0 lg:pr-5">
+                                                        <h4 className="text-[11px] uppercase tracking-wider font-extrabold text-teal-800 dark:text-teal-400 flex items-center gap-1">
+                                                            <ClockIcon className="w-3.5 h-3.5" /> Visit 360 App GPS Tracking Logs
+                                                        </h4>
+
+                                                        {schools360.length === 0 ? (
+                                                            <div className="text-xs text-gray-400 dark:text-slate-500 italic py-2">No school visits logged in the tracking app on this day.</div>
+                                                        ) : (
+                                                            <div className="space-y-3">
+                                                                {schools360.map((s360, idx) => {
+                                                                    const hasPortalReport = matchedVisits.some(mv => mv.tracking === s360);
+                                                                    return (
+                                                                        <div key={idx} className="bg-slate-50/50 dark:bg-slate-800/20 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800/60 relative">
+                                                                            <div className="flex justify-between items-start gap-2">
+                                                                                <div>
+                                                                                    <div className="text-xs font-black text-slate-800 dark:text-slate-200">{s360.place_name || 'Unknown School'}</div>
+                                                                                    <div className="text-[10px] font-mono text-gray-400 mt-0.5">UDISE: {s360.udise_code || 'N/A'}</div>
+                                                                                </div>
+                                                                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                                                                                    hasPortalReport 
+                                                                                        ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 border border-emerald-200/50' 
+                                                                                        : 'bg-yellow-50 dark:bg-yellow-950/20 text-yellow-600 border border-yellow-250/30'
+                                                                                }`}>
+                                                                                    {hasPortalReport ? 'Verified ✅' : 'Report Pending ⚠️'}
+                                                                                </span>
+                                                                            </div>
+
+                                                                            {/* Times */}
+                                                                            <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-2.5 flex items-center gap-2 flex-wrap">
+                                                                                <span className="bg-teal-50 dark:bg-teal-950/20 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded">In: {formatTimeAMPM(s360.in_time)}</span>
+                                                                                <span className="bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded">Out: {formatTimeAMPM(s360.out_time)}</span>
+                                                                                <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400 px-2 py-0.5 rounded">Duration: {s360.duration.toFixed(1)} Hrs</span>
+                                                                            </div>
+
+                                                                            {/* Addresses */}
+                                                                            <div className="mt-3 text-[10px] text-gray-500 dark:text-slate-400 space-y-1 bg-white dark:bg-slate-900/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/40">
+                                                                                <div className="flex items-start gap-1">
+                                                                                    <strong className="text-slate-700 dark:text-slate-300 flex-shrink-0">GPS Entry:</strong>
+                                                                                    <span className="line-clamp-2">{s360.in_address || 'Address not captured'}</span>
+                                                                                </div>
+                                                                                {s360.out_address && (
+                                                                                    <div className="flex items-start gap-1">
+                                                                                        <strong className="text-slate-700 dark:text-slate-300 flex-shrink-0">GPS Exit:</strong>
+                                                                                        <span className="line-clamp-2">{s360.out_address}</span>
+                                                                                    </div>
+                                                                                )}
+                                                                                {s360.remarks && (
+                                                                                    <div className="text-slate-600 dark:text-slate-400 italic mt-1.5 border-t border-slate-50 dark:border-slate-800/50 pt-1.5">
+                                                                                        <strong>Remarks:</strong> {s360.remarks}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Right Side: Visit Portal Verification Comparison */}
+                                                    <div className="space-y-4 pt-4 lg:pt-0 pl-0 lg:pl-5">
+                                                        <h4 className="text-[11px] uppercase tracking-wider font-extrabold text-indigo-800 dark:text-indigo-400 flex items-center gap-1">
+                                                            <TrophyIcon className="w-3.5 h-3.5" /> Portal Visit Reports & Verification
+                                                        </h4>
+
+                                                        {recsPortal.length === 0 ? (
+                                                            <div className="text-xs text-gray-400 dark:text-slate-500 italic py-2">No portal reports submitted for this day.</div>
+                                                        ) : (
+                                                            <div className="space-y-3">
+                                                                {recsPortal.map((vp, idx) => {
+                                                                    const trackingRecord = schools360.find(s360 => String(s360.udise_code || '').trim() === String(vp.udise_code || '').trim());
+                                                                    const matchStatus = trackingRecord ? 'Verified' : 'Unverified';
+                                                                    
+                                                                    return (
+                                                                        <div key={idx} className={`p-3.5 rounded-xl border relative ${
+                                                                            matchStatus === 'Verified'
+                                                                                ? 'bg-emerald-50/20 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900/30'
+                                                                                : 'bg-red-50/20 dark:bg-red-950/10 border-red-100 dark:border-red-900/30'
+                                                                        }`}>
+                                                                            <div className="flex justify-between items-start gap-2">
+                                                                                <div>
+                                                                                    <div className="text-xs font-black text-slate-800 dark:text-slate-200">{vp.school_name || vp.school || 'Unknown School'}</div>
+                                                                                    <div className="text-[10px] font-mono text-gray-400 mt-0.5">UDISE: {vp.udise_code}</div>
+                                                                                </div>
+                                                                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                                                                                    matchStatus === 'Verified'
+                                                                                        ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 border border-emerald-200/50'
+                                                                                        : 'bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 border border-red-200/30 animate-pulse'
+                                                                                }`}>
+                                                                                    {matchStatus === 'Verified' ? 'GPS Verified ✅' : 'Tracking Missing ⚠️'}
+                                                                                </span>
+                                                                            </div>
+
+                                                                            {/* Details from portal */}
+                                                                            <div className="mt-2.5 text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2 flex-wrap font-bold">
+                                                                                {vp.visit_type && (
+                                                                                    <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400 px-2 py-0.5 rounded">Type: {vp.visit_type}</span>
+                                                                                )}
+                                                                                {vp.visit_time && (
+                                                                                    <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">Logged Time: {vp.visit_time}</span>
+                                                                                )}
+                                                                            </div>
+
+                                                                            {/* Comparative verification warning */}
+                                                                            {matchStatus === 'Unverified' && (
+                                                                                <div className="mt-3 text-[10px] text-red-650 dark:text-red-405 bg-red-50/40 dark:bg-red-950/20 p-2.5 rounded-lg border border-red-100/30 font-semibold leading-relaxed">
+                                                                                    ⚠️ विसंगति: यह विजिट पोर्टल पर रिपोर्ट की गई है, लेकिन 'Visit 360 App' जीपीएस ट्रैकिंग लॉग में इस स्कूल का कोई रिकॉर्ड नहीं मिला।
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
         </div>
