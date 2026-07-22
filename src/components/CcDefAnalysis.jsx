@@ -197,126 +197,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         return true;
     };
 
-    // Helper to normalize CC names for comparison
-    const cleanName = (n) => String(n || '').trim().toLowerCase();
 
-    // Group Visit 360 records by date
-    const cc360RecordsByDate = useMemo(() => {
-        const map = {};
-        if (!selectedCC || !visit360 || visit360.length === 0) return map;
-        
-        const filtered = visit360.filter(row => {
-            const matchName = cleanName(row.staff_name) === cleanName(selectedCC);
-            const matchDate = row.visit_date && row.visit_date >= startDate && row.visit_date <= endDate;
-            return matchName && matchDate;
-        });
-
-        filtered.forEach(row => {
-            const d = row.visit_date;
-            if (!map[d]) map[d] = [];
-            map[d].push(row);
-        });
-        return map;
-    }, [visit360, selectedCC, startDate, endDate]);
-
-    // Group portal visits by date
-    const portalVisitsByDate = useMemo(() => {
-        const map = {};
-        if (!profile || !profile.ccVisits) return map;
-        profile.ccVisits.forEach(v => {
-            const d = String(v.visit_date || '').split('T')[0];
-            if (d) {
-                if (!map[d]) map[d] = [];
-                map[d].push(v);
-            }
-        });
-        return map;
-    }, [profile]);
-
-    // Sorted activity dates
-    const sortedActivityDates = useMemo(() => {
-        const dates = new Set([
-            ...Object.keys(cc360RecordsByDate),
-            ...Object.keys(portalVisitsByDate)
-        ]);
-        return Array.from(dates).sort().reverse();
-    }, [cc360RecordsByDate, portalVisitsByDate]);
-
-    // Summary statistics for Visit 360 tracking
-    const trackingStats = useMemo(() => {
-        let totalShiftHours = 0;
-        let activeDaysCount = 0;
-        let schoolVisitsCount360 = 0;
-        let schoolVisitsDuration360 = 0;
-        let discrepancyCount = 0;
-
-        Object.entries(cc360RecordsByDate).forEach(([date, records]) => {
-            const dayInOut = records.find(r => String(r.visit_type).toLowerCase().includes('day'));
-            if (dayInOut) {
-                activeDaysCount++;
-                totalShiftHours += parseFloat(dayInOut.duration) || 0;
-            }
-
-            const schoolRecs = records.filter(r => String(r.visit_type).toLowerCase().includes('school'));
-            schoolVisitsCount360 += schoolRecs.length;
-            schoolRecs.forEach(r => {
-                schoolVisitsDuration360 += parseFloat(r.duration) || 0;
-            });
-        });
-
-        // Count mismatches
-        sortedActivityDates.forEach(date => {
-            const recs360 = cc360RecordsByDate[date] || [];
-            const recsPortal = portalVisitsByDate[date] || [];
-            
-            const schoolUdises360 = new Set(
-                recs360
-                    .filter(r => String(r.visit_type).toLowerCase().includes('school'))
-                    .map(r => String(r.udise_code || '').trim())
-                    .filter(Boolean)
-            );
-
-            const schoolUdisesPortal = new Set(
-                recsPortal
-                    .map(v => String(v.udise_code || '').trim())
-                    .filter(Boolean)
-            );
-
-            // Mismatch: portal has school but 360 doesn't
-            schoolUdisesPortal.forEach(u => {
-                if (!schoolUdises360.has(u)) discrepancyCount++;
-            });
-
-            // Mismatch: 360 has school but portal doesn't
-            schoolUdises360.forEach(u => {
-                if (!schoolUdisesPortal.has(u)) discrepancyCount++;
-            });
-        });
-
-        const avgShift = activeDaysCount > 0 ? (totalShiftHours / activeDaysCount).toFixed(1) : 0;
-        const avgSchoolTime = schoolVisitsCount360 > 0 ? ((schoolVisitsDuration360 * 60) / schoolVisitsCount360).toFixed(0) : 0;
-
-        return {
-            totalShiftHours: totalShiftHours.toFixed(1),
-            activeDaysCount,
-            avgShift,
-            avgSchoolTime,
-            discrepancyCount
-        };
-    }, [cc360RecordsByDate, portalVisitsByDate, sortedActivityDates]);
-
-    // Simple helper to format HH:MM:SS to HH:MM AM/PM
-    const formatTimeAMPM = (timeStr) => {
-        if (!timeStr) return '-';
-        const parts = timeStr.split(':');
-        if (parts.length < 2) return timeStr;
-        let hrs = parseInt(parts[0], 10);
-        const mins = String(parts[1]).padStart(2, '0');
-        const ampm = hrs >= 12 ? 'PM' : 'AM';
-        hrs = hrs % 12;
-        hrs = hrs ? hrs : 12;
-        return `${String(hrs).padStart(2, '0')}:${mins} ${ampm}`;
-    };
 
     // ── Profile computation ──────────────────────────────────────────────────
     const profile = useMemo(() => {
@@ -1056,6 +937,127 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             ccEdustat
         };
     }, [selectedCC, schools, visits, jhpmsLab, edustat, startD, endD, manpower, edustatMaster]);
+
+    // Helper to normalize CC names for comparison
+    const cleanName = (n) => String(n || '').trim().toLowerCase();
+
+    // Group Visit 360 records by date
+    const cc360RecordsByDate = useMemo(() => {
+        const map = {};
+        if (!selectedCC || !visit360 || visit360.length === 0) return map;
+        
+        const filtered = visit360.filter(row => {
+            const matchName = cleanName(row.staff_name) === cleanName(selectedCC);
+            const matchDate = row.visit_date && row.visit_date >= startDate && row.visit_date <= endDate;
+            return matchName && matchDate;
+        });
+
+        filtered.forEach(row => {
+            const d = row.visit_date;
+            if (!map[d]) map[d] = [];
+            map[d].push(row);
+        });
+        return map;
+    }, [visit360, selectedCC, startDate, endDate]);
+
+    // Group portal visits by date
+    const portalVisitsByDate = useMemo(() => {
+        const map = {};
+        if (!profile || !profile.ccVisits) return map;
+        profile.ccVisits.forEach(v => {
+            const d = String(v.visit_date || '').split('T')[0];
+            if (d) {
+                if (!map[d]) map[d] = [];
+                map[d].push(v);
+            }
+        });
+        return map;
+    }, [profile]);
+
+    // Sorted activity dates
+    const sortedActivityDates = useMemo(() => {
+        const dates = new Set([
+            ...Object.keys(cc360RecordsByDate),
+            ...Object.keys(portalVisitsByDate)
+        ]);
+        return Array.from(dates).sort().reverse();
+    }, [cc360RecordsByDate, portalVisitsByDate]);
+
+    // Summary statistics for Visit 360 tracking
+    const trackingStats = useMemo(() => {
+        let totalShiftHours = 0;
+        let activeDaysCount = 0;
+        let schoolVisitsCount360 = 0;
+        let schoolVisitsDuration360 = 0;
+        let discrepancyCount = 0;
+
+        Object.entries(cc360RecordsByDate).forEach(([date, records]) => {
+            const dayInOut = records.find(r => String(r.visit_type).toLowerCase().includes('day'));
+            if (dayInOut) {
+                activeDaysCount++;
+                totalShiftHours += parseFloat(dayInOut.duration) || 0;
+            }
+
+            const schoolRecs = records.filter(r => String(r.visit_type).toLowerCase().includes('school'));
+            schoolVisitsCount360 += schoolRecs.length;
+            schoolRecs.forEach(r => {
+                schoolVisitsDuration360 += parseFloat(r.duration) || 0;
+            });
+        });
+
+        // Count mismatches
+        sortedActivityDates.forEach(date => {
+            const recs360 = cc360RecordsByDate[date] || [];
+            const recsPortal = portalVisitsByDate[date] || [];
+            
+            const schoolUdises360 = new Set(
+                recs360
+                    .filter(r => String(r.visit_type).toLowerCase().includes('school'))
+                    .map(r => String(r.udise_code || '').trim())
+                    .filter(Boolean)
+            );
+
+            const schoolUdisesPortal = new Set(
+                recsPortal
+                    .map(v => String(v.udise_code || '').trim())
+                    .filter(Boolean)
+            );
+
+            // Mismatch: portal has school but 360 doesn't
+            schoolUdisesPortal.forEach(u => {
+                if (!schoolUdises360.has(u)) discrepancyCount++;
+            });
+
+            // Mismatch: 360 has school but portal doesn't
+            schoolUdises360.forEach(u => {
+                if (!schoolUdisesPortal.has(u)) discrepancyCount++;
+            });
+        });
+
+        const avgShift = activeDaysCount > 0 ? (totalShiftHours / activeDaysCount).toFixed(1) : 0;
+        const avgSchoolTime = schoolVisitsCount360 > 0 ? ((schoolVisitsDuration360 * 60) / schoolVisitsCount360).toFixed(0) : 0;
+
+        return {
+            totalShiftHours: totalShiftHours.toFixed(1),
+            activeDaysCount,
+            avgShift,
+            avgSchoolTime,
+            discrepancyCount
+        };
+    }, [cc360RecordsByDate, portalVisitsByDate, sortedActivityDates]);
+
+    // Simple helper to format HH:MM:SS to HH:MM AM/PM
+    const formatTimeAMPM = (timeStr) => {
+        if (!timeStr) return '-';
+        const parts = timeStr.split(':');
+        if (parts.length < 2) return timeStr;
+        let hrs = parseInt(parts[0], 10);
+        const mins = String(parts[1]).padStart(2, '0');
+        const ampm = hrs >= 12 ? 'PM' : 'AM';
+        hrs = hrs % 12;
+        hrs = hrs ? hrs : 12;
+        return `${String(hrs).padStart(2, '0')}:${mins} ${ampm}`;
+    };
 
     // ── Chart Options ────────────────────────────────────────────────────────
     const trendChartOptions = useMemo(() => ({
