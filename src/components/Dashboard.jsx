@@ -962,6 +962,144 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
     }
   }), [lineChartData, darkMode]);
 
+  // --- Manpower Status Calculations ---
+  const manpowerStatusGroups = useMemo(() => {
+    const cleanUdise = (u) => String(u || '').trim();
+    
+    const manpowerMap = {};
+    manpower.forEach(m => {
+      const udise = cleanUdise(m.udise || m.udise_code || '');
+      if (udise) {
+        if (!manpowerMap[udise]) manpowerMap[udise] = [];
+        manpowerMap[udise].push(m);
+      }
+    });
+
+    let workingCount = 0;
+
+    const requiredDrillList = schools.map(s => {
+      const udise = cleanUdise(s.udise_code);
+      const schoolManpower = manpowerMap[udise] || [];
+      let instructorRec = schoolManpower.find(mp => {
+        const status = String(mp.status || mp.working_status || '').trim().toUpperCase();
+        return status.includes('WORKING') || status.includes('ACTIVE') || status === '';
+      });
+      if (!instructorRec && schoolManpower.length > 0) {
+        instructorRec = schoolManpower[0];
+      }
+      const rawStatus = instructorRec ? (instructorRec.status || 'Active') : 'Vacant';
+      const isWorking = rawStatus.toUpperCase().includes('WORKING') || rawStatus.toUpperCase().includes('ACTIVE') || rawStatus === '';
+      
+      if (isWorking) {
+        workingCount++;
+      }
+
+      return {
+        udise_code: s.udise_code,
+        school_name: s.school_name,
+        block: s.block,
+        district: s.district,
+        visitor_name: s.visitor_name,
+        instructor_name: instructorRec ? (instructorRec.instructorName || instructorRec.instructor_name || 'N/A') : 'N/A',
+        status: rawStatus,
+        isWorking: isWorking
+      };
+    });
+
+    const requiredClean = requiredDrillList.map(({ isWorking, ...rest }) => rest);
+    const workingDrillList = requiredDrillList.filter(item => item.isWorking).map(({ isWorking, ...rest }) => rest);
+    const vacantDrillList = requiredDrillList.filter(item => !item.isWorking).map(({ isWorking, ...rest }) => rest);
+
+    return {
+      required: requiredClean,
+      working: workingDrillList,
+      vacant: vacantDrillList,
+      workingCount,
+      vacantCount: schools.length - workingCount
+    };
+  }, [schools, manpower]);
+
+  // --- EduStat Usage Calculations ---
+  const edustatUsageGroups = useMemo(() => {
+    const cleanUdise = (u) => String(u || '').trim();
+    const validUdises = new Set(schools.map(s => cleanUdise(s.udise_code)));
+    const hoursMap = {};
+    const activeSerials = new Set();
+    const deviceMap = {};
+
+    edustat.forEach(e => {
+      const udise = cleanUdise(e.udise_code || e.udise);
+      if (!udise || !validUdises.has(udise)) return;
+
+      const rawDate = e.date || e.visit_date || '';
+      const d = parseDateRobust(rawDate);
+      if (!d || isNaN(d.getTime())) return;
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+      if (formattedDate < startDate || formattedDate > endDate) return;
+
+      const hVal = e.total_used_hours || e.used_hours || e.hours || e.used || 0;
+      let hrs = 0;
+      const sVal = String(hVal);
+      if (sVal.includes(':')) {
+        const [h, m] = sVal.split(':');
+        hrs = (parseInt(h) || 0) + (parseInt(m) || 0) / 60;
+      } else {
+        hrs = parseFloat(sVal) || 0;
+      }
+
+      if (hrs > 0) {
+        hoursMap[udise] = (hoursMap[udise] || 0) + hrs;
+        if (e.serial) {
+          const serial = String(e.serial).trim();
+          activeSerials.add(serial);
+          
+          if (!deviceMap[serial]) {
+            const schoolObj = schools.find(sch => cleanUdise(sch.udise_code) === udise);
+            deviceMap[serial] = {
+              serial: serial,
+              school_name: schoolObj ? schoolObj.school_name : 'Unknown',
+              block: schoolObj ? schoolObj.block : 'N/A',
+              district: schoolObj ? schoolObj.district : 'N/A',
+              visitor_name: schoolObj ? schoolObj.visitor_name : 'N/A',
+              hours: 0
+            };
+          }
+          deviceMap[serial].hours += hrs;
+        }
+      }
+    });
+
+    const totalHours = Object.values(hoursMap).reduce((acc, curr) => acc + curr, 0);
+
+    const edustatDrilldown = schools.map(s => {
+      const hrs = hoursMap[cleanUdise(s.udise_code)] || 0;
+      return {
+        udise_code: s.udise_code,
+        school_name: s.school_name,
+        block: s.block,
+        district: s.district,
+        visitor_name: s.visitor_name,
+        total_hours: Number(hrs.toFixed(1))
+      };
+    }).sort((a, b) => b.total_hours - a.total_hours);
+
+    const deviceDrilldown = Object.values(deviceMap).map(d => ({
+      ...d,
+      hours: Number(d.hours.toFixed(1))
+    })).sort((a, b) => b.hours - a.hours);
+
+    return {
+      totalHours,
+      activeDevices: activeSerials.size,
+      edustatDrilldown,
+      deviceDrilldown
+    };
+  }, [schools, edustat, startDate, endDate]);
+
   return (
     <div className="space-y-4 animate-fade-in">
       <StatusCards buckets={statusBuckets} onDrillDown={onDrillDown} />
@@ -1015,6 +1153,28 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
             { label: "ICT", value: classConductedGroups.ict.value, color: "text-teal-600", drillData: classConductedGroups.ict.drillData, formula: "Sum of ICT classes conducted (Lab type = ICT, Subject = Computer)." },
             { label: "Smart", value: classConductedGroups.smart.value, color: "text-blue-600", drillData: classConductedGroups.smart.drillData, formula: "Sum of Smart classes conducted (Lab type = Smart, Subject != Computer or MIS)." },
             { label: "MIS", value: classConductedGroups.mis.value, color: "text-amber-600", drillData: classConductedGroups.mis.drillData, formula: "Sum of MIS classes conducted (Subject contains 'MIS')." }
+          ]}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <PortalCard
+          title="Manpower Status"
+          icon={Icons.Instructors}
+          onDrillDown={onDrillDown}
+          items={[
+            { label: "Required", value: manpowerStatusGroups.required.length, drillData: manpowerStatusGroups.required, formula: "Total count of filtered schools (each school requires 1 instructor)." },
+            { label: "Working", value: manpowerStatusGroups.workingCount, color: "text-green-600", drillData: manpowerStatusGroups.working, formula: "Count of filtered schools with an active/working instructor profile." },
+            { label: "Vacant", value: manpowerStatusGroups.vacantCount, color: "text-red-600", drillData: manpowerStatusGroups.vacant, formula: "Count of filtered schools with vacant instructor slots (Required - Working)." }
+          ]}
+        />
+        <PortalCard
+          title="EduStat Device Usage"
+          icon={Icons.Gauge}
+          onDrillDown={onDrillDown}
+          items={[
+            { label: "Total Usage Hours", value: Number(edustatUsageGroups.totalHours.toFixed(1)), drillData: edustatUsageGroups.edustatDrilldown, formula: "Sum of EduStat device usage hours for filtered schools within selected period." },
+            { label: "Active Devices", value: edustatUsageGroups.activeDevices, color: "text-blue-600", drillData: edustatUsageGroups.deviceDrilldown, formula: "Count of unique device serial numbers logging > 0 hours in selected period." }
           ]}
         />
       </div>
