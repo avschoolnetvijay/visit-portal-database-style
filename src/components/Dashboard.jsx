@@ -559,7 +559,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
   );
 };
 
-const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDown, startDate, endDate, darkMode = false }) => {
+const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], edustatMaster = [], onDrillDown, startDate, endDate, darkMode = false }) => {
   const { totalTarget, totalUnique, totalRecords, schools, visits } = data;
   const [hiddenSeries, setHiddenSeries] = useState({ Smart: false, ICT: false });
 
@@ -1081,6 +1081,8 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
     });
 
     const totalHours = Object.values(hoursMap).reduce((acc, curr) => acc + curr, 0);
+    const activeDevices = activeSerials.size;
+    const avgHours = activeDevices > 0 ? Number((totalHours / activeDevices).toFixed(1)) : 0;
 
     const edustatDrilldown = schools.map(s => {
       const hrs = hoursMap[cleanUdise(s.udise_code)] || 0;
@@ -1099,13 +1101,59 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
       hours: Number(d.hours.toFixed(1))
     })).sort((a, b) => b.hours - a.hours);
 
+    // --- Edustat Installation Baseline & Sync Calculations ---
+    const installedDevices = (edustatMaster || []).filter(m => {
+      const udise = cleanUdise(m.udise || m.udise_code || '');
+      return validUdises.has(udise) && String(m.installed || '').toUpperCase() === 'YES';
+    });
+
+    const totalInstalled = installedDevices.length;
+
+    const syncedDevicesList = installedDevices.filter(m => {
+      const serial = String(m.serial || '').trim();
+      return serial && activeSerials.has(serial);
+    });
+
+    const notSyncedDevicesList = installedDevices.filter(m => {
+      const serial = String(m.serial || '').trim();
+      return !serial || !activeSerials.has(serial);
+    });
+
+    const buildDrilldown = (deviceList, statusName) => {
+      return deviceList.map(m => {
+        const udise = cleanUdise(m.udise || m.udise_code || '');
+        const schoolObj = schools.find(sch => cleanUdise(sch.udise_code) === udise);
+        return {
+          udise_code: udise,
+          school_name: schoolObj ? schoolObj.school_name : 'Unknown',
+          block: schoolObj ? schoolObj.block : 'N/A',
+          district: schoolObj ? schoolObj.district : 'N/A',
+          visitor_name: schoolObj ? schoolObj.visitor_name : 'N/A',
+          serial: m.serial || 'N/A',
+          device_type: m.device || 'N/A',
+          status: statusName
+        };
+      });
+    };
+
+    const installedDrilldown = buildDrilldown(installedDevices, 'Installed');
+    const syncedDrilldown = buildDrilldown(syncedDevicesList, 'Synced');
+    const notSyncedDrilldown = buildDrilldown(notSyncedDevicesList, 'Not Synced');
+
     return {
       totalHours,
-      activeDevices: activeSerials.size,
+      activeDevices,
+      avgHours,
+      totalInstalled,
+      syncedCount: syncedDevicesList.length,
+      notSyncedCount: notSyncedDevicesList.length,
       edustatDrilldown,
-      deviceDrilldown
+      deviceDrilldown,
+      installedDrilldown,
+      syncedDrilldown,
+      notSyncedDrilldown
     };
-  }, [schools, edustat, startDate, endDate]);
+  }, [schools, edustat, edustatMaster, startDate, endDate]);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -1164,7 +1212,7 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <PortalCard
           title="Manpower Status"
           icon={Icons.Instructors}
@@ -1181,7 +1229,18 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
           onDrillDown={onDrillDown}
           items={[
             { label: "Total Usage Hours", value: Number(edustatUsageGroups.totalHours.toFixed(1)), drillData: edustatUsageGroups.edustatDrilldown, formula: "Sum of EduStat device usage hours for filtered schools within selected period." },
-            { label: "Active Devices", value: edustatUsageGroups.activeDevices, color: "text-blue-600", drillData: edustatUsageGroups.deviceDrilldown, formula: "Count of unique device serial numbers logging > 0 hours in selected period." }
+            { label: "Active Devices", value: edustatUsageGroups.activeDevices, color: "text-blue-600", drillData: edustatUsageGroups.deviceDrilldown, formula: "Count of unique device serial numbers logging > 0 hours in selected period." },
+            { label: "Avg Hr", value: edustatUsageGroups.avgHours, color: "text-teal-600", drillData: edustatUsageGroups.deviceDrilldown, formula: "Average usage hours per active device (Total Usage Hours / Active Devices)." }
+          ]}
+        />
+        <PortalCard
+          title="Edustat Installation Status"
+          icon={Icons.Setup}
+          onDrillDown={onDrillDown}
+          items={[
+            { label: "Total Devices Installed", value: edustatUsageGroups.totalInstalled, drillData: edustatUsageGroups.installedDrilldown, formula: "Total baseline count of EduStat devices marked as installed ('YES') in Master Inventory." },
+            { label: "Device Synced", value: edustatUsageGroups.syncedCount, color: "text-green-600", drillData: edustatUsageGroups.syncedDrilldown, formula: "Count of installed devices that recorded > 0 usage hours in this period." },
+            { label: "Not Sync", value: edustatUsageGroups.notSyncedCount, color: "text-red-600", drillData: edustatUsageGroups.notSyncedDrilldown, formula: "Count of installed devices that did not log any usage hours in this period." }
           ]}
         />
       </div>

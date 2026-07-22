@@ -2241,6 +2241,7 @@ const App = () => {
                     jhpmsLab={combinedJhpmsLab}
                     edustat={combinedEdustat}
                     manpower={manpower}
+                    edustatMaster={edustatMaster}
                     onDrillDown={handleDrillDown}
                     startDate={startDate}
                     endDate={endDate}
