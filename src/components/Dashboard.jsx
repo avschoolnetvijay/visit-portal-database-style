@@ -1030,6 +1030,27 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], edustatMa
   const edustatUsageGroups = useMemo(() => {
     const cleanUdise = (u) => String(u || '').trim();
     const validUdises = new Set(schools.map(s => cleanUdise(s.udise_code)));
+
+    // Pre-index the latest visit for each school for O(1) lookup speed
+    const schoolLatestVisitMap = {};
+    (visits || []).forEach(v => {
+      const udise = cleanUdise(v.udise_code);
+      if (!udise) return;
+      
+      const rawDate = v.visit_date || v.date || '';
+      const d = parseDateRobust(rawDate);
+      if (!d || isNaN(d.getTime())) return;
+      
+      const currentLatest = schoolLatestVisitMap[udise];
+      if (!currentLatest || d > currentLatest.parsedDate) {
+        schoolLatestVisitMap[udise] = {
+          parsedDate: d,
+          visitor_name: v.visitor_name || v.cc_name || v.def_name || '-',
+          rawDate: rawDate
+        };
+      }
+    });
+
     const hoursMap = {};
     const activeSerials = new Set();
     const deviceMap = {};
@@ -1123,6 +1144,19 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], edustatMa
       return deviceList.map(m => {
         const udise = cleanUdise(m.udise || m.udise_code || '');
         const schoolObj = schools.find(sch => cleanUdise(sch.udise_code) === udise);
+        
+        const latestVisit = schoolLatestVisitMap[udise];
+        let lastVisitor = '-';
+        let lastVisitDate = '-';
+        if (latestVisit) {
+          lastVisitor = latestVisit.visitor_name;
+          const d = latestVisit.parsedDate;
+          const dd = String(d.getDate()).padStart(2, '0');
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const yyyy = d.getFullYear();
+          lastVisitDate = `${dd}-${mm}-${yyyy}`;
+        }
+
         return {
           udise_code: udise,
           school_name: schoolObj ? schoolObj.school_name : 'Unknown',
@@ -1131,7 +1165,9 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], edustatMa
           visitor_name: schoolObj ? schoolObj.visitor_name : 'N/A',
           serial: m.serial || 'N/A',
           device_type: m.device || 'N/A',
-          status: statusName
+          status: statusName,
+          last_visitor: lastVisitor,
+          last_visit_date: lastVisitDate
         };
       });
     };
@@ -1153,7 +1189,7 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], edustatMa
       syncedDrilldown,
       notSyncedDrilldown
     };
-  }, [schools, edustat, edustatMaster, startDate, endDate]);
+  }, [schools, edustat, edustatMaster, visits, startDate, endDate]);
 
   return (
     <div className="space-y-4 animate-fade-in">

@@ -28,6 +28,8 @@ const mapKeyToHeader = (key) => {
         uniquevisits: 'Visits Count',
         targetvisits: 'Target visits',
         lastvisitdate: 'Last Visit Date',
+        last_visitor: 'Last Visitor',
+        last_visit_date: 'Last Visit Date',
         combinedscore: 'Score %',
         compositescore: 'Performance Score',
         jhpmsclasses: 'JHPMS Classes',
