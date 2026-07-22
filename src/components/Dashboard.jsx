@@ -994,6 +994,12 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
         workingCount++;
       }
 
+      // Format last working date cleanly if present (usually statusDate is filled when status is Resigned/Left)
+      let lastWorkingDay = '-';
+      if (instructorRec && instructorRec.statusDate) {
+        lastWorkingDay = instructorRec.statusDate;
+      }
+
       return {
         udise_code: s.udise_code,
         school_name: s.school_name,
@@ -1002,12 +1008,13 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], onDrillDo
         visitor_name: s.visitor_name,
         instructor_name: instructorRec ? (instructorRec.instructorName || instructorRec.instructor_name || 'N/A') : 'N/A',
         status: rawStatus,
+        last_working_day: lastWorkingDay,
         isWorking: isWorking
       };
     });
 
-    const requiredClean = requiredDrillList.map(({ isWorking, ...rest }) => rest);
-    const workingDrillList = requiredDrillList.filter(item => item.isWorking).map(({ isWorking, ...rest }) => rest);
+    const requiredClean = requiredDrillList.map(({ isWorking, last_working_day, ...rest }) => rest);
+    const workingDrillList = requiredDrillList.filter(item => item.isWorking).map(({ isWorking, last_working_day, ...rest }) => rest);
     const vacantDrillList = requiredDrillList.filter(item => !item.isWorking).map(({ isWorking, ...rest }) => rest);
 
     return {
