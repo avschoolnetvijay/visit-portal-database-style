@@ -2389,7 +2389,13 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                                             <div className="space-y-3">
                                                                 {schools360.map((s360, idx) => {
                                                                     const hasPortalReport = matchedVisits.some(mv => mv.tracking === s360);
-                                                                    const distanceMeters = calculateAddressDistanceMeters(s360.in_address, s360.out_address);
+                                                                    const distObj = calculateAddressDistanceMeters(
+                                                                        s360.in_address, 
+                                                                        s360.out_address, 
+                                                                        s360.udise_code, 
+                                                                        udiseToPlusCodeMap, 
+                                                                        schoolsMap[String(s360.udise_code || '').trim()]
+                                                                    );
                                                                     return (
                                                                         <div key={idx} className={`p-4 rounded-xl border bg-white dark:bg-slate-900 shadow-sm relative transition hover:shadow-md ${
                                                                             hasPortalReport 
@@ -2411,26 +2417,28 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                                                             </div>
 
                                                                             {/* Times */}
-                                                                            <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-3 flex items-center gap-2 flex-wrap">
+                                                                            <div className="text-xs font-bold text-slate-650 dark:text-slate-400 mt-3 flex items-center gap-2 flex-wrap">
                                                                                 <span className="bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded border border-teal-100/50 dark:border-teal-900/30">In: {formatTimeAMPM(s360.in_time)}</span>
                                                                                 <span className="bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded border border-rose-100/50 dark:border-rose-900/30">Out: {formatTimeAMPM(s360.out_time)}</span>
                                                                                 <span className="bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100/50 dark:border-indigo-900/30">Duration: {s360.duration.toFixed(1)} Hrs</span>
-                                                                                {distanceMeters !== null && (() => {
-                                                                                    const label = distanceMeters < 1000 
-                                                                                        ? `${distanceMeters.toFixed(0)}m` 
-                                                                                        : `${(distanceMeters/1000).toFixed(1)} km`;
+                                                                                {distObj !== null && (() => {
+                                                                                    const distVal = distObj.distance;
+                                                                                    const prefixSymbol = distObj.isApprox ? '≈' : '';
+                                                                                    const label = distVal < 1000 
+                                                                                        ? `${prefixSymbol}${distVal.toFixed(0)}m` 
+                                                                                        : `${prefixSymbol}${(distVal/1000).toFixed(1)} km`;
                                                                                     
                                                                                     let colorClass = '';
-                                                                                    if (distanceMeters < 100) {
+                                                                                    if (distVal < 100) {
                                                                                         colorClass = 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-100/50 dark:border-emerald-900/30';
-                                                                                    } else if (distanceMeters <= 500) {
+                                                                                    } else if (distVal <= 500) {
                                                                                         colorClass = 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-100/50 dark:border-amber-900/30';
                                                                                     } else {
                                                                                         colorClass = 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border-rose-100/50 dark:border-rose-900/30 animate-pulse';
                                                                                     }
                                                                                     
                                                                                     return (
-                                                                                        <span className={`px-2 py-0.5 rounded border font-black ${colorClass}`} title="In and Out GPS location distance">
+                                                                                        <span className={`px-2 py-0.5 rounded border font-black ${colorClass}`} title={distObj.tooltip}>
                                                                                             📍 In/Out Dist: {label}
                                                                                         </span>
                                                                                     );
