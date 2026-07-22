@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { formatDate } from '../utils';
 import ReactApexChart from 'react-apexcharts';
+import { OpenLocationCode } from 'open-location-code';
 
 // ─── Inline SVG Icons ──────────────────────────────────────────────────────────
 const UserGroupIcon = ({ className }) => (
@@ -145,6 +146,53 @@ const KpiCard = ({ icon: Icon, iconColor, value, label, sub, highlight, onClick 
         {sub && <div className="text-[10px] font-medium text-gray-400 dark:text-slate-500">{sub}</div>}
     </div>
 );
+
+// Helper to calculate geodesic distance between two addresses by parsing their Google Plus Codes
+const calculateAddressDistanceMeters = (inAddress, outAddress) => {
+    if (!inAddress || !outAddress) return null;
+    
+    // Regular expression to extract Plus Code (matches 2 to 8 characters before '+' and 2 or more characters after '+')
+    const olcRegex = /([2-9C-VX-Zc-vx-z]{2,8}\+[2-9C-VX-Zc-vx-z]{2,})/i;
+    const matchIn = inAddress.match(olcRegex);
+    const matchOut = outAddress.match(olcRegex);
+    
+    if (!matchIn || !matchOut) return null;
+    
+    const codeIn = matchIn[1].toUpperCase();
+    const codeOut = matchOut[1].toUpperCase();
+    
+    try {
+        const olc = new OpenLocationCode();
+        // Central coordinates of Jharkhand region (Deoghar/Jamtara/Dumka area) as reference point
+        const refLat = 24.25;
+        const refLng = 86.80;
+        
+        // Recover full global code if it is a short code (short codes have '+' at index 4 or 6, length < 8 before '+')
+        const fullIn = codeIn.indexOf('+') < 8 ? olc.recoverNearest(codeIn, refLat, refLng) : codeIn;
+        const fullOut = codeOut.indexOf('+') < 8 ? olc.recoverNearest(codeOut, refLat, refLng) : codeOut;
+        
+        const decIn = olc.decode(fullIn);
+        const decOut = olc.decode(fullOut);
+        
+        const lat1 = decIn.latitudeCenter;
+        const lon1 = decIn.longitudeCenter;
+        const lat2 = decOut.latitudeCenter;
+        const lon2 = decOut.longitudeCenter;
+        
+        // Haversine formula
+        const R = 6371000; // Radius of the Earth in meters
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c; // Distance in meters
+    } catch (e) {
+        console.error('Error decoding GPS Plus Codes:', e);
+        return null;
+    }
+};
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = [], edustat = [], startDate, endDate, ccNameMapping = {}, darkMode = false, onNavigateToSchool, manpower = [], edustatMaster = [], onDrillDown, visit360 = [] }) {
@@ -2341,6 +2389,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                                             <div className="space-y-3">
                                                                 {schools360.map((s360, idx) => {
                                                                     const hasPortalReport = matchedVisits.some(mv => mv.tracking === s360);
+                                                                    const distanceMeters = calculateAddressDistanceMeters(s360.in_address, s360.out_address);
                                                                     return (
                                                                         <div key={idx} className={`p-4 rounded-xl border bg-white dark:bg-slate-900 shadow-sm relative transition hover:shadow-md ${
                                                                             hasPortalReport 
@@ -2366,6 +2415,26 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                                                                 <span className="bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded border border-teal-100/50 dark:border-teal-900/30">In: {formatTimeAMPM(s360.in_time)}</span>
                                                                                 <span className="bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded border border-rose-100/50 dark:border-rose-900/30">Out: {formatTimeAMPM(s360.out_time)}</span>
                                                                                 <span className="bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100/50 dark:border-indigo-900/30">Duration: {s360.duration.toFixed(1)} Hrs</span>
+                                                                                {distanceMeters !== null && (() => {
+                                                                                    const label = distanceMeters < 1000 
+                                                                                        ? `${distanceMeters.toFixed(0)}m` 
+                                                                                        : `${(distanceMeters/1000).toFixed(1)} km`;
+                                                                                    
+                                                                                    let colorClass = '';
+                                                                                    if (distanceMeters < 100) {
+                                                                                        colorClass = 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-100/50 dark:border-emerald-900/30';
+                                                                                    } else if (distanceMeters <= 500) {
+                                                                                        colorClass = 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-100/50 dark:border-amber-900/30';
+                                                                                    } else {
+                                                                                        colorClass = 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border-rose-100/50 dark:border-rose-900/30 animate-pulse';
+                                                                                    }
+                                                                                    
+                                                                                    return (
+                                                                                        <span className={`px-2 py-0.5 rounded border font-black ${colorClass}`} title="In and Out GPS location distance">
+                                                                                            📍 In/Out Dist: {label}
+                                                                                        </span>
+                                                                                    );
+                                                                                })()}
                                                                             </div>
 
                                                                             {/* Addresses */}
