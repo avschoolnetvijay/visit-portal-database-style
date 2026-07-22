@@ -2237,7 +2237,41 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                 ) : (
                                     sortedActivityDates.map(date => {
                                         const recs360 = cc360RecordsByDate[date] || [];
-                                        const recsPortal = portalVisitsByDate[date] || [];
+                                         const recsPortalRaw = portalVisitsByDate[date] || [];
+                                         
+                                         // Merge duplicate portal visits to the same school on the same day (e.g. ICT + Smart)
+                                         const recsPortal = [];
+                                         const portalGroups = {};
+                                         recsPortalRaw.forEach(vp => {
+                                             const u = String(vp.udise_code || '').trim();
+                                             if (!portalGroups[u]) {
+                                                 portalGroups[u] = [];
+                                             }
+                                             portalGroups[u].push(vp);
+                                         });
+                                         Object.entries(portalGroups).forEach(([udise, visits]) => {
+                                             if (visits.length === 1) {
+                                                 recsPortal.push(visits[0]);
+                                             } else {
+                                                 const base = { ...visits[0] };
+                                                 const types = visits.map(v => String(v.visit_type || '').toLowerCase());
+                                                 const hasIct = types.some(t => t.includes('ict'));
+                                                 const hasSmart = types.some(t => t.includes('smart'));
+                                                 
+                                                 if (hasIct && hasSmart) {
+                                                     base.visit_type = 'ICT + Smart';
+                                                 } else {
+                                                     const uniqueTypes = Array.from(new Set(visits.map(v => v.visit_type).filter(Boolean)));
+                                                     base.visit_type = uniqueTypes.join(' + ');
+                                                 }
+                                                 
+                                                 const uniqueTimes = Array.from(new Set(visits.map(v => v.visit_time).filter(Boolean)));
+                                                 if (uniqueTimes.length > 0) {
+                                                     base.visit_time = uniqueTimes.join(' / ');
+                                                 }
+                                                 recsPortal.push(base);
+                                             }
+                                         });
                                         
                                         const dayInOut = recs360.find(r => String(r.visit_type).toLowerCase().includes('day'));
                                         const schools360 = recs360.filter(r => String(r.visit_type).toLowerCase().includes('school'));
