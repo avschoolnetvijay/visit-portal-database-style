@@ -70,7 +70,25 @@ self.onmessage = function (e) {
                 }
             }
             
-            const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+            let headerRowIndex = 0;
+            const rawJsonHeader1 = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+            if (Array.isArray(rawJsonHeader1)) {
+                for (let r = 0; r < Math.min(10, rawJsonHeader1.length); r++) {
+                    const row = rawJsonHeader1[r] || [];
+                    const hasName = row.some(cell => {
+                        const c = String(cell).toLowerCase();
+                        return c.includes('name') || c.includes('staff') || c.includes('coordinator') || c.includes('visitor');
+                    });
+                    const filledCellsCount = row.filter(cell => String(cell).trim() !== '').length;
+                    
+                    if (hasName && filledCellsCount >= 3) {
+                        headerRowIndex = r;
+                        break;
+                    }
+                }
+            }
+
+            const json = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex, defval: "" });
             
             let currentJson = json;
             if (json.length === 0) {
