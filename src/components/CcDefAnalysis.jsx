@@ -217,6 +217,25 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         return map;
     }, [schools]);
 
+    // Map each UDISE to its first captured Plus Code for offline fallback
+    const udiseToPlusCodeMap = useMemo(() => {
+        const map = {};
+        const olcRegex = /([2-9C-VX-Zc-vx-z]{2,8}\+[2-9C-VX-Zc-vx-z]{2,})/i;
+        visit360.forEach(row => {
+            const u = String(row.udise_code || '').trim();
+            if (!u) return;
+            if (!map[u]) {
+                const inAddr = row.in_address || '';
+                const outAddr = row.out_address || '';
+                const inMatch = inAddr.match(olcRegex);
+                const outMatch = outAddr.match(olcRegex);
+                if (inMatch) map[u] = inMatch[1];
+                else if (outMatch) map[u] = outMatch[1];
+            }
+        });
+        return map;
+    }, [visit360]);
+
     // ── Build unique CC list ──────────────────────────────────────────────────
     const ccList = useMemo(() => {
         const names = new Set();
