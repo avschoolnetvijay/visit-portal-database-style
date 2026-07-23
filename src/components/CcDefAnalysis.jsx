@@ -201,6 +201,10 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isMatrixExpanded, setIsMatrixExpanded] = useState(false);
     const [selectedAnalysisTab, setSelectedAnalysisTab] = useState('performance');
+    const [expandedInsights, setExpandedInsights] = useState({});
+    const toggleInsight = (id) => {
+        setExpandedInsights(prev => ({ ...prev, [id]: !prev[id] }));
+    };
 
     // Build schools map once for O(1) lookups
     const schoolsMap = useMemo(() => {
@@ -920,7 +924,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             insight8Text = `Field inactivity gap: CC had a consecutive block of ${maxGapDays} days without logging any school visits (from ${formatDate(maxGapStart)} to ${formatDate(maxGapEnd)}). Ensure visit schedules are consistent.`;
             insight8Type = 'warning';
         } else {
-            insight8Text = `Consistent field coverage: Maximum consecutive gap between school visits was only ${maxGapDays} days, showing high frequency.`;
+            insight8Text = `Consistent field coverage: Maximum consecutive gap between school visits was only ${maxGapDays} days${maxGapStart && maxGapEnd ? ` (from ${formatDate(maxGapStart)} to ${formatDate(maxGapEnd)})` : ''}, showing high frequency.`;
             insight8Type = 'success';
         }
 
@@ -949,16 +953,137 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         }
 
         const aiInsights = [
-            { id: 1, title: 'Visit Coverage Velocity', text: insight1Text, type: insight1Type },
-            { id: 2, title: 'Resource Allocation Skew', text: insight2Text, type: insight2Type },
-            { id: 3, title: 'JHPMS Classroom Delivery Drop', text: insight3Text, type: insight3Type },
-            { id: 4, title: 'JHPMS Classroom Delivery Growth', text: insight4Text, type: insight4Type },
-            { id: 5, title: 'Cross-Project Activity', text: insight5Text, type: insight5Type },
-            { id: 6, title: 'Device Sync Status', text: insight6Text, type: insight6Type },
-            { id: 7, title: 'Manpower Vacancy Correlation', text: insight7Text, type: insight7Type },
-            { id: 8, title: 'Field Activity Inactivity Gap', text: insight8Text, type: insight8Type },
-            { id: 9, title: 'External vs. Internal Effort', text: insight9Text, type: insight9Type },
-            { id: 10, title: 'Admin / MIS Duty Ratio', text: insight10Text, type: insight10Type }
+            {
+                id: 1,
+                title: 'Visit Coverage Velocity',
+                type: insight1Type,
+                summary: visitDelta > 0 
+                    ? `Field activity accelerated: CC conducted ${totalVisits} visits this period vs ${prevTotalVisits} last period (an increase of ${visitDelta} visits, +${prevTotalVisits > 0 ? Math.round((visitDelta / prevTotalVisits) * 100) : 100}%).`
+                    : visitDelta < 0
+                    ? `Field activity decelerated: CC conducted ${totalVisits} visits this period vs ${prevTotalVisits} last period (a drop of ${Math.abs(visitDelta)} visits, -${prevTotalVisits > 0 ? Math.round((Math.abs(visitDelta) / prevTotalVisits) * 100) : 100}%).`
+                    : `Consistent field activity: CC conducted exactly ${totalVisits} visits in both periods.`,
+                details: [
+                    `Current period: ${totalVisits} visits`,
+                    `Previous period: ${prevTotalVisits} visits`,
+                    `Net difference: ${visitDelta > 0 ? '+' : ''}${visitDelta} visits`
+                ]
+            },
+            {
+                id: 2,
+                title: 'Resource Allocation Skew',
+                type: insight2Type,
+                summary: overVisitedSchools.length > 0 && unvisited.length > 0
+                    ? `Resource skew detected: CC visited ${overVisitedSchools.length} schools multiple times (3+) while ${unvisited.length} assigned schools remain unvisited.`
+                    : `Visit distribution is balanced: No significant over-visiting of schools while leaving others neglected.`,
+                details: [
+                    ...(overVisitedSchools.length > 0 ? ['Overvisited Schools (3+ visits):'] : []),
+                    ...overVisitedSchools.map(s => {
+                        const ud = String(s.udise_code || s.udise || '').trim();
+                        const visitCount = visitsBySchool[ud]?.uniqueDates.size || 0;
+                        return `• ${s.school_name} (${visitCount} visits)`;
+                    }),
+                    ...(unvisited.length > 0 ? ['Neglected/Unvisited Assigned Schools:'] : []),
+                    ...unvisited.map(s => `• ${s.school_name} (0 visits in period)`)
+                ]
+            },
+            {
+                id: 3,
+                title: 'JHPMS Classroom Delivery Drop',
+                type: insight3Type,
+                summary: classDrops.length > 0
+                    ? `Drastic class delivery drop: JHPMS classes at ${classDrops.length} assigned schools declined by over 40% compared to the previous period.`
+                    : `Classroom instruction stability: No assigned schools registered a drastic drop (>40%) in JHPMS classes.`,
+                details: classDrops.map(d => `• ${d.name}: JHPMS classes fell to ${d.curr} (was ${d.prev} in previous period)`)
+            },
+            {
+                id: 4,
+                title: 'JHPMS Classroom Delivery Growth',
+                type: insight4Type,
+                summary: classRises.length > 0
+                    ? `Outstanding class delivery growth: JHPMS classes at ${classRises.length} schools surged by over 40% compared to the previous period.`
+                    : `Steady instruction delivery: Class counts are stable without any rapid increases or spikes.`,
+                details: classRises.map(r => `• ${r.name}: JHPMS classes rose to ${r.curr} (was ${r.prev} in previous period)`)
+            },
+            {
+                id: 5,
+                title: 'Cross-Project Activity',
+                type: insight5Type,
+                summary: otherProjectVisitsCount > 0
+                    ? `Cross-project collaboration: CC performed ${otherProjectVisitsCount} visits to schools in external projects.`
+                    : `Focused project alignment: 100% of CC visits were confined within their assigned primary project boundaries.`,
+                details: otherProjectVisitsCount > 0 ? [
+                    'External Project School Visits:',
+                    ...Array.from(new Set(otherProjectVisits.map(v => {
+                        const ud = String(v.udise_code || v.udise || '').trim();
+                        const sch = schoolsMap[ud];
+                        return `• ${sch ? sch.school_name : ud} (${sch?.project_name || 'External'} project)`;
+                    })))
+                ] : []
+            },
+            {
+                id: 6,
+                title: 'Device Sync Status',
+                type: insight6Type,
+                summary: deviceSlumps.length > 0
+                    ? `Device sync alerts: EduStat devices at ${deviceSlumps.length} schools went completely offline (0 hours logged) after active syncing in the previous period.`
+                    : `Stable device syncing: No previously active digital devices dropped to zero activity in this period.`,
+                details: deviceSlumps.map(s => `• ${s}: Device went offline (0 hours logged this period vs active syncing previously)`)
+            },
+            {
+                id: 7,
+                title: 'Manpower Vacancy Correlation',
+                type: insight7Type,
+                summary: vacantCount > 0 && avgWorkingClass > avgVacantClass * 1.5
+                    ? `Manpower vacancy impact: Schools with working instructors averaged ${avgWorkingClass.toFixed(1)} classes, compared to only ${avgVacantClass.toFixed(1)} classes in vacant schools.`
+                    : `Manpower status is not limiting performance: Vacant schools are maintaining classroom instruction levels close to working ones.`,
+                details: [
+                    `• Working Schools Count: ${workingCount}`,
+                    `• Vacant Schools Count: ${vacantCount}`,
+                    `• Working Schools Class Average: ${avgWorkingClass.toFixed(1)} classes`,
+                    `• Vacant Schools Class Average: ${avgVacantClass.toFixed(1)} classes`,
+                    `• Working Schools EduStat Hours Average: ${workingCount > 0 ? (workingSyncHours / workingCount).toFixed(1) : 0} hours`,
+                    `• Vacant Schools EduStat Hours Average: ${vacantCount > 0 ? (vacantSyncHours / vacantCount).toFixed(1) : 0} hours`
+                ]
+            },
+            {
+                id: 8,
+                title: 'Field Activity Inactivity Gap',
+                type: insight8Type,
+                summary: maxGapDays >= 7
+                    ? `Field inactivity gap: CC had a consecutive block of ${maxGapDays} days without logging any school visits.`
+                    : `Consistent field coverage: Maximum consecutive gap between school visits was only ${maxGapDays} days${maxGapStart && maxGapEnd ? ` (from ${formatDate(maxGapStart)} to ${formatDate(maxGapEnd)})` : ''}.`,
+                details: maxGapDays > 0 && maxGapStart && maxGapEnd ? [
+                    `• Maximum inactivity gap: ${maxGapDays} consecutive days`,
+                    `• Gap Period: From ${formatDate(maxGapStart)} to ${formatDate(maxGapEnd)}`
+                ] : [
+                    `• Maximum inactivity gap: ${maxGapDays} consecutive days`
+                ]
+            },
+            {
+                id: 9,
+                title: 'External vs. Internal Effort',
+                type: insight9Type,
+                summary: otherVisitsPct >= 30
+                    ? `High external effort bias: ${otherVisitsPct}% of CC visits (${otherVisitsCount} visits) were to unassigned schools.`
+                    : `Targeted focus: CC dedicated ${100 - otherVisitsPct}% of their visits to assigned schools.`,
+                details: [
+                    `• Total visits logged: ${totalVisits}`,
+                    `• Assigned schools visits: ${assignedVisitsCount} visits (${100 - otherVisitsPct}%)`,
+                    `• Unassigned/Other schools visits: ${otherVisitsCount} visits (${otherVisitsPct}%)`
+                ]
+            },
+            {
+                id: 10,
+                title: 'Admin / MIS Duty Ratio',
+                type: insight10Type,
+                summary: misPct >= 30
+                    ? `Admin Overhead Alert: MIS entries make up ${misPct}% of CC's classroom records.`
+                    : `Balanced admin ratio: MIS entries make up only ${misPct}% of school logs.`,
+                details: [
+                    `• MIS / Non-teaching entries: ${misCount} (${misPct}% of total)`,
+                    `• Regular classroom teaching: ${totalJhpmsClasses} classes (${100 - misPct}%)`
+                ]
+            }
         ];
 
         return {
@@ -979,6 +1104,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             // Previous Period variables
             prevTotalVisits,
             prevCoveragePct,
+            prevVisitedAssignedCount,
             prevTotalJhpmsClasses,
             prevTotalEduHours,
             prevCompositeScore,
@@ -2253,19 +2379,48 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                     iconColor = "text-sky-600 dark:text-sky-400";
                                     Icon = AlertIcon;
                                 }
+                                const isExpanded = !!expandedInsights[insight.id];
+                                const hasDetails = insight.details && insight.details.length > 0;
                                 return (
-                                    <div key={insight.id} className={`flex items-start gap-3 p-3.5 rounded-xl border ${bgClass} transition hover:scale-[1.01] duration-150`}>
-                                        <div className={`p-1.5 rounded-lg bg-white dark:bg-slate-900 shadow-sm ${iconColor} flex-shrink-0`}>
-                                            <Icon className="w-4 h-4" />
+                                    <div key={insight.id} className={`flex flex-col gap-2 p-3.5 rounded-xl border ${bgClass} transition duration-150`}>
+                                        <div className="flex items-start gap-3">
+                                            <div className={`p-1.5 rounded-lg bg-white dark:bg-slate-900 shadow-sm ${iconColor} flex-shrink-0`}>
+                                                <Icon className="w-4 h-4" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <h4 className={`text-xs font-black ${titleClass}`}>
+                                                        {insight.title}
+                                                    </h4>
+                                                    {hasDetails && (
+                                                        <button 
+                                                            onClick={() => toggleInsight(insight.id)}
+                                                            className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded transition shrink-0 ${
+                                                                isExpanded 
+                                                                    ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-350' 
+                                                                    : 'bg-[#2d8b7e] text-white hover:bg-[#226c62]'
+                                                            }`}
+                                                        >
+                                                            {isExpanded ? 'Hide Details ▲' : 'Show Details ▼'}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <p className={`text-[11px] font-medium leading-relaxed mt-1 ${textClass}`}>
+                                                    {insight.summary}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h4 className={`text-xs font-black ${titleClass} flex items-center gap-1.5`}>
-                                                {insight.title}
-                                            </h4>
-                                            <p className={`text-[11px] font-medium leading-relaxed mt-1 ${textClass}`}>
-                                                {insight.text}
-                                            </p>
-                                        </div>
+                                        {hasDetails && isExpanded && (
+                                            <div className="pl-11 pr-2 pb-1">
+                                                <ul className="space-y-1 text-[10.5px] font-semibold list-none border-l-2 border-dashed border-teal-200/50 pl-3 mt-1.5">
+                                                    {insight.details.map((detail, idx) => (
+                                                        <li key={idx} className={`${textClass} opacity-90`}>
+                                                            {detail}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
