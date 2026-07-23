@@ -2607,7 +2607,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                             </div>
 
                             {/* Daily timeline list */}
-                            <div className="space-y-4">
+                            <div className="space-y-8">
                                 {sortedActivityDates.length === 0 ? (
                                     <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-10 text-center text-gray-400 dark:text-slate-500">
                                         <ClockIcon className="w-10 h-10 mx-auto mb-2 opacity-35" />
@@ -2683,22 +2683,24 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                         });
 
                                         return (
-                                            <div key={date} className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-all duration-200 hover:border-slate-350 dark:hover:border-slate-700">
+                                            <div key={date} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300">
                                                 {/* Day Header */}
-                                                <div className="bg-slate-100/70 dark:bg-slate-850 px-5 py-3.5 border-b-2 border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center gap-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-2.5 h-2.5 rounded-full bg-teal-500 animate-pulse"></div>
-                                                        <span className="text-sm font-black text-slate-850 dark:text-white">{formatDate(date)}</span>
-                                                        <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded font-bold">{new Date(date).toLocaleDateString('en-IN', { weekday: 'long' })}</span>
+                                                <div className="bg-slate-50 dark:bg-slate-800/60 px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center gap-4 border-l-[6px] border-l-indigo-650 dark:border-l-indigo-500">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-650 dark:text-indigo-400">
+                                                            <CalendarIcon className="w-4 h-4" />
+                                                        </div>
+                                                        <span className="text-base font-extrabold text-slate-850 dark:text-white tracking-tight">{formatDate(date)}</span>
+                                                        <span className="text-[10px] bg-indigo-100/50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">{new Date(date).toLocaleDateString('en-IN', { weekday: 'long' })}</span>
                                                     </div>
                                                     <div className="text-xs font-bold text-slate-650 dark:text-slate-300">
                                                         {dayInOut ? (
-                                                            <span className="flex items-center gap-1.5 bg-white dark:bg-slate-900 px-3 py-1 rounded-lg border border-slate-205 dark:border-slate-800 shadow-xs">
+                                                            <span className="flex items-center gap-1.5 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
                                                                 <ClockIcon className="w-3.5 h-3.5 text-teal-650" />
                                                                 Shift: <strong className="text-teal-700 dark:text-teal-400">{formatTimeAMPM(dayInOut.in_time)} - {formatTimeAMPM(dayInOut.out_time)}</strong> ({dayInOut.duration.toFixed(1)} Hrs)
                                                             </span>
                                                         ) : (
-                                                            <span className="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 px-3 py-1 rounded-lg border border-amber-200/50 flex items-center gap-1">
+                                                            <span className="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 px-3 py-1.5 rounded-lg border border-amber-200/50 flex items-center gap-1">
                                                                 ⚠️ Shift Log Missing (No Day In/Out)
                                                             </span>
                                                         )}
@@ -2706,7 +2708,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                                 </div>
 
                                                 {/* Day Timeline Details */}
-                                                <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6 bg-slate-50/20 dark:bg-slate-950/5 lg:divide-x lg:divide-slate-200 lg:dark:divide-slate-800">
+                                                <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-900/50 lg:divide-x lg:divide-slate-200 lg:dark:divide-slate-800">
                                                     {/* Left Side: 360 Tracking Logs */}
                                                     <div className="space-y-4 pr-0 lg:pr-3">
                                                         <h4 className="text-[11px] uppercase tracking-wider font-extrabold text-teal-800 dark:text-teal-400 flex items-center gap-1.5 pb-2 border-b border-dashed border-slate-200 dark:border-slate-800 mb-3">
@@ -2842,7 +2844,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                                                             {matchStatus === 'Unverified' && (
                                                                                 <div className="mt-3 text-[10.5px] text-rose-700 dark:text-rose-450 bg-rose-50 dark:bg-rose-950/30 p-2.5 rounded-lg border border-rose-150 dark:border-rose-900/30 font-semibold leading-relaxed flex items-start gap-1">
                                                                                     <span>⚠️</span>
-                                                                                    <span><strong>विसंगति:</strong> यह विजिट पोर्टल पर रिपोर्ट की गई है, लेकिन 'Visit 360 App' जीपीएस ट्रैकिंग लॉग में इस स्कूल का कोई रिकॉर्ड नहीं मिला।</span>
+                                                                                    <span><strong>Discrepancy:</strong> This visit was reported on the portal, but no matching GPS tracking record was found in the 'Visit 360 App' logs.</span>
                                                                                 </div>
                                                                             )}
 
