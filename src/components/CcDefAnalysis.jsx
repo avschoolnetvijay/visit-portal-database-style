@@ -918,13 +918,33 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                 }
             }
         }
+
+        let gapStartStr = '';
+        let gapEndStr = '';
+        let gapPeriodText = '';
+        if (maxGapDays > 0 && maxGapStart && maxGapEnd) {
+            const dStart = new Date(maxGapStart);
+            dStart.setDate(dStart.getDate() + 1);
+            gapStartStr = dStart.toISOString().split('T')[0];
+
+            const dEnd = new Date(maxGapEnd);
+            dEnd.setDate(dEnd.getDate() - 1);
+            gapEndStr = dEnd.toISOString().split('T')[0];
+
+            if (maxGapDays === 1) {
+                gapPeriodText = ` (on ${formatDate(gapStartStr)})`;
+            } else {
+                gapPeriodText = ` (from ${formatDate(gapStartStr)} to ${formatDate(gapEndStr)})`;
+            }
+        }
+
         let insight8Text = '';
         let insight8Type = 'info';
         if (maxGapDays >= 7) {
-            insight8Text = `Field inactivity gap: CC had a consecutive block of ${maxGapDays} days without logging any school visits (from ${formatDate(maxGapStart)} to ${formatDate(maxGapEnd)}). Ensure visit schedules are consistent.`;
+            insight8Text = `Field inactivity gap: CC had a consecutive block of ${maxGapDays} days without logging any school visits${gapPeriodText}. Ensure visit schedules are consistent.`;
             insight8Type = 'warning';
         } else {
-            insight8Text = `Consistent field coverage: Maximum consecutive gap between school visits was only ${maxGapDays} days${maxGapStart && maxGapEnd ? ` (from ${formatDate(maxGapStart)} to ${formatDate(maxGapEnd)})` : ''}, showing high frequency.`;
+            insight8Text = `Consistent field coverage: Maximum consecutive gap between school visits was only ${maxGapDays} days${gapPeriodText}, showing high frequency.`;
             insight8Type = 'success';
         }
 
@@ -1050,11 +1070,11 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                 title: 'Field Activity Inactivity Gap',
                 type: insight8Type,
                 summary: maxGapDays >= 7
-                    ? `Field inactivity gap: CC had a consecutive block of ${maxGapDays} days without logging any school visits.`
-                    : `Consistent field coverage: Maximum consecutive gap between school visits was only ${maxGapDays} days${maxGapStart && maxGapEnd ? ` (from ${formatDate(maxGapStart)} to ${formatDate(maxGapEnd)})` : ''}.`,
-                details: maxGapDays > 0 && maxGapStart && maxGapEnd ? [
+                    ? `Field inactivity gap: CC had a consecutive block of ${maxGapDays} days without logging any school visits${gapPeriodText}.`
+                    : `Consistent field coverage: Maximum consecutive gap between school visits was only ${maxGapDays} days${gapPeriodText}.`,
+                details: maxGapDays > 0 && gapStartStr && gapEndStr ? [
                     `• Maximum inactivity gap: ${maxGapDays} consecutive days`,
-                    `• Gap Period: From ${formatDate(maxGapStart)} to ${formatDate(maxGapEnd)}`
+                    `• Gap Period: ${maxGapDays === 1 ? `On ${formatDate(gapStartStr)}` : `From ${formatDate(gapStartStr)} to ${formatDate(gapEndStr)}`}`
                 ] : [
                     `• Maximum inactivity gap: ${maxGapDays} consecutive days`
                 ]
