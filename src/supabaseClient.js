@@ -226,15 +226,49 @@ export async function get(key, customPrefix) {
     }
 
     console.log(`Querying database table: ${tableName}`);
-    const { data, error } = await supabase
+    // 1. Get total count first
+    const { count, error: countError } = await supabase
       .from(tableName)
-      .select('*');
+      .select('*', { count: 'exact', head: true });
 
-    if (error) {
-      console.error(`Error querying table ${tableName}:`, error);
+    if (countError) {
+      console.error(`Error counting table ${tableName}:`, countError);
       return [];
     }
-    return data || [];
+
+    if (!count) return [];
+
+    console.log(`Table ${tableName} has ${count} total rows. Fetching in parallel batches...`);
+
+    const pageSize = 1000;
+    const numRequests = Math.ceil(count / pageSize);
+    const limitConcurrency = 10; // Fetch up to 10 pages in parallel at a time
+    let allData = [];
+
+    for (let i = 0; i < numRequests; i += limitConcurrency) {
+      const batchPromises = [];
+      for (let j = i; j < Math.min(i + limitConcurrency, numRequests); j++) {
+        const start = j * pageSize;
+        const end = start + pageSize - 1;
+        batchPromises.push(
+          supabase
+            .from(tableName)
+            .select('*')
+            .range(start, end)
+        );
+      }
+      const results = await Promise.all(batchPromises);
+      for (const res of results) {
+        if (res.error) {
+          console.error(`Error fetching range in ${tableName}:`, res.error);
+          throw res.error;
+        }
+        if (res.data) {
+          allData = allData.concat(res.data);
+        }
+      }
+    }
+    return allData;
   } catch (err) {
     console.error(`Unexpected error getting key ${key}:`, err);
     return [];
