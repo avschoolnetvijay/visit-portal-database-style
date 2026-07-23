@@ -154,18 +154,53 @@ const KpiCard = ({ icon: Icon, iconColor, value, label, sub, highlight, onClick 
 );
 
 // Helper to calculate geodesic distance between two addresses by parsing their Google Plus Codes
-const calculateAddressDistanceMeters = (inAddress, outAddress) => {
-    if (!inAddress || !outAddress) return null;
+const calculateAddressDistanceMeters = (inAddress, outAddress, udiseCode = null, udiseToPlusCodeMap = null, schoolObj = null) => {
+    if (!inAddress && !outAddress) return null;
     
     // Regular expression to extract Plus Code (matches 2 to 8 characters before '+' and 2 or more characters after '+')
     const olcRegex = /([2-9C-VX-Zc-vx-z]{2,8}\+[2-9C-VX-Zc-vx-z]{2,})/i;
-    const matchIn = inAddress.match(olcRegex);
-    const matchOut = outAddress.match(olcRegex);
     
-    if (!matchIn || !matchOut) return null;
+    let matchIn = inAddress ? inAddress.match(olcRegex) : null;
+    let matchOut = outAddress ? outAddress.match(olcRegex) : null;
     
-    const codeIn = matchIn[1].toUpperCase();
-    const codeOut = matchOut[1].toUpperCase();
+    let codeIn = matchIn ? matchIn[1].toUpperCase() : null;
+    let codeOut = matchOut ? matchOut[1].toUpperCase() : null;
+    
+    let isApprox = false;
+    let fallbackInfo = '';
+    
+    // Find fallback school Plus Code from UDISE map or schoolObj
+    let schoolPlusCode = null;
+    const cleanUdise = udiseCode ? String(udiseCode).trim() : '';
+    if (cleanUdise) {
+        if (udiseToPlusCodeMap && udiseToPlusCodeMap[cleanUdise]) {
+            schoolPlusCode = udiseToPlusCodeMap[cleanUdise].toUpperCase();
+        } else if (schoolObj && (schoolObj.plus_code || schoolObj.pluscode)) {
+            schoolPlusCode = String(schoolObj.plus_code || schoolObj.pluscode).trim().toUpperCase();
+        }
+    }
+    
+    // Fallback: If one location is missing Plus Code, try to use school location or other side
+    if (!codeIn && codeOut) {
+        codeIn = schoolPlusCode || codeOut;
+        isApprox = true;
+        fallbackInfo = schoolPlusCode ? 'Entry GPS missing; resolved to school location fallback.' : 'Entry GPS missing; assumed same as exit location.';
+    } else if (codeIn && !codeOut) {
+        codeOut = schoolPlusCode || codeIn;
+        isApprox = true;
+        fallbackInfo = schoolPlusCode ? 'Exit GPS missing; resolved to school location fallback.' : 'Exit GPS missing; assumed same as entry location.';
+    } else if (!codeIn && !codeOut) {
+        // Both are plain text / missing Plus Code. Let's see if we can resolve school Plus Code
+        if (schoolPlusCode) {
+            codeIn = schoolPlusCode;
+            codeOut = schoolPlusCode;
+            isApprox = true;
+            fallbackInfo = 'Both GPS logs missing Plus Code; resolved to school location fallback.';
+        } else {
+            // No Plus Code at all, and no school Plus Code. Let's return null.
+            return null;
+        }
+    }
     
     try {
         const olc = new OpenLocationCode();
@@ -193,7 +228,22 @@ const calculateAddressDistanceMeters = (inAddress, outAddress) => {
                   Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
                   Math.sin(dLon/2) * Math.sin(dLon/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c; // Distance in meters
+        
+        const distance = R * c;
+        
+        // Build descriptive tooltip
+        let tooltip = '';
+        if (isApprox) {
+            tooltip = `${fallbackInfo} (Calculated Dist: ${(distance / 1000).toFixed(2)} km)`;
+        } else {
+            tooltip = `In/Out GPS distance calculated exactly from Plus Codes: ${(distance / 1000).toFixed(2)} km`;
+        }
+        
+        return {
+            distance,
+            isApprox,
+            tooltip
+        };
     } catch (e) {
         console.error('Error decoding GPS Plus Codes:', e);
         return null;
