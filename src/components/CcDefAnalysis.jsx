@@ -1511,14 +1511,21 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         onDrillDown(`Repeat Visits Alert - ${selectedCC}`, drillData);
     };
 
-    const renderGrowthPill = (curr, prev, isPercentage = false) => {
+    const renderGrowthPill = (curr, prev, isPercentage = false, absDelta = null) => {
         if (prev === undefined || prev === null) return null;
         
         let delta = curr - prev;
+        let absText = '';
+        if (absDelta !== null) {
+            absText = ` (${absDelta > 0 ? '+' : ''}${absDelta})`;
+        } else if (!isPercentage) {
+            absText = ` (${delta > 0 ? '+' : ''}${delta})`;
+        }
+
         if (delta === 0) {
             return (
                 <span className="inline-flex items-center text-[10px] font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-full ml-2 border border-slate-200 dark:border-slate-700">
-                    0%
+                    0%{absText}
                 </span>
             );
         }
@@ -1537,7 +1544,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         
         return (
             <span className={`inline-flex items-center text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ml-2 border ${colorClass}`}>
-                {isPositive ? '↑' : '↓'} {isPercentage ? `${delta > 0 ? '+' : ''}${delta.toFixed(0)}%` : `${isPositive ? '+' : ''}${pct}%`}
+                {isPositive ? '↑' : '↓'} {isPercentage ? `${delta > 0 ? '+' : ''}${delta.toFixed(0)}%` : `${isPositive ? '+' : ''}${pct}%`}{absText}
             </span>
         );
     };
@@ -1678,7 +1685,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                             onClick={handleOtherVisitsDrillDown} 
                         />
                         <KpiCard icon={SchoolIcon} iconColor="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600"
-                            value={<span className="flex items-center">{profile.visitedAssigned.length}/${profile.assignedSchools.length} {renderGrowthPill(profile.coveragePct, profile.prevCoveragePct, true)}</span>} label="Coverage" 
+                            value={<span className="flex items-center">{profile.visitedAssigned.length}/{profile.assignedSchools.length} {renderGrowthPill(profile.coveragePct, profile.prevCoveragePct, true, profile.visitedAssigned.length - profile.prevVisitedAssignedCount)}</span>} label="Coverage" 
                             sub={<span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-1 block">{profile.coveragePct}% Assigned Schools</span>} 
                         />
                         <KpiCard icon={TrendUpIcon} iconColor="bg-blue-50 dark:bg-blue-900/20 text-blue-600"
@@ -1720,7 +1727,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                             } 
                         />
                         <KpiCard icon={ClockIcon} iconColor="bg-rose-50 dark:bg-rose-900/20 text-rose-600"
-                            value={<span className="flex items-center">{profile.totalEduHours > 0 ? profile.totalEduHours.toFixed(1) : '0'} {renderGrowthPill(profile.totalEduHours, profile.prevTotalEduHours)}</span>} label="EduStat Hours" 
+                            value={<span className="flex items-center">{profile.totalEduHours > 0 ? profile.totalEduHours.toFixed(1) : '0'} {renderGrowthPill(profile.totalEduHours, profile.prevTotalEduHours, false, Number((profile.totalEduHours - profile.prevTotalEduHours).toFixed(1)))}</span>} label="EduStat Hours" 
                             sub={<span className="text-[11.5px] font-bold text-rose-600 dark:text-rose-400 mt-1 block">In assigned schools</span>} 
                         />
                         <KpiCard icon={DeviceIcon} iconColor="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600"
