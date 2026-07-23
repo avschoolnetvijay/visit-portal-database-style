@@ -159,99 +159,121 @@ function getFileMetadataMap() {
 }
 
 // Helper functions using CDN-optimized compressed storage for infinite scaling and zero timeouts
+const TableMap = {
+  'schools': 'schools',
+  'visits': 'visits',
+  'jhpms_lab': 'jhpms_lab',
+  'edustat': 'edustat',
+  'edustat_master': 'edustat_master',
+  'manpower': 'manpower',
+  'visit360': 'visit360'
+};
+
+// Helper functions using SQL Database Tables
 export async function get(key, customPrefix) {
   try {
-    let prefix = customPrefix !== undefined ? customPrefix : getPrefix();
-    // Edustat Master List is a globally shared baseline uploaded only by admin
-    if (key === 'edustat_master') {
-      prefix = 'admin_';
-    }
-    const fileName = `${prefix}${key}.json.gz`;
-
-    // 1. Get remote lastModified timestamp from list cache
-    const metadataMap = await getFileMetadataMap();
-    const remoteLastModified = metadataMap[fileName];
-
-    // Check local IndexedDB cache
-    const cached = await getCachedItem(fileName);
-
-    if (remoteLastModified === undefined) {
-      // If we got an empty metadata map (e.g. offline or list error), fallback to cached data if it exists
-      if (Object.keys(metadataMap).length === 0 && cached) {
-        console.log(`Offline/list-fail fallback: Cache HIT for ${fileName}`);
-        return cached.data;
-      }
-      return undefined;
-    }
-
-    if (cached && cached.lastModified === remoteLastModified) {
-      console.log(`Cache HIT for ${fileName} (lastModified: ${cached.lastModified})`);
-      return cached.data;
-    }
-
-    console.log(`Cache MISS or STALE for ${fileName}. Downloading from storage...`);
-
-    const { data, error } = await supabase.storage
-      .from('app-data')
-      .download(fileName);
-
-    if (error) {
-      // Check if file is not found (400, 404)
-      if (error.status === 400 || error.status === 404 || (error.message && error.message.includes('Object not found'))) {
+    if (key.endsWith('_meta')) {
+      const { data, error } = await supabase
+        .from('metadata')
+        .select('value')
+        .eq('key', key)
+        .maybeSingle();
+      if (error) {
+        console.warn(`Error getting metadata for ${key}:`, error);
         return undefined;
       }
-      console.error(`Error getting key ${key} from Supabase Storage:`, error);
+      return data ? data.value : undefined;
+    }
+
+    const tableName = TableMap[key];
+    if (!tableName) {
+      if (key === 'profile_photo') {
+        return localStorage.getItem('snet_profile_photo') || undefined;
+      }
       return undefined;
     }
 
-    const parsedData = await decompressFromGzipBlob(data);
+    console.log(`Querying database table: ${tableName}`);
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('*');
 
-    // Save back to IndexedDB with remote timestamp
-    await setCachedItem(fileName, parsedData, remoteLastModified);
-
-    return parsedData;
+    if (error) {
+      console.error(`Error querying table ${tableName}:`, error);
+      return [];
+    }
+    return data || [];
   } catch (err) {
     console.error(`Unexpected error getting key ${key}:`, err);
-    return undefined;
+    return [];
   }
 }
 
 export async function set(key, val) {
   try {
-    let prefix = getPrefix();
-    // Edustat Master List is a globally shared baseline uploaded only by admin
-    if (key === 'edustat_master') {
-      prefix = 'admin_';
-    }
-    const fileName = `${prefix}${key}.json.gz`;
-    const compressedBlob = await compressToGzipBlob(val);
-    
-    const { error } = await supabase.storage
-      .from('app-data')
-      .upload(fileName, compressedBlob, {
-        contentType: 'application/x-gzip',
-        upsert: true
-      });
-
-    if (error) {
-      console.error(`Error setting key ${key} in Supabase Storage:`, error);
-      throw error;
+    if (key.endsWith('_meta')) {
+      const { error } = await supabase
+        .from('metadata')
+        .upsert({ key, value: val }, { onConflict: 'key' });
+      if (error) {
+        console.error(`Error saving metadata for ${key}:`, error);
+        throw error;
+      }
+      return;
     }
 
-    // Invalidate list cache promise (in-memory)
-    fileMetadataPromise = null;
-
-    // Clear local cached item AND metadata cache to force fresh fetch on next read
-    try {
-      const db = await openDB();
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      store.delete(fileName);           // Clear stale file cache
-      store.delete(METADATA_CACHE_KEY); // Invalidate metadata TTL so next get() re-checks
-    } catch (e) {
-      console.warn("Failed to clear local cache item on set:", e);
+    const tableName = TableMap[key];
+    if (!tableName) {
+      if (key === 'profile_photo') {
+        if (val) localStorage.setItem('snet_profile_photo', val);
+        else localStorage.removeItem('snet_profile_photo');
+        return;
+      }
+      return;
     }
 
+    if (!val || !Array.isArray(val)) {
+      console.warn(`Value for key ${key} is not an array, skipping SQL write.`);
+      return;
+    }
+
+    console.log(`Writing ${val.length} rows to database table: ${tableName}`);
+
+    // 1. Delete all existing records from the table
+    const { error: deleteError } = await supabase
+      .from(tableName)
+      .delete()
+      .neq('id', 0); // Deletes all rows safely
+
+    if (deleteError) {
+      console.error(`Error clearing table ${tableName}:`, deleteError);
+      throw deleteError;
+    }
+
+    if (val.length === 0) return;
+
+    // 2. Clean rows: remove auto-increment id column to let database generate it
+    const cleanRows = val.map(row => {
+      const copy = { ...row };
+      delete copy.id;
+      return copy;
+    });
+
+    // 3. Bulk insert in chunks of 1000 rows
+    const chunkSize = 1000;
+    for (let i = 0; i < cleanRows.length; i += chunkSize) {
+      const chunk = cleanRows.slice(i, i + chunkSize);
+      const { error: insertError } = await supabase
+        .from(tableName)
+        .insert(chunk);
+
+      if (insertError) {
+        console.error(`Error bulk inserting chunk into ${tableName}:`, insertError);
+        throw insertError;
+      }
+    }
+
+    console.log(`Successfully updated table ${tableName}.`);
   } catch (err) {
     console.error(`Unexpected error setting key ${key}:`, err);
     throw err;

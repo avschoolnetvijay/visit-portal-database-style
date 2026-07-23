@@ -853,104 +853,45 @@ const App = () => {
                 let userV = [], userJl = [], userE = [];
                 let userVM = null, userJlM = null, userEM = null;
 
-                if (resolvedRole === 'admin') {
-                    const [resSchools, resVisits, resJhpms, resEdustat, resEdustatMaster, resManpower, resPhoto, resVMeta, resJlMeta, resEMeta, resV360, resV360Meta] = await Promise.all([
-                        get('schools'),
-                        get('visits'),
-                        get('jhpms_lab'),
-                        get('edustat'),
-                        get('edustat_master'),
-                        get('manpower'),
-                        get('profile_photo'),
-                        get('visits_meta'),
-                        get('jhpms_lab_meta'),
-                        get('edustat_meta'),
-                        get('visit360'),
-                        get('visit360_meta')
-                    ]);
-                    s = resSchools;
-                    v = resVisits;
-                    jl = resJhpms;
-                    e = resEdustat;
-                    em = resEdustatMaster;
-                    m = resManpower;
-                    p = resPhoto;
-                    vMeta = resVMeta;
-                    jlMeta = resJlMeta;
-                    eMeta = resEMeta;
-                    v360 = resV360;
-                    v360Meta = resV360Meta;
-                } else {
-                    const [
-                        adminSchools,
-                        adminManpower,
-                        adminVisits,
-                        adminJhpms,
-                        adminEdustat,
-                        adminVMeta,
-                        adminJlMeta,
-                        adminEMeta,
-                        
-                        customVisits,
-                        customJhpms,
-                        customEdustat,
-                        customVMeta,
-                        customJlMeta,
-                        customEMeta,
-                        
-                        resPhoto,
-                        resEdustatMaster,
-                        adminVisit360,
-                        adminVisit360Meta
-                    ] = await Promise.all([
-                        get('schools', 'admin_'),
-                        get('manpower', 'admin_'),
-                        get('visits', 'admin_'),
-                        get('jhpms_lab', 'admin_'),
-                        get('edustat', 'admin_'),
-                        get('visits_meta', 'admin_'),
-                        get('jhpms_lab_meta', 'admin_'),
-                        get('edustat_meta', 'admin_'),
-                        
-                        get('visits'),
-                        get('jhpms_lab'),
-                        get('edustat'),
-                        get('visits_meta'),
-                        get('jhpms_lab_meta'),
-                        get('edustat_meta'),
-                        
-                        get('profile_photo'),
-                        get('edustat_master'),
-                        get('visit360', 'admin_'),
-                        get('visit360_meta', 'admin_')
-                    ]);
-                    s = adminSchools;
-                    m = adminManpower;
-                    em = resEdustatMaster;
-                    p = resPhoto;
-                    v360 = adminVisit360;
-                    v360Meta = adminVisit360Meta;
-                    
-                    v = mergeVisits(adminVisits, customVisits);
-                    jl = mergeJhpms(adminJhpms, customJhpms);
-                    e = mergeEdustat(adminEdustat, customEdustat);
-                    
-                    setBaselineVisits(adminVisits || []);
-                    setBaselineJhpmsLab(adminJhpms || []);
-                    setBaselineEdustat(adminEdustat || []);
+                // Fetch all datasets from the SQL tables in parallel
+                const [resSchools, resVisits, resJhpms, resEdustat, resEdustatMaster, resManpower, resPhoto, resVMeta, resJlMeta, resEMeta, resV360, resV360Meta] = await Promise.all([
+                    get('schools'),
+                    get('visits'),
+                    get('jhpms_lab'),
+                    get('edustat'),
+                    get('edustat_master'),
+                    get('manpower'),
+                    get('profile_photo'),
+                    get('visits_meta'),
+                    get('jhpms_lab_meta'),
+                    get('edustat_meta'),
+                    get('visit360'),
+                    get('visit360_meta')
+                ]);
+                s = resSchools;
+                v = resVisits;
+                jl = resJhpms;
+                e = resEdustat;
+                em = resEdustatMaster;
+                m = resManpower;
+                p = resPhoto;
+                vMeta = resVMeta;
+                jlMeta = resJlMeta;
+                eMeta = resEMeta;
+                v360 = resV360;
+                v360Meta = resV360Meta;
 
-                    userV = customVisits || [];
-                    userJl = customJhpms || [];
-                    userE = customEdustat || [];
-                    
-                    userVM = customVMeta;
-                    userJlM = customJlMeta;
-                    userEM = customEMeta;
-                    
-                    vMeta = adminVMeta;
-                    jlMeta = adminJlMeta;
-                    eMeta = adminEMeta;
-                }
+                // For database style, local baseline defaults to the main cloud tables
+                setBaselineVisits(v || []);
+                setBaselineJhpmsLab(jl || []);
+                setBaselineEdustat(e || []);
+
+                userV = [];
+                userJl = [];
+                userE = [];
+                userVM = null;
+                userJlM = null;
+                userEM = null;
 
                 if (p) {
                     localStorage.setItem('snet_profile_photo', p);
