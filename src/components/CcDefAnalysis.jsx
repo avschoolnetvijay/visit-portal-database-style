@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { formatDate, exportToExcel } from '../utils';
+import { formatDate, exportToExcel, parseDateRobust } from '../utils';
 import ReactApexChart from 'react-apexcharts';
 import { OpenLocationCode } from 'open-location-code';
 
@@ -93,9 +93,15 @@ const SparklesIcon = ({ className }) => (
 
 // ─── Utility ───────────────────────────────────────────────────────────────────
 const parseDateLocal = (d) => {
-    if (!d) return null;
-    const dt = new Date(d);
-    return isNaN(dt.getTime()) ? null : dt;
+    return parseDateRobust(d);
+};
+
+const toLocalYYYYMMDD = (d) => {
+    if (!d) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
 
 const getDaysSince = (dateStr) => {
@@ -391,7 +397,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             visitsBySchool[ud].visits.push(v);
             const d = parseDateLocal(v.visit_date);
             if (d) {
-                visitsBySchool[ud].uniqueDates.add(d.toISOString().split('T')[0]);
+                visitsBySchool[ud].uniqueDates.add(toLocalYYYYMMDD(d));
             }
             if (d && (!visitsBySchool[ud].lastDate || d > parseDateLocal(visitsBySchool[ud].lastDate))) {
                 visitsBySchool[ud].lastDate = v.visit_date;
@@ -406,7 +412,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             const ud = String(v.udise_code || v.udise || '').trim();
             const d = parseDateLocal(v.visit_date);
             if (ud && d) {
-                const dateStr = d.toISOString().split('T')[0];
+                const dateStr = toLocalYYYYMMDD(d);
                 if (assignedSchoolUdises.has(ud)) {
                     assignedUniqueVisitSet.add(`${ud}_${dateStr}`);
                 } else {
@@ -427,7 +433,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             const ud = String(v.udise_code || v.udise || '').trim();
             const d = parseDateLocal(v.visit_date);
             if (ud && d) {
-                const dateStr = d.toISOString().split('T')[0];
+                const dateStr = toLocalYYYYMMDD(d);
                 if (assignedSchoolUdises.has(ud)) {
                     prevAssignedUniqueVisitSet.add(`${ud}_${dateStr}`);
                 } else {
@@ -522,7 +528,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             prevVisitsBySchool[ud].visits.push(v);
             const d = parseDateLocal(v.visit_date);
             if (d) {
-                prevVisitsBySchool[ud].uniqueDates.add(d.toISOString().split('T')[0]);
+                prevVisitsBySchool[ud].uniqueDates.add(toLocalYYYYMMDD(d));
             }
             if (d && (!prevVisitsBySchool[ud].lastDate || d > parseDateLocal(prevVisitsBySchool[ud].lastDate))) {
                 prevVisitsBySchool[ud].lastDate = v.visit_date;
@@ -706,7 +712,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             const ud = String(v.udise_code || v.udise || '').trim();
             const d = parseDateLocal(v.visit_date);
             if (ud && d) {
-                const dateStr = d.toISOString().split('T')[0];
+                const dateStr = toLocalYYYYMMDD(d);
                 if (!ccToUniqueVisits[cc]) ccToUniqueVisits[cc] = new Set();
                 ccToUniqueVisits[cc].add(`${ud}_${dateStr}`);
 
@@ -755,7 +761,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             const ud = String(v.udise_code || v.udise || '').trim();
             const d = parseDateLocal(v.visit_date);
             if (!d || !ud) return;
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = toLocalYYYYMMDD(d);
             const signature = `${ud}_${dateStr}`;
             if (seenCurrSchoolDates.has(signature)) return;
             seenCurrSchoolDates.add(signature);
@@ -770,7 +776,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             const ud = String(v.udise_code || v.udise || '').trim();
             const d = parseDateLocal(v.visit_date);
             if (!d || !ud) return;
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = toLocalYYYYMMDD(d);
             const signature = `${ud}_${dateStr}`;
             if (seenPrevSchoolDates.has(signature)) return;
             seenPrevSchoolDates.add(signature);
@@ -909,7 +915,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             if (isOtherProj) {
                 const d = parseDateLocal(v.visit_date);
                 if (d) {
-                    const dateStr = d.toISOString().split('T')[0];
+                    const dateStr = toLocalYYYYMMDD(d);
                     otherProjectUniqueVisits.add(`${ud}_${dateStr}`);
                 }
             }
@@ -1002,15 +1008,21 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         let maxGapStart = null;
         let maxGapEnd = null;
         if (sortedVisits.length > 1) {
-            const chronVisits = [...sortedVisits].sort((a, b) => new Date(a.visit_date) - new Date(b.visit_date));
+            const chronVisits = [...sortedVisits].sort((a, b) => {
+                const da = parseDateLocal(a.visit_date);
+                const db = parseDateLocal(b.visit_date);
+                return (da?.getTime() || 0) - (db?.getTime() || 0);
+            });
             for (let i = 0; i < chronVisits.length - 1; i++) {
-                const d1 = new Date(chronVisits[i].visit_date);
-                const d2 = new Date(chronVisits[i+1].visit_date);
-                const gap = Math.floor((d2 - d1) / (86400000)) - 1;
-                if (gap > maxGapDays) {
-                    maxGapDays = gap;
-                    maxGapStart = chronVisits[i].visit_date;
-                    maxGapEnd = chronVisits[i+1].visit_date;
+                const d1 = parseDateLocal(chronVisits[i].visit_date);
+                const d2 = parseDateLocal(chronVisits[i+1].visit_date);
+                if (d1 && d2) {
+                    const gap = Math.floor((d2.getTime() - d1.getTime()) / (86400000)) - 1;
+                    if (gap > maxGapDays) {
+                        maxGapDays = gap;
+                        maxGapStart = chronVisits[i].visit_date;
+                        maxGapEnd = chronVisits[i+1].visit_date;
+                    }
                 }
             }
         }
@@ -1019,13 +1031,17 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         let gapEndStr = '';
         let gapPeriodText = '';
         if (maxGapDays > 0 && maxGapStart && maxGapEnd) {
-            const dStart = new Date(maxGapStart);
-            dStart.setDate(dStart.getDate() + 1);
-            gapStartStr = dStart.toISOString().split('T')[0];
+            const dStart = parseDateLocal(maxGapStart);
+            if (dStart) {
+                dStart.setDate(dStart.getDate() + 1);
+                gapStartStr = toLocalYYYYMMDD(dStart);
+            }
 
-            const dEnd = new Date(maxGapEnd);
-            dEnd.setDate(dEnd.getDate() - 1);
-            gapEndStr = dEnd.toISOString().split('T')[0];
+            const dEnd = parseDateLocal(maxGapEnd);
+            if (dEnd) {
+                dEnd.setDate(dEnd.getDate() - 1);
+                gapEndStr = toLocalYYYYMMDD(dEnd);
+            }
 
             if (maxGapDays === 1) {
                 gapPeriodText = ` (on ${formatDate(gapStartStr)})`;
@@ -1419,7 +1435,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             const udise = String(v.udise_code || v.udise || '').trim();
             const d = parseDateLocal(v.visit_date);
             if (!udise || !d) return;
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = toLocalYYYYMMDD(d);
             const key = `${udise}_${dateStr}`;
             if (!grouped[key]) {
                 grouped[key] = {
@@ -1467,7 +1483,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             const udise = String(v.udise_code || v.udise || '').trim();
             const d = parseDateLocal(v.visit_date);
             if (!udise || !d) return;
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = toLocalYYYYMMDD(d);
             const key = `${udise}_${dateStr}`;
             if (!grouped[key]) {
                 grouped[key] = {
