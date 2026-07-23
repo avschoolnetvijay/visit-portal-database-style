@@ -169,6 +169,38 @@ const TableMap = {
   'visit360': 'visit360'
 };
 
+const AllowedColumnsMap = {
+  'schools': [
+    'udise_code', 'school_name', 'zone', 'district', 'block',
+    'project_name', 'visitor_name', 'latitude', 'longitude',
+    'plus_code', 'cluster', 'monthly_target'
+  ],
+  'visits': [
+    'udise_code', 'visit_date', 'visitor_name', 'remarks',
+    'gps_in', 'gps_out', 'distance', 'geocoded_address_in',
+    'geocoded_address_out', 'visit_type'
+  ],
+  'jhpms_lab': [
+    'udise', 'date', 'labType', 'subject', 'subjectTeacher',
+    'inTime', 'outTime', 'totalHour', 'theoryPractical'
+  ],
+  'edustat': [
+    'udise', 'serial', 'date', 'hours'
+  ],
+  'edustat_master': [
+    'udise', 'device', 'serial', 'installed'
+  ],
+  'manpower': [
+    'udise', 'status', 'instructorName', 'joiningDate', 'statusDate'
+  ],
+  'visit360': [
+    'visit_date', 'visit_type', 'staff_name', 'designation',
+    'udise_code', 'place_name', 'state', 'district', 'block',
+    'in_time', 'out_time', 'duration', 'remarks', 'in_address',
+    'out_address'
+  ]
+};
+
 // Helper functions using SQL Database Tables
 export async function get(key, customPrefix) {
   try {
@@ -252,10 +284,23 @@ export async function set(key, val) {
 
     if (val.length === 0) return;
 
-    // 2. Clean rows: remove auto-increment id column to let database generate it
+    // 2. Clean rows: remove auto-increment id column and keep only valid columns
+    const allowedCols = AllowedColumnsMap[tableName];
     let cleanRows = val.map(row => {
-      const copy = { ...row };
-      delete copy.id;
+      const copy = {};
+      if (allowedCols) {
+        allowedCols.forEach(col => {
+          if (row[col] !== undefined) {
+            copy[col] = row[col];
+          }
+        });
+      } else {
+        Object.keys(row).forEach(k => {
+          if (k !== 'id') {
+            copy[k] = row[k];
+          }
+        });
+      }
       return copy;
     });
 
