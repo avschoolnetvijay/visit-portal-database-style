@@ -182,9 +182,11 @@ const TargetCard = ({ target, achieved, gap, onDrillDown, schools }) => {
   );
 };
 
-const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower = [], onDrillDown }) => {
+const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower = [], startDate, endDate, onDrillDown }) => {
   const insights = useMemo(() => {
     const list = [];
+    const cleanUdise = (u) => String(u || '').trim();
+    const validUdises = new Set(schools.map(s => cleanUdise(s.udise_code)));
 
     // Helper to normalize manpower status
     const normalizeManpowerStatus = (statusStr) => {
@@ -196,30 +198,52 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       return 'Vacant';
     };
 
-    // --- 1. Pre-index EduStat Hours by UDISE ---
+    // --- 1. Pre-index EduStat Hours by UDISE (Filtered by valid schools and date range!) ---
     const hoursMap = {};
     edustat.forEach(e => {
-      const udise = String(e.udise_code || e.udise || '').trim();
-      if (!udise) return;
+      const udise = cleanUdise(e.udise_code || e.udise || '');
+      if (!udise || !validUdises.has(udise)) return;
+
+      const rawDate = e.date || e.visit_date || '';
+      const d = parseDateRobust(rawDate);
+      if (!d || isNaN(d.getTime())) return;
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+      if (formattedDate < startDate || formattedDate > endDate) return;
+
       const hVal = e.total_used_hours || e.used_hours || e.hours || e.used || 0;
       let hrs = 0;
-      const s = String(hVal);
-      if (s.includes(':')) {
-        const [h, m] = s.split(':');
+      const sVal = String(hVal);
+      if (sVal.includes(':')) {
+        const [h, m] = sVal.split(':');
         hrs = (parseInt(h) || 0) + (parseInt(m) || 0) / 60;
       } else {
-        hrs = parseFloat(s) || 0;
+        hrs = parseFloat(sVal) || 0;
       }
       hoursMap[udise] = (hoursMap[udise] || 0) + hrs;
     });
 
-    // --- 2. Pre-index JHPMS Classes by UDISE ---
+    // --- 2. Pre-index JHPMS Classes by UDISE (Filtered by valid schools and date range!) ---
     const classesMap = {};
     const ictClassesMap = {};
     const smartClassesMap = {};
     jhpmsLab.forEach(j => {
-      const udise = String(j.udise_code || j.udise || '').trim();
-      if (!udise) return;
+      const udise = cleanUdise(j.udise_code || j.udise || '');
+      if (!udise || !validUdises.has(udise)) return;
+
+      const rawDate = j.visit_date || j.date || '';
+      const d = parseDateRobust(rawDate);
+      if (!d || isNaN(d.getTime())) return;
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+      if (formattedDate < startDate || formattedDate > endDate) return;
+
       const cls = Number(j.no_of_classes || j.classes || 1) || 1;
       classesMap[udise] = (classesMap[udise] || 0) + cls;
 
@@ -237,18 +261,18 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
     // --- 3. Pre-index Manpower by UDISE ---
     const manpowerMap = {};
     manpower.forEach(m => {
-      const udise = String(m.udise_code || m.udise || '').trim();
+      const udise = cleanUdise(m.udise_code || m.udise || '');
       if (udise) {
         manpowerMap[udise] = m;
       }
     });
 
-    // Determine the maximum date in the dataset to act as the current baseline (for historic log compatibility)
-    let maxLogDate = new Date();
-    if (visits && visits.length > 0) {
+    // Determine the baseline date (use active filter endDate, or max log date, or today)
+    let baselineDate = endDate ? new Date(endDate) : new Date();
+    if (!endDate && visits && visits.length > 0) {
       const dates = visits.map(v => new Date(v.visit_date)).filter(d => !isNaN(d.getTime()));
       if (dates.length > 0) {
-        maxLogDate = new Date(Math.max(...dates));
+        baselineDate = new Date(Math.max(...dates));
       }
     }
 
@@ -294,7 +318,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       const hours = (hoursMap[sample.udise_code] || 0).toFixed(1);
       const classes = classesMap[sample.udise_code] || 0;
       
-      const drill = techSyncAnomalies.map(s => {
+      const drill = [sample].map(s => {
         const mRecord = manpowerMap[s.udise_code];
         const hVal = hoursMap[s.udise_code] || 0;
         return {
@@ -302,9 +326,10 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           school_name: s.school_name,
           visitor_name: s.visitor_name,
           instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          hours: Number(hVal.toFixed(1)),
+          jhpmsClasses: classesMap[s.udise_code] || 0,
           ictClasses: ictClassesMap[s.udise_code] || 0,
           smartClasses: smartClassesMap[s.udise_code] || 0,
-          edustatSync: hVal > 0 ? 'Yes' : 'No',
           lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
           status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
         };
@@ -323,21 +348,26 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       const mRecord = manpowerMap[s.udise_code];
       const isActive = mRecord && normalizeManpowerStatus(mRecord.status || mRecord.working_status) === 'Active';
       const classes = classesMap[s.udise_code] || 0;
-      const daysSince = s.lastVisit ? Math.floor((maxLogDate - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
+      const daysSince = s.lastVisit ? Math.floor((baselineDate - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
       return isActive && classes === 0 && daysSince >= 15;
     });
     if (vacancyLeakSchools.length > 0) {
       const sample = vacancyLeakSchools[0];
-      const drill = vacancyLeakSchools.map(s => {
+      const daysSince = sample.lastVisit ? Math.floor((baselineDate - new Date(sample.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
+      
+      const drill = [sample].map(s => {
         const mRecord = manpowerMap[s.udise_code];
+        const days = s.lastVisit ? Math.floor((baselineDate - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
         return {
           udise_code: s.udise_code,
           school_name: s.school_name,
           visitor_name: s.visitor_name,
           instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          jhpmsClasses: classesMap[s.udise_code] || 0,
           ictClasses: ictClassesMap[s.udise_code] || 0,
           smartClasses: smartClassesMap[s.udise_code] || 0,
           lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
+          days_since_last_visit: days === 999 ? 'Never Visited' : `${days} Days`,
           status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown'),
           instructorStatus: mRecord ? (mRecord.status || mRecord.working_status || 'Active') : 'Active'
         };
@@ -345,7 +375,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
       list.push({
         type: 'danger',
-        text: `🚨 Vacancy Leak: ${sample.school_name} has active instructor but 0 classes & visits for 15+ days.`,
+        text: `🚨 Vacancy Leak: ${sample.school_name} has active instructor but 0 classes & visits for ${daysSince === 999 ? '15+' : daysSince} days.`,
         title: `Vacancy Leakage Details - ${sample.school_name}`,
         data: drill
       });
@@ -353,14 +383,14 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
     // --- 7. Self-Sustaining Star Schools ---
     const selfSustainingSchools = schools.filter(s => {
-      const daysSince = s.lastVisit ? Math.floor((maxLogDate - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
+      const daysSince = s.lastVisit ? Math.floor((baselineDate - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
       const classes = classesMap[s.udise_code] || 0;
       const hours = hoursMap[s.udise_code] || 0;
       return (s.uniqueVisits === 0 || daysSince >= 60) && classes > 30 && hours > 20;
     });
     if (selfSustainingSchools.length > 0) {
       const sample = selfSustainingSchools[0];
-      const drill = selfSustainingSchools.map(s => {
+      const drill = [sample].map(s => {
         const mRecord = manpowerMap[s.udise_code];
         const hVal = hoursMap[s.udise_code] || 0;
         return {
@@ -368,9 +398,10 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           school_name: s.school_name,
           visitor_name: s.visitor_name,
           instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          hours: Number(hVal.toFixed(1)),
+          jhpmsClasses: classesMap[s.udise_code] || 0,
           ictClasses: ictClassesMap[s.udise_code] || 0,
           smartClasses: smartClassesMap[s.udise_code] || 0,
-          hours: hVal,
           lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
           status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
         };
@@ -378,7 +409,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
       list.push({
         type: 'success',
-        text: `🏆 Self-Sustaining: ${sample.school_name} is thriving with 0 visits but >30 classes & >20 hrs usage.`,
+        text: `🏆 Self-Sustaining: ${sample.school_name} is thriving with ${sample.uniqueVisits === 0 ? '0 visits' : 'no recent visits'} but ${classesMap[sample.udise_code] || 0} classes & ${(hoursMap[sample.udise_code] || 0).toFixed(1)} hrs usage.`,
         title: `Self-Sustaining School - ${sample.school_name}`,
         data: drill
       });
@@ -391,16 +422,17 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
     });
     if (lowYieldSchools.length > 0) {
       const sample = lowYieldSchools[0];
-      const drill = lowYieldSchools.map(s => {
+      const drill = [sample].map(s => {
         const mRecord = manpowerMap[s.udise_code];
         return {
           udise_code: s.udise_code,
           school_name: s.school_name,
           visitor_name: s.visitor_name,
           instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          uniqueVisits: s.uniqueVisits,
+          jhpmsClasses: classesMap[s.udise_code] || 0,
           ictClasses: ictClassesMap[s.udise_code] || 0,
           smartClasses: smartClassesMap[s.udise_code] || 0,
-          uniqueVisits: s.uniqueVisits,
           lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
           status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
         };
@@ -408,7 +440,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
       list.push({
         type: 'warning',
-        text: `📉 Low-Yield: ${sample.school_name} visited 2+ times in 60 days with high class count (>15).`,
+        text: `📉 Low-Yield: ${sample.school_name} visited ${sample.uniqueVisits} times in 60 days with high class count (${classesMap[sample.udise_code] || 0}).`,
         title: `Low-Yield Visits - ${sample.school_name}`,
         data: drill
       });
@@ -423,7 +455,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
     });
     if (lockedLabSchools.length > 0) {
       const sample = lockedLabSchools[0];
-      const drill = lockedLabSchools.map(s => {
+      const drill = [sample].map(s => {
         const mRecord = manpowerMap[s.udise_code];
         const hVal = hoursMap[s.udise_code] || 0;
         return {
@@ -431,9 +463,10 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           school_name: s.school_name,
           visitor_name: s.visitor_name,
           instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          hours: Number(hVal.toFixed(1)),
+          jhpmsClasses: classesMap[s.udise_code] || 0,
           ictClasses: ictClassesMap[s.udise_code] || 0,
           smartClasses: smartClassesMap[s.udise_code] || 0,
-          hours: hVal,
           lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
           status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
         };
@@ -496,7 +529,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       const dateVal = dateKey ? mRecord[dateKey] : null;
       const parsedDate = dateVal ? new Date(dateVal) : null;
       if (parsedDate && !isNaN(parsedDate.getTime())) {
-        const days = (maxLogDate - parsedDate) / (1000 * 60 * 60 * 24);
+        const days = (baselineDate - parsedDate) / (1000 * 60 * 60 * 24);
         return days > 30;
       }
       return (classesMap[s.udise_code] || 0) === 0;
@@ -525,7 +558,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
     }
 
     return list;
-  }, [schools, visits, jhpmsLab, edustat, manpower]);
+  }, [schools, visits, jhpmsLab, edustat, manpower, startDate, endDate]);
 
   return (
     <div className="portal-card flex flex-col border border-[#7bbcb8] rounded-xl overflow-hidden bg-white shadow-md font-sans h-full">
@@ -1411,6 +1444,8 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], edustatMa
           jhpmsLab={jhpmsLab} 
           edustat={edustat} 
           manpower={manpower} 
+          startDate={startDate}
+          endDate={endDate}
           onDrillDown={onDrillDown} 
         />
       </div>
