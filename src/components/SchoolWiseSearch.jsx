@@ -1000,10 +1000,13 @@ const SchoolWiseSearch = ({
                                 <div className="p-2.5 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 rounded-xl">
                                     <Icons.Analytics className="w-5 h-5" />
                                 </div>
-                                <div>
+                                <div className="flex-1 min-w-0">
                                     <label className="text-[11px] text-gray-650 uppercase font-extrabold tracking-wide dark:text-slate-400">EduStat Device Hours</label>
                                     <div className="text-xl font-extrabold text-gray-900 dark:text-white mt-0.5">
                                         {schoolProfile.totalEduHours.toFixed(1)} <span className="text-xs text-gray-500 font-bold dark:text-slate-400">hrs</span>
+                                    </div>
+                                    <div className="text-[10px] text-gray-500 dark:text-slate-400 mt-1 font-semibold">
+                                        Avg Daily Usage: {(schoolProfile.totalEduHours / (Number(workingDays) > 0 ? Number(workingDays) : 1)).toFixed(1)} hrs/day
                                     </div>
                                 </div>
                             </div>
@@ -1045,7 +1048,9 @@ const SchoolWiseSearch = ({
                                     <span className="text-[11px] uppercase font-extrabold">Total</span>
                                 </div>
                                 <div className="text-2xl font-black text-teal-850 dark:text-teal-400 my-1">{schoolProfile.totalJhpmsClasses}</div>
-                                <span className="text-[9px] text-gray-500 font-semibold block">ICT + Smart</span>
+                                <span className="text-[9px] text-gray-500 font-semibold block">
+                                    ICT + Smart <span className="text-gray-300 dark:text-slate-700">|</span> Avg: {(schoolProfile.totalJhpmsClasses / (Number(workingDays) > 0 ? Number(workingDays) : 1)).toFixed(1)}/day
+                                </span>
                             </div>
                             <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
                                 <div className="flex items-center justify-center gap-1.5 text-gray-700 dark:text-slate-350 border-b border-gray-150 dark:border-slate-850 pb-1">
@@ -1053,7 +1058,9 @@ const SchoolWiseSearch = ({
                                     <span className="text-[11px] uppercase font-extrabold">Total ICT</span>
                                 </div>
                                 <div className="text-2xl font-black text-cyan-800 dark:text-cyan-400 my-1">{schoolProfile.ictCount}</div>
-                                <span className="text-[9px] text-gray-500 font-semibold block">ICT Classes</span>
+                                <span className="text-[9px] text-gray-500 font-semibold block">
+                                    ICT Classes <span className="text-gray-300 dark:text-slate-700">|</span> Avg: {(schoolProfile.ictCount / (Number(workingDays) > 0 ? Number(workingDays) : 1)).toFixed(1)}/day
+                                </span>
                             </div>
                             <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-3 shadow-md text-center flex flex-col justify-between min-h-[100px]">
                                 <div className="flex items-center justify-center gap-1.5 text-gray-700 dark:text-slate-350 border-b border-gray-150 dark:border-slate-850 pb-1">
