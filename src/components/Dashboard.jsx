@@ -309,16 +309,26 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
     // --- 5. Tech-Sync Discrepancy Alert ---
     const techSyncAnomalies = schools.filter(s => {
+      const mRecord = manpowerMap[s.udise_code];
+      const isActive = mRecord && normalizeManpowerStatus(mRecord.status || mRecord.working_status) === 'Active';
+      if (!isActive) return false;
+
       const hours = hoursMap[s.udise_code] || 0;
       const classes = classesMap[s.udise_code] || 0;
       return (hours > 15 && classes === 0) || (classes > 15 && hours === 0);
+    }).sort((a, b) => {
+      const gapA = Math.abs((hoursMap[a.udise_code] || 0) - (classesMap[a.udise_code] || 0));
+      const gapB = Math.abs((hoursMap[b.udise_code] || 0) - (classesMap[b.udise_code] || 0));
+      return gapB - gapA;
     });
+
     if (techSyncAnomalies.length > 0) {
       const sample = techSyncAnomalies[0];
       const hours = (hoursMap[sample.udise_code] || 0).toFixed(1);
       const classes = classesMap[sample.udise_code] || 0;
+      const extraCount = techSyncAnomalies.length - 1;
       
-      const drill = [sample].map(s => {
+      const drill = techSyncAnomalies.map(s => {
         const mRecord = manpowerMap[s.udise_code];
         const hVal = hoursMap[s.udise_code] || 0;
         return {
@@ -326,6 +336,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           school_name: s.school_name,
           visitor_name: s.visitor_name,
           instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          instructor_joining_date: mRecord && mRecord.joiningDate ? formatDate(mRecord.joiningDate) : 'N/A',
           hours: Number(hVal.toFixed(1)),
           jhpmsClasses: classesMap[s.udise_code] || 0,
           ictClasses: ictClassesMap[s.udise_code] || 0,
@@ -337,8 +348,8 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
       list.push({
         type: 'warning',
-        text: `🔌 Tech-Sync: ${sample.school_name} has discrepancy (${hours} hrs EduStat, ${classes} JHPMS classes).`,
-        title: `Tech-Sync Discrepancy - ${sample.school_name}`,
+        text: `🔌 Tech-Sync: ${sample.school_name} has discrepancy (${hours} hrs EduStat, ${classes} JHPMS classes)${extraCount > 0 ? ` + ${extraCount} Schools` : ''}.`,
+        title: `Tech-Sync Discrepancy (${techSyncAnomalies.length} Schools)`,
         data: drill
       });
     }
@@ -350,12 +361,18 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       const classes = classesMap[s.udise_code] || 0;
       const daysSince = s.lastVisit ? Math.floor((baselineDate - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
       return isActive && classes === 0 && daysSince >= 15;
+    }).sort((a, b) => {
+      const daysA = a.lastVisit ? Math.floor((baselineDate - new Date(a.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
+      const daysB = b.lastVisit ? Math.floor((baselineDate - new Date(b.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
+      return daysB - daysA;
     });
+
     if (vacancyLeakSchools.length > 0) {
       const sample = vacancyLeakSchools[0];
       const daysSince = sample.lastVisit ? Math.floor((baselineDate - new Date(sample.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
+      const extraCount = vacancyLeakSchools.length - 1;
       
-      const drill = [sample].map(s => {
+      const drill = vacancyLeakSchools.map(s => {
         const mRecord = manpowerMap[s.udise_code];
         const days = s.lastVisit ? Math.floor((baselineDate - new Date(s.lastVisit)) / (1000 * 60 * 60 * 24)) : 999;
         return {
@@ -376,8 +393,8 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
       list.push({
         type: 'danger',
-        text: `🚨 Vacancy Leak: ${sample.school_name} has active instructor but 0 classes & visits for ${daysSince === 999 ? '15+' : daysSince} days.`,
-        title: `Vacancy Leakage Details - ${sample.school_name}`,
+        text: `🚨 Vacancy Leak: ${sample.school_name} has active instructor but 0 classes & visits for ${daysSince === 999 ? '15+' : daysSince} days${extraCount > 0 ? ` + ${extraCount} Schools` : ''}.`,
+        title: `Vacancy Leakage Details (${vacancyLeakSchools.length} Schools)`,
         data: drill
       });
     }
@@ -388,10 +405,12 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       const classes = classesMap[s.udise_code] || 0;
       const hours = hoursMap[s.udise_code] || 0;
       return (s.uniqueVisits === 0 || daysSince >= 60) && classes > 30 && hours > 20;
-    });
+    }).sort((a, b) => (classesMap[b.udise_code] || 0) - (classesMap[a.udise_code] || 0));
+
     if (selfSustainingSchools.length > 0) {
       const sample = selfSustainingSchools[0];
-      const drill = [sample].map(s => {
+      const extraCount = selfSustainingSchools.length - 1;
+      const drill = selfSustainingSchools.map(s => {
         const mRecord = manpowerMap[s.udise_code];
         const hVal = hoursMap[s.udise_code] || 0;
         return {
@@ -399,6 +418,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           school_name: s.school_name,
           visitor_name: s.visitor_name,
           instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          instructor_joining_date: mRecord && mRecord.joiningDate ? formatDate(mRecord.joiningDate) : 'N/A',
           hours: Number(hVal.toFixed(1)),
           jhpmsClasses: classesMap[s.udise_code] || 0,
           ictClasses: ictClassesMap[s.udise_code] || 0,
@@ -410,8 +430,8 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
       list.push({
         type: 'success',
-        text: `🏆 Self-Sustaining: ${sample.school_name} is thriving with ${sample.uniqueVisits === 0 ? '0 visits' : 'no recent visits'} but ${classesMap[sample.udise_code] || 0} classes & ${(hoursMap[sample.udise_code] || 0).toFixed(1)} hrs usage.`,
-        title: `Self-Sustaining School - ${sample.school_name}`,
+        text: `🏆 Self-Sustaining: ${sample.school_name} is thriving with ${sample.uniqueVisits === 0 ? '0 visits' : 'no recent visits'} but ${classesMap[sample.udise_code] || 0} classes & ${(hoursMap[sample.udise_code] || 0).toFixed(1)} hrs usage${extraCount > 0 ? ` + ${extraCount} Schools` : ''}.`,
+        title: `Self-Sustaining Schools (${selfSustainingSchools.length} Schools)`,
         data: drill
       });
     }
@@ -420,16 +440,19 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
     const lowYieldSchools = schools.filter(s => {
       const classes = classesMap[s.udise_code] || 0;
       return s.uniqueVisits >= 2 && classes > 15;
-    });
+    }).sort((a, b) => b.uniqueVisits - a.uniqueVisits);
+
     if (lowYieldSchools.length > 0) {
       const sample = lowYieldSchools[0];
-      const drill = [sample].map(s => {
+      const extraCount = lowYieldSchools.length - 1;
+      const drill = lowYieldSchools.map(s => {
         const mRecord = manpowerMap[s.udise_code];
         return {
           udise_code: s.udise_code,
           school_name: s.school_name,
           visitor_name: s.visitor_name,
           instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          instructor_joining_date: mRecord && mRecord.joiningDate ? formatDate(mRecord.joiningDate) : 'N/A',
           uniqueVisits: s.uniqueVisits,
           jhpmsClasses: classesMap[s.udise_code] || 0,
           ictClasses: ictClassesMap[s.udise_code] || 0,
@@ -441,8 +464,8 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
       list.push({
         type: 'warning',
-        text: `📉 Low-Yield: ${sample.school_name} visited ${sample.uniqueVisits} times in 60 days with high class count (${classesMap[sample.udise_code] || 0}).`,
-        title: `Low-Yield Visits - ${sample.school_name}`,
+        text: `📉 Low-Yield: ${sample.school_name} visited ${sample.uniqueVisits} times in 60 days with high class count (${classesMap[sample.udise_code] || 0})${extraCount > 0 ? ` + ${extraCount} Schools` : ''}.`,
+        title: `Low-Yield Field Visits (${lowYieldSchools.length} Schools)`,
         data: drill
       });
     }
@@ -453,10 +476,12 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
       const isActive = mRecord && normalizeManpowerStatus(mRecord.status || mRecord.working_status) === 'Active';
       const hours = hoursMap[s.udise_code] || 0;
       return isActive && hours === 0;
-    });
+    }).sort((a, b) => (classesMap[b.udise_code] || 0) - (classesMap[a.udise_code] || 0));
+
     if (lockedLabSchools.length > 0) {
       const sample = lockedLabSchools[0];
-      const drill = [sample].map(s => {
+      const extraCount = lockedLabSchools.length - 1;
+      const drill = lockedLabSchools.map(s => {
         const mRecord = manpowerMap[s.udise_code];
         const hVal = hoursMap[s.udise_code] || 0;
         return {
@@ -464,6 +489,7 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
           school_name: s.school_name,
           visitor_name: s.visitor_name,
           instructor_name: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          instructor_joining_date: mRecord && mRecord.joiningDate ? formatDate(mRecord.joiningDate) : 'N/A',
           hours: Number(hVal.toFixed(1)),
           jhpmsClasses: classesMap[s.udise_code] || 0,
           ictClasses: ictClassesMap[s.udise_code] || 0,
@@ -475,8 +501,47 @@ const AIInsightsCard = ({ schools, visits, jhpmsLab = [], edustat = [], manpower
 
       list.push({
         type: 'danger',
-        text: `⚠️ Locked Lab: ${sample.school_name} has active instructor but 0 EduStat device hours.`,
-        title: `Locked Lab Hardware - ${sample.school_name}`,
+        text: `⚠️ Locked Lab: ${sample.school_name} has active instructor but 0 EduStat device hours${extraCount > 0 ? ` + ${extraCount} Schools` : ''}.`,
+        title: `Locked Lab Hardware (${lockedLabSchools.length} Schools)`,
+        data: drill
+      });
+    }
+
+    // --- 9b. Device Usage in Vacant Schools Alert ---
+    const vacantActiveUsageSchools = schools.filter(s => {
+      const mRecord = manpowerMap[s.udise_code];
+      const isVacant = !mRecord || normalizeManpowerStatus(mRecord.status || mRecord.working_status) === 'Vacant';
+      const hours = hoursMap[s.udise_code] || 0;
+      return isVacant && hours > 30;
+    }).sort((a, b) => (hoursMap[b.udise_code] || 0) - (hoursMap[a.udise_code] || 0));
+
+    if (vacantActiveUsageSchools.length > 0) {
+      const sample = vacantActiveUsageSchools[0];
+      const hours = (hoursMap[sample.udise_code] || 0).toFixed(1);
+      const extraCount = vacantActiveUsageSchools.length - 1;
+      
+      const drill = vacantActiveUsageSchools.map(s => {
+        const mRecord = manpowerMap[s.udise_code];
+        const hVal = hoursMap[s.udise_code] || 0;
+        return {
+          udise_code: s.udise_code,
+          school_name: s.school_name,
+          visitor_name: s.visitor_name,
+          last_worked_ict_instructor: mRecord ? (mRecord.instructorName || mRecord.instructor_name || mRecord.instructor || 'N/A') : 'N/A',
+          last_working_day: mRecord && mRecord.statusDate ? formatDate(mRecord.statusDate) : 'N/A',
+          hours: Number(hVal.toFixed(1)),
+          jhpmsClasses: classesMap[s.udise_code] || 0,
+          ictClasses: ictClassesMap[s.udise_code] || 0,
+          smartClasses: smartClassesMap[s.udise_code] || 0,
+          lastVisitDate: formatDate(s.lastVisit) === '-' ? 'No Visits' : formatDate(s.lastVisit),
+          status: s.status && typeof s.status === 'object' ? (s.status.label || 'Unknown') : String(s.status || 'Unknown')
+        };
+      });
+
+      list.push({
+        type: 'warning',
+        text: `🔌 Device Usage in Vacancy: ${sample.school_name} has high device usage (${hours} hrs) but vacant instructor position${extraCount > 0 ? ` + ${extraCount} Schools` : ''}.`,
+        title: `High Device Usage in Vacancy (${vacantActiveUsageSchools.length} Schools)`,
         data: drill
       });
     }
