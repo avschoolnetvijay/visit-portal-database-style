@@ -237,6 +237,46 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         return map;
     }, [schools]);
 
+    // Build JHPMS map by UDISE once
+    const jhpmsByUdiseMap = useMemo(() => {
+        const map = {};
+        jhpmsLab.forEach(j => {
+            const ud = String(j.udise || '').trim();
+            if (ud) {
+                if (!map[ud]) map[ud] = [];
+                map[ud].push(j);
+            }
+        });
+        return map;
+    }, [jhpmsLab]);
+
+    // Build EduStat map by UDISE once
+    const edustatByUdiseMap = useMemo(() => {
+        const map = {};
+        edustat.forEach(e => {
+            const ud = String(e.udise || '').trim();
+            if (ud) {
+                if (!map[ud]) map[ud] = [];
+                map[ud].push(e);
+            }
+        });
+        return map;
+    }, [edustat]);
+
+    // Build Manpower map by UDISE once
+    const manpowerByUdiseMap = useMemo(() => {
+        const map = {};
+        manpower.forEach(m => {
+            const ud = String(m.udise || '').trim();
+            if (ud) {
+                if (!map[ud]) map[ud] = [];
+                map[ud].push(m);
+            }
+        });
+        return map;
+    }, [manpower]);
+
+
     // Map each UDISE to its first captured Plus Code for offline fallback
     const udiseToPlusCodeMap = useMemo(() => {
         const map = {};
@@ -415,14 +455,29 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
 
         // JHPMS data for CC's schools
         const ccUdises = new Set(assignedSchools.map(s => String(s.udise_code || s.udise || '').trim()));
-        const ccJhpms = jhpmsLab.filter(j => {
-            const ud = String(j.udise || '').trim();
-            return ccUdises.has(ud) && inRange(j.date);
+        const ccJhpms = [];
+        ccUdises.forEach(ud => {
+            const list = jhpmsByUdiseMap[ud];
+            if (list) {
+                list.forEach(j => {
+                    if (inRange(j.date)) {
+                        ccJhpms.push(j);
+                    }
+                });
+            }
         });
-        const ccEdustat = edustat.filter(e => {
-            const ud = String(e.udise || '').trim();
-            return ccUdises.has(ud) && inRange(e.date);
+        const ccEdustat = [];
+        ccUdises.forEach(ud => {
+            const list = edustatByUdiseMap[ud];
+            if (list) {
+                list.forEach(e => {
+                    if (inRange(e.date)) {
+                        ccEdustat.push(e);
+                    }
+                });
+            }
         });
+
 
         // JHPMS classes categorization
         let ictCount = 0;
@@ -476,14 +531,29 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         const prevVisitedAssignedCount = assignedSchools.filter(s => prevVisitsBySchool[String(s.udise_code || s.udise || '').trim()]).length;
         const prevCoveragePct = assignedSchools.length > 0 ? Math.round((prevVisitedAssignedCount / assignedSchools.length) * 100) : 0;
 
-        const prevCcJhpms = jhpmsLab.filter(j => {
-            const ud = String(j.udise || '').trim();
-            return ccUdises.has(ud) && inPrevRange(j.date);
+        const prevCcJhpms = [];
+        ccUdises.forEach(ud => {
+            const list = jhpmsByUdiseMap[ud];
+            if (list) {
+                list.forEach(j => {
+                    if (inPrevRange(j.date)) {
+                        prevCcJhpms.push(j);
+                    }
+                });
+            }
         });
-        const prevCcEdustat = edustat.filter(e => {
-            const ud = String(e.udise || '').trim();
-            return ccUdises.has(ud) && inPrevRange(e.date);
+        const prevCcEdustat = [];
+        ccUdises.forEach(ud => {
+            const list = edustatByUdiseMap[ud];
+            if (list) {
+                list.forEach(e => {
+                    if (inPrevRange(e.date)) {
+                        prevCcEdustat.push(e);
+                    }
+                });
+            }
         });
+
 
         let prevIctCount = 0;
         let prevTheoryCount = 0;
@@ -558,10 +628,11 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         let manpowerWorking = 0;
         assignedSchools.forEach(s => {
             const ud = String(s.udise_code || s.udise || '').trim();
-            const schoolManpower = manpower.filter(m => String(m.udise).trim() === ud);
+            const schoolManpower = manpowerByUdiseMap[ud] || [];
             const working = schoolManpower.some(m => String(m.status).toUpperCase().trim() === 'WORKING');
             if (working) manpowerWorking++;
         });
+
         const manpowerRequired = assignedSchools.length;
         const manpowerVacant = Math.max(0, manpowerRequired - manpowerWorking);
 
@@ -789,7 +860,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         assignedSchools.forEach(s => {
             const ud = String(s.udise_code || s.udise || '').trim();
             const currClasses = ccJhpms.filter(j => String(j.udise).trim() === ud).length;
-            const prevClasses = jhpmsLab.filter(j => String(j.udise).trim() === ud && inPrevRange(j.date)).length;
+            const prevClasses = (jhpmsByUdiseMap[ud] || []).filter(j => inPrevRange(j.date)).length;
             if (prevClasses >= 5 && currClasses < prevClasses && (currClasses / prevClasses) <= 0.6) {
                 classDrops.push({ name: s.school_name, curr: currClasses, prev: prevClasses });
             }
@@ -810,11 +881,12 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
         assignedSchools.forEach(s => {
             const ud = String(s.udise_code || s.udise || '').trim();
             const currClasses = ccJhpms.filter(j => String(j.udise).trim() === ud).length;
-            const prevClasses = jhpmsLab.filter(j => String(j.udise).trim() === ud && inPrevRange(j.date)).length;
+            const prevClasses = (jhpmsByUdiseMap[ud] || []).filter(j => inPrevRange(j.date)).length;
             if (currClasses >= 5 && currClasses > prevClasses && (prevClasses === 0 || (currClasses / prevClasses) >= 1.4)) {
                 classRises.push({ name: s.school_name, curr: currClasses, prev: prevClasses });
             }
         });
+
         let insight4Text = '';
         let insight4Type = 'info';
         if (classRises.length > 0) {
@@ -1174,7 +1246,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             ccSchoolDevices,
             ccEdustat
         };
-    }, [selectedCC, schools, visits, jhpmsLab, edustat, startD, endD, manpower, edustatMaster]);
+    }, [selectedCC, schools, visits, jhpmsLab, edustat, startD, endD, manpower, edustatMaster, jhpmsByUdiseMap, edustatByUdiseMap, manpowerByUdiseMap]);
 
     // Helper to normalize CC names for comparison
     const cleanName = (n) => String(n || '').trim().toLowerCase();
