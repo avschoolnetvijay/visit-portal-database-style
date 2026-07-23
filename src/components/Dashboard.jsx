@@ -1123,12 +1123,18 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], edustatMa
     })).sort((a, b) => b.hours - a.hours);
 
     // --- Edustat Installation Baseline & Sync Calculations ---
-    const installedDevices = (edustatMaster || []).filter(m => {
+    const totalDevicesList = (edustatMaster || []).filter(m => {
       const udise = cleanUdise(m.udise || m.udise_code || '');
-      return validUdises.has(udise) && String(m.installed || '').toUpperCase() === 'YES';
+      return validUdises.has(udise);
     });
 
+    const totalDevices = totalDevicesList.length;
+
+    const installedDevices = totalDevicesList.filter(m => String(m.installed || '').toUpperCase() === 'YES');
     const totalInstalled = installedDevices.length;
+
+    const notInstalledDevices = totalDevicesList.filter(m => String(m.installed || '').toUpperCase() !== 'YES');
+    const totalNotInstalled = notInstalledDevices.length;
 
     const syncedDevicesList = installedDevices.filter(m => {
       const serial = String(m.serial || '').trim();
@@ -1172,7 +1178,9 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], edustatMa
       });
     };
 
+    const totalDevicesDrilldown = buildDrilldown(totalDevicesList, 'Baseline');
     const installedDrilldown = buildDrilldown(installedDevices, 'Installed');
+    const notInstalledDrilldown = buildDrilldown(notInstalledDevices, 'Not Installed');
     const syncedDrilldown = buildDrilldown(syncedDevicesList, 'Synced');
     const notSyncedDrilldown = buildDrilldown(notSyncedDevicesList, 'Not Synced');
 
@@ -1180,12 +1188,16 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], edustatMa
       totalHours,
       activeDevices,
       avgHours,
+      totalDevices,
       totalInstalled,
+      totalNotInstalled,
       syncedCount: syncedDevicesList.length,
       notSyncedCount: notSyncedDevicesList.length,
       edustatDrilldown,
       deviceDrilldown,
+      totalDevicesDrilldown,
       installedDrilldown,
+      notInstalledDrilldown,
       syncedDrilldown,
       notSyncedDrilldown
     };
@@ -1274,8 +1286,9 @@ const Dashboard = ({ data, jhpmsLab = [], edustat = [], manpower = [], edustatMa
           icon={Icons.Setup}
           onDrillDown={onDrillDown}
           items={[
-            { label: "Total Devices Installed", value: edustatUsageGroups.totalInstalled, drillData: edustatUsageGroups.installedDrilldown, formula: "Total baseline count of EduStat devices marked as installed ('YES') in Master Inventory." },
-            { label: "Device Synced", value: edustatUsageGroups.syncedCount, color: "text-green-600", drillData: edustatUsageGroups.syncedDrilldown, formula: "Count of installed devices that recorded > 0 usage hours in this period." },
+            { label: "Total Devices", value: edustatUsageGroups.totalDevices, drillData: edustatUsageGroups.totalDevicesDrilldown, formula: "Total baseline count of EduStat devices in Master Inventory." },
+            { label: "Devices Installed", value: edustatUsageGroups.totalInstalled, color: "text-green-600", drillData: edustatUsageGroups.installedDrilldown, formula: "Total baseline count of EduStat devices marked as installed ('YES') in Master Inventory." },
+            { label: "Not Installed", value: edustatUsageGroups.totalNotInstalled, color: "text-amber-600", drillData: edustatUsageGroups.notInstalledDrilldown, formula: "Total baseline count of EduStat devices marked as not installed ('NO') in Master Inventory." },
             { label: "Not Sync", value: edustatUsageGroups.notSyncedCount, color: "text-red-600", drillData: edustatUsageGroups.notSyncedDrilldown, formula: "Count of installed devices that did not log any usage hours in this period." }
           ]}
         />
