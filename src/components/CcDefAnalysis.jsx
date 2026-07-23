@@ -2869,6 +2869,8 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                                                 {recsPortal.map((vp, idx) => {
                                                                     const trackingRecord = schools360.find(s360 => String(s360.udise_code || '').trim() === String(vp.udise_code || '').trim());
                                                                     const matchStatus = trackingRecord ? 'Verified' : 'Unverified';
+                                                                    const school = schoolsMap[String(vp.udise_code || '').trim()];
+                                                                    const resolvedSchoolName = school?.school_name || vp.school_name || vp.school || 'Unknown School';
                                                                     
                                                                     return (
                                                                         <div key={idx} className={`p-4 rounded-xl border-2 bg-white dark:bg-slate-900 shadow-sm relative transition hover:shadow-md ${
@@ -2878,7 +2880,7 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                                                         }`}>
                                                                             <div className="flex justify-between items-start gap-2">
                                                                                 <div>
-                                                                                    <div className="text-xs font-black text-slate-850 dark:text-slate-200">{vp.school_name || vp.school || 'Unknown School'}</div>
+                                                                                    <div className="text-xs font-black text-slate-850 dark:text-slate-200">{resolvedSchoolName}</div>
                                                                                     <div className="text-[10px] font-mono text-gray-400 mt-0.5 font-bold">UDISE: {vp.udise_code}</div>
                                                                                 </div>
                                                                                 <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
