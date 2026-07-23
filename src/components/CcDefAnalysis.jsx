@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { formatDate } from '../utils';
+import { formatDate, exportToExcel } from '../utils';
 import ReactApexChart from 'react-apexcharts';
 import { OpenLocationCode } from 'open-location-code';
 
@@ -204,6 +204,22 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
     const [expandedInsights, setExpandedInsights] = useState({});
     const toggleInsight = (id) => {
         setExpandedInsights(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const handleExportDeviceSlumps = (slumps) => {
+        if (!slumps || slumps.length === 0) return;
+        const exportData = slumps.map((s, idx) => ({
+            'Sl No': idx + 1,
+            'UDISE Code': s.udise,
+            'School Name': s.school_name,
+            'Device Serial': s.serial,
+            'Device Type': s.device_type,
+            'CC Assigned': s.visitor_name,
+            'Previous Period Hours': Number(s.prevHours.toFixed(1)),
+            'Current Period Hours': Number(s.currHours.toFixed(1)),
+            'Status': 'OFFLINE'
+        }));
+        exportToExcel(exportData, `Device_Sync_Slump_Alerts`);
     };
 
     // Build schools map once for O(1) lookups
@@ -850,13 +866,21 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
             const prevHours = prevCcEdustat.filter(e => String(e.serial).trim() === serial).reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
             if (prevHours > 10 && currHours === 0) {
                 const sch = schoolsMap[String(d.udise).trim()];
-                deviceSlumps.push(sch ? sch.school_name : d.udise);
+                deviceSlumps.push({
+                    school_name: sch ? sch.school_name : (d.school_name || 'School ' + d.udise),
+                    udise: String(d.udise).trim(),
+                    serial: serial,
+                    prevHours: prevHours,
+                    currHours: currHours,
+                    device_type: d.device || 'N/A',
+                    visitor_name: sch ? sch.visitor_name : 'N/A'
+                });
             }
         });
         let insight6Text = '';
         let insight6Type = 'info';
         if (deviceSlumps.length > 0) {
-            insight6Text = `Device sync alerts: EduStat devices at ${deviceSlumps.join(', ')} went completely offline (0 hours logged) after active syncing in the previous period.`;
+            insight6Text = `Device sync alerts: EduStat devices at ${deviceSlumps.map(s => s.school_name).join(', ')} went completely offline (0 hours logged) after active syncing in the previous period.`;
             insight6Type = 'error';
         } else {
             insight6Text = `Stable device syncing: No previously active digital devices dropped to zero activity in this period.`;
@@ -1047,7 +1071,8 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                 summary: deviceSlumps.length > 0
                     ? `Device sync alerts: EduStat devices at ${deviceSlumps.length} schools went completely offline (0 hours logged) after active syncing in the previous period.`
                     : `Stable device syncing: No previously active digital devices dropped to zero activity in this period.`,
-                details: deviceSlumps.map(s => `• ${s}: Device went offline (0 hours logged this period vs active syncing previously)`)
+                details: deviceSlumps.map(s => `• ${s.school_name}: Device went offline (0 hours logged this period vs ${s.prevHours.toFixed(1)} hours in previous period)`),
+                rawDetails: deviceSlumps
             },
             {
                 id: 7,
@@ -2412,18 +2437,36 @@ export default function CcDefAnalysis({ schools = [], visits = [], jhpmsLab = []
                                                     <h4 className={`text-xs font-black ${titleClass}`}>
                                                         {insight.title}
                                                     </h4>
-                                                    {hasDetails && (
-                                                        <button 
-                                                            onClick={() => toggleInsight(insight.id)}
-                                                            className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded transition shrink-0 ${
-                                                                isExpanded 
-                                                                    ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-350' 
-                                                                    : 'bg-[#2d8b7e] text-white hover:bg-[#226c62]'
-                                                            }`}
-                                                        >
-                                                            {isExpanded ? 'Hide Details ▲' : 'Show Details ▼'}
-                                                        </button>
-                                                    )}
+                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                        {insight.id === 6 && insight.rawDetails && insight.rawDetails.length > 0 && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleExportDeviceSlumps(insight.rawDetails);
+                                                                }}
+                                                                className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900 hover:bg-teal-100 transition flex items-center gap-1"
+                                                            >
+                                                                <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                                    <polyline points="7 10 12 15 17 10" />
+                                                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                                                </svg>
+                                                                Export
+                                                            </button>
+                                                        )}
+                                                        {hasDetails && (
+                                                            <button 
+                                                                onClick={() => toggleInsight(insight.id)}
+                                                                className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded transition ${
+                                                                    isExpanded 
+                                                                        ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-350' 
+                                                                        : 'bg-[#2d8b7e] text-white hover:bg-[#226c62]'
+                                                                }`}
+                                                            >
+                                                                {isExpanded ? 'Hide Details ▲' : 'Show Details ▼'}
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <p className={`text-[11px] font-medium leading-relaxed mt-1 ${textClass}`}>
                                                     {insight.summary}
