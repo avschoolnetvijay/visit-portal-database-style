@@ -253,11 +253,23 @@ export async function set(key, val) {
     if (val.length === 0) return;
 
     // 2. Clean rows: remove auto-increment id column to let database generate it
-    const cleanRows = val.map(row => {
+    let cleanRows = val.map(row => {
       const copy = { ...row };
       delete copy.id;
       return copy;
     });
+
+    // Deduplicate schools table rows by udise_code to prevent duplicate key violations
+    if (tableName === 'schools') {
+      const seenUdise = new Set();
+      cleanRows = cleanRows.filter(row => {
+        const udise = String(row.udise_code || '').trim();
+        if (!udise) return false;
+        if (seenUdise.has(udise)) return false;
+        seenUdise.add(udise);
+        return true;
+      });
+    }
 
     // 3. Bulk insert in chunks of 1000 rows
     const chunkSize = 1000;
